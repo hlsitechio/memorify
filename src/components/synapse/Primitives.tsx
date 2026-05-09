@@ -27,7 +27,7 @@ export const Primitives = () => {
   return (
     <section id="primitives" className="py-24 border-t border-border/50">
       <div className="container">
-        <div className="max-w-2xl mb-16">
+        <div className="max-w-2xl mx-auto mb-16 text-center">
           <p className="text-xs font-mono text-primary mb-3 tracking-wider">PRIMITIVES</p>
           <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
             What Supabase did for apps,<br />
@@ -35,7 +35,7 @@ export const Primitives = () => {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4 max-w-5xl">
+        <div className="grid md:grid-cols-2 gap-4 max-w-5xl mx-auto">
           {items.map((it) => (
             <div
               key={it.title}
