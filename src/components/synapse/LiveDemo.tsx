@@ -158,7 +158,7 @@ export const LiveDemo = () => {
             <div className="border-t border-border px-4 py-3 text-[10px] font-mono tracking-wider text-muted-foreground">
               RECENT MEMORIES · public namespace
             </div>
-            <div className="p-3 space-y-2 max-h-[200px] overflow-auto">
+            <div className="p-3 space-y-2 max-h-[200px] overflow-auto no-scrollbar">
               {memories.length === 0 && (
                 <p className="text-xs text-muted-foreground font-mono px-2 py-3">No memories yet. Be the first.</p>
               )}
