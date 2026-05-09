@@ -127,9 +127,9 @@ function ConnectorsVisual() {
   return (
     <div className="absolute inset-0 grid place-items-center">
       <div className="relative w-36 h-36">
-        {/* dashed rotating rings */}
-        <div className="absolute inset-0 rounded-full border border-dashed border-primary/25 animate-ring-spin" />
-        <div className="absolute inset-3 rounded-full border border-dashed border-primary/15 animate-ring-spin-rev" />
+        {/* dashed rings */}
+        <div className="absolute inset-0 rounded-full border border-dashed border-primary/25" />
+        <div className="absolute inset-3 rounded-full border border-dashed border-primary/15" />
 
         {/* hub */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gradient-primary grid place-items-center text-[9px] font-mono font-bold text-primary-foreground glow-primary z-10">
