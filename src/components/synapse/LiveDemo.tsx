@@ -152,13 +152,13 @@ export const LiveDemo = () => {
               <span className="text-[10px] font-mono tracking-wider text-muted-foreground">RESPONSE</span>
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
             </div>
-            <pre className="p-4 text-xs font-mono overflow-auto min-h-[180px] max-h-[260px] text-foreground/90 whitespace-pre-wrap">
+            <pre className="p-4 text-xs font-mono overflow-auto no-scrollbar min-h-[180px] max-h-[260px] text-foreground/90 whitespace-pre-wrap">
               <code>{response || "// Awaiting first call..."}</code>
             </pre>
             <div className="border-t border-border px-4 py-3 text-[10px] font-mono tracking-wider text-muted-foreground">
               RECENT MEMORIES · public namespace
             </div>
-            <div className="p-3 space-y-2 max-h-[200px] overflow-auto">
+            <div className="p-3 space-y-2 max-h-[200px] overflow-auto no-scrollbar">
               {memories.length === 0 && (
                 <p className="text-xs text-muted-foreground font-mono px-2 py-3">No memories yet. Be the first.</p>
               )}

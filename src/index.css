@@ -222,3 +222,8 @@
   }
   .animate-count-flicker { animation: count-flicker 1.4s ease-in-out infinite; }
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
