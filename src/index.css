@@ -157,4 +157,68 @@
     50% { transform: scaleY(1); }
   }
   .animate-tick { animation: tick 1.6s ease-in-out infinite; transform-origin: bottom; }
+
+  /* memory: typing cursor + write head */
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .animate-blink { animation: blink 1s steps(2) infinite; }
+
+  @keyframes type-in {
+    0% { width: 0; }
+    60% { width: 100%; }
+    100% { width: 100%; }
+  }
+  .animate-type-in { animation: type-in 3.2s steps(40, end) infinite; }
+
+  @keyframes embed-pulse {
+    0%, 100% { transform: scale(0.85); opacity: 0.4; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+  .animate-embed-pulse { animation: embed-pulse 1.8s ease-in-out infinite; }
+
+  /* connectors: signal flowing inward to hub */
+  @keyframes spoke-flow {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, 0px))) scale(1); opacity: 0; }
+  }
+  .animate-spoke-flow { animation: spoke-flow 2.4s ease-out infinite; }
+
+  @keyframes ring-spin {
+    to { transform: rotate(360deg); }
+  }
+  .animate-ring-spin { animation: ring-spin 18s linear infinite; }
+
+  @keyframes ring-spin-rev {
+    to { transform: rotate(-360deg); }
+  }
+  .animate-ring-spin-rev { animation: ring-spin-rev 22s linear infinite; }
+
+  /* realtime: cross-fade sync between agents */
+  @keyframes sync-left {
+    0%, 40% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.6); }
+    50% { box-shadow: 0 0 0 10px hsl(var(--primary) / 0); }
+    100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  }
+  .animate-sync-left { animation: sync-left 2.6s ease-out infinite; }
+  .animate-sync-right { animation: sync-left 2.6s ease-out infinite 1.3s; }
+
+  @keyframes typewriter {
+    0%, 15% { content: "›"; }
+    20%, 35% { content: "› wr"; }
+    40%, 55% { content: "› writing"; }
+    60%, 100% { content: "› writing memory…"; }
+  }
+
+  /* observability: sweep highlight */
+  @keyframes sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .animate-sweep { animation: sweep 4s ease-in-out infinite; }
+
+  @keyframes count-flicker {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  .animate-count-flicker { animation: count-flicker 1.4s ease-in-out infinite; }
 }
