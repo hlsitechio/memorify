@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      demo_memories: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          namespace: string
+          tags: string[] | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          namespace?: string
+          tags?: string[] | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          namespace?: string
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
+      waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          use_case: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          use_case?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          use_case?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
