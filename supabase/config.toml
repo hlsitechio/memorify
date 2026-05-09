@@ -1,0 +1,4 @@
+project_id = "qkgzetykzzsqgiqzlwsv"
+
+[functions.agent-gateway]
+verify_jwt = false
