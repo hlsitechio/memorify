@@ -63,6 +63,14 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: ["Inter", "ui-sans-serif", "system-ui"],
+        mono: ["ui-monospace", "JetBrains Mono", "Fira Code", "monospace"],
+      },
+      backgroundImage: {
+        "gradient-primary": "var(--gradient-primary)",
+        "gradient-mesh": "var(--gradient-mesh)",
+      },
       keyframes: {
         "accordion-down": {
           from: {
