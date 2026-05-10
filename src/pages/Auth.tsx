@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Zap } from "lucide-react";
+import authVideo from "@/assets/auth-bg.mp4.asset.json";
 
 const GoogleIcon = () => (
   <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -69,7 +70,17 @@ export default function Auth() {
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background text-foreground">
       <section className="hidden lg:flex flex-col justify-between p-12 bg-card border-r border-border relative overflow-hidden">
-        <div className="absolute inset-0 bg-mesh opacity-50 pointer-events-none" />
+        <video
+          src={authVideo.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover opacity-50 pointer-events-none"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-background/60 to-background/90 pointer-events-none" />
+        <div className="absolute inset-0 bg-mesh opacity-30 pointer-events-none" />
         <Link to="/" className="flex items-center gap-2 relative">
           <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
             <Zap className="h-4 w-4 text-primary-foreground" />
