@@ -51,11 +51,11 @@ function CopyField({ value, label, mono = true }: { value: string; label?: strin
     setTimeout(() => setCopied(false), 1400);
   };
   return (
-    <div className="flex items-stretch rounded-md border border-border bg-secondary/40 overflow-hidden group">
-      <code className={cn("flex-1 px-3 py-2 text-xs truncate", mono && "font-mono")} title={value}>{value}</code>
+    <div className="flex items-stretch rounded-md border border-border bg-secondary/40 overflow-hidden group min-w-0 w-full">
+      <code className={cn("flex-1 min-w-0 px-3 py-2 text-xs truncate", mono && "font-mono")} title={value}>{value}</code>
       <button
         onClick={copy}
-        className="px-3 border-l border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        className="px-3 shrink-0 border-l border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         title="Copy"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
