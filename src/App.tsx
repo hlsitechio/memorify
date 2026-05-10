@@ -25,6 +25,7 @@ import Voices from "./pages/dashboard/Voices";
 import DatabasePage from "./pages/dashboard/Database";
 import Vault from "./pages/dashboard/Vault";
 import Mcp from "./pages/dashboard/Mcp";
+import Docs from "./pages/dashboard/Docs";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="events" element={<Events />} />
               <Route path="logs" element={<Logs />} />
               <Route path="api-keys" element={<ApiKeys />} />
+              <Route path="docs" element={<Docs />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
