@@ -104,6 +104,45 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json
+          mime: string | null
+          name: string
+          size: number | null
+          status: string
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mime?: string | null
+          name: string
+          size?: number | null
+          status?: string
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mime?: string | null
+          name?: string
+          size?: number | null
+          status?: string
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string
@@ -127,6 +166,39 @@ export type Database = {
           kind?: string
           payload?: Json | null
           source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      images: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          model: string | null
+          params: Json
+          prompt: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          model?: string | null
+          params?: Json
+          prompt?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          model?: string | null
+          params?: Json
+          prompt?: string | null
+          url?: string
           user_id?: string
         }
         Relationships: []
@@ -352,6 +424,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           version?: number
+        }
+        Relationships: []
+      }
+      voices: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          params: Json
+          sample_url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name: string
+          params?: Json
+          sample_url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          params?: Json
+          sample_url?: string | null
+          user_id?: string
         }
         Relationships: []
       }
