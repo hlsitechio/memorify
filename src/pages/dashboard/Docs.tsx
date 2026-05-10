@@ -89,8 +89,8 @@ const sections: Section[] = [
       { title: "Documents", desc: "Drag-drop upload, signed URLs, private per-user storage.", status: "stable", icon: FileText, to: "/dashboard/documents" },
       { title: "Images", desc: "AI generation via Lovable AI Gateway + upload library.", status: "stable", icon: ImageIcon, to: "/dashboard/images" },
       { title: "Voices (Otter-style)", desc: "Record, upload, transcribe, AI summary + action items.", status: "stable", icon: Mic, to: "/dashboard/voices" },
-      { title: "Voice auto-transcription", desc: "Manual paste today; ElevenLabs Scribe wiring is staged.", status: "beta" },
-      { title: "Document Q&A + embeddings", desc: "pgvector-backed semantic search across documents and memory.", status: "next" },
+      { title: "Voice auto-transcription", desc: "Manual paste today; ElevenLabs Scribe wiring is staged.", status: "beta", icon: Mic2 },
+      { title: "Document Q&A + embeddings", desc: "pgvector-backed semantic search across documents and memory.", status: "next", icon: Search },
     ],
   },
   {
