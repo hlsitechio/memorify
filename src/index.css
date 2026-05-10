@@ -106,6 +106,19 @@
   }
   .animate-float-up { animation: float-up 0.6s var(--transition-smooth) both; }
 
+  @keyframes nav-swap {
+    0% { opacity: 0; transform: translateY(-12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .animate-nav-swap > * { animation: nav-swap 0.35s var(--transition-smooth) both; }
+  .animate-nav-swap > * > div { animation: nav-swap 0.4s var(--transition-smooth) both; }
+  .animate-nav-swap > * > div:nth-child(1) { animation-delay: 0.02s; }
+  .animate-nav-swap > * > div:nth-child(2) { animation-delay: 0.06s; }
+  .animate-nav-swap > * > div:nth-child(3) { animation-delay: 0.10s; }
+  .animate-nav-swap > * > div:nth-child(4) { animation-delay: 0.14s; }
+  .animate-nav-swap > * > div:nth-child(5) { animation-delay: 0.18s; }
+  .animate-nav-swap > * > div:nth-child(6) { animation-delay: 0.22s; }
+
   /* memory: ingest line drops into stack */
   @keyframes mem-drop {
     0% { transform: translateY(-24px); opacity: 0; }
