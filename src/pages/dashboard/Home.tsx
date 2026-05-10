@@ -70,8 +70,8 @@ export default function DashboardHome() {
             className="layout"
             layout={layout}
             cols={12}
-            rowHeight={36}
-            margin={[16, 16]}
+            rowHeight={20}
+            margin={[14, 14]}
             containerPadding={[0, 0]}
             draggableHandle=".drag-handle"
             onLayoutChange={(l) => setLayout(l)}
