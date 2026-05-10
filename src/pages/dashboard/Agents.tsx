@@ -285,23 +285,38 @@ function Feature({ icon: Icon, title, body }: { icon: any; title: string; body: 
   );
 }
 
-function AgentRow({ agent, onOpen, onDelete }: { agent: Agent; onOpen: () => void; onDelete: () => void }) {
+function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }: {
+  agent: Agent;
+  onOpen: () => void;
+  onDelete: () => void;
+  onPauseToggle: () => void;
+  onResync: () => void;
+  onRevoke: () => void;
+}) {
   const connected = agent.status === "connected";
+  const paused = agent.status === "paused";
   const last = agent.last_seen_at ? new Date(agent.last_seen_at).toLocaleString() : "Never";
+  const statusLabel = paused ? "Paused" : connected ? "Connected" : "Pending";
+  const statusDot = paused ? "bg-amber-400" : connected ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground";
+  const statusBadgeClass = paused
+    ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+    : connected
+      ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
+      : "";
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
         "h-10 w-10 rounded-md flex items-center justify-center shrink-0",
-        connected ? "bg-emerald-500/15 text-emerald-400" : "bg-secondary text-muted-foreground"
+        paused ? "bg-amber-500/15 text-amber-400" : connected ? "bg-emerald-500/15 text-emerald-400" : "bg-secondary text-muted-foreground"
       )}>
         <Terminal className="h-5 w-5" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <div className="text-sm font-semibold truncate">{agent.name}</div>
-          <Badge variant={connected ? "default" : "secondary"} className={cn("text-[10px] gap-1", connected && "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20")}>
-            <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground")} />
-            {connected ? "Connected" : "Pending"}
+          <Badge variant={connected || paused ? "default" : "secondary"} className={cn("text-[10px] gap-1", statusBadgeClass)}>
+            <span className={cn("h-1.5 w-1.5 rounded-full", statusDot)} />
+            {statusLabel}
           </Badge>
         </div>
         <div className="text-[11px] font-mono text-muted-foreground mt-0.5 truncate">
@@ -321,12 +336,32 @@ function AgentRow({ agent, onOpen, onDelete }: { agent: Agent; onOpen: () => voi
       <Button size="sm" variant="outline" onClick={onOpen}>
         <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Setup
       </Button>
-      <Button size="sm" variant="ghost" onClick={onDelete}>
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" className="px-2">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={onPauseToggle}>
+            {paused ? <><Play className="h-3.5 w-3.5 mr-2" /> Resume agent</> : <><Pause className="h-3.5 w-3.5 mr-2" /> Pause agent</>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onResync}>
+            <RefreshCw className="h-3.5 w-3.5 mr-2" /> Resync commands
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onRevoke} className="text-amber-300 focus:text-amber-200">
+            <KeyRound className="h-3.5 w-3.5 mr-2" /> Rotate token
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete agent
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
+
 
 function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const open = !!agent;
