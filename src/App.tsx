@@ -17,6 +17,13 @@ import Events from "./pages/dashboard/Events";
 import Logs from "./pages/dashboard/Logs";
 import ApiKeys from "./pages/dashboard/ApiKeys";
 import Settings from "./pages/dashboard/Settings";
+import Skills from "./pages/dashboard/Skills";
+import Plugins from "./pages/dashboard/Plugins";
+import Documents from "./pages/dashboard/Documents";
+import Images from "./pages/dashboard/Images";
+import Voices from "./pages/dashboard/Voices";
+import DatabasePage from "./pages/dashboard/Database";
+import Vault from "./pages/dashboard/Vault";
 
 const queryClient = new QueryClient();
 
