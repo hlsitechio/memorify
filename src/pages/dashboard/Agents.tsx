@@ -347,6 +347,95 @@ Every response is JSON: \`{ ok, action, result, agent }\` on success, or \`{ ok:
 
 You're ready. Begin by running the GET request above to confirm the connection.`;
 
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl [&>*]:min-w-0">
+        <DialogHeader className="min-w-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-amber-400" />
+            Connect {agent?.name}
+          </DialogTitle>
+          <DialogDescription>
+            Two ways to plug in. <span className="text-foreground font-medium">Direct API</span> is instant — no restart, no handshake.
+          </DialogDescription>
+        </DialogHeader>
+
+        {agent && (
+          <div className="space-y-4 min-w-0">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-2">
+              <span className={cn(
+                "h-2 w-2 rounded-full",
+                agent.status === "connected" ? "bg-emerald-400 animate-pulse" : "bg-amber-400 animate-pulse"
+              )} />
+              <span className="text-xs">
+                {agent.status === "connected" ? (
+                  <>Connected · last seen {agent.last_seen_at ? new Date(agent.last_seen_at).toLocaleTimeString() : "just now"}</>
+                ) : (
+                  <>Waiting for first ping…</>
+                )}
+              </span>
+            </div>
+
+            <Tabs defaultValue="prompt">
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="prompt">
+                  <Zap className="h-3.5 w-3.5 mr-1.5" /> System Prompt
+                </TabsTrigger>
+                <TabsTrigger value="api">Direct API</TabsTrigger>
+                <TabsTrigger value="mcp">MCP</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="prompt" className="space-y-3 mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Paste this into Claude Code (e.g. in your <code className="text-foreground">CLAUDE.md</code>) or any agent's system prompt. Token is already baked in — the agent will self-onboard and start using Synapse on its next message.
+                </p>
+                <CopyField value={systemPrompt} label="Agent system prompt" multiline />
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Synapse data.
+                </div>
+              </TabsContent>
+
+              <TabsContent value="api" className="space-y-4 mt-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Endpoint</label>
+                  <CopyField value={apiUrl} label="Endpoint" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Bearer token (keep secret)</label>
+                  <CopyField value={token} label="Token" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">List commands + whoami</label>
+                  <CopyField value={curlWhoami} label="whoami" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Store a memory</label>
+                  <CopyField value={curlRemember} label="memory.remember" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Recall</label>
+                  <CopyField value={curlRecall} label="memory.recall" />
+                </div>
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-primary font-medium">Tip:</span> any agent (Claude Code via bash, scripts, your own tools) can call this with no restart. Available actions: <code className="text-foreground">whoami</code>, <code className="text-foreground">memory.remember/recall/update/delete</code>, <code className="text-foreground">documents.list</code>, <code className="text-foreground">skills.list</code>, <code className="text-foreground">events.log/list</code>.
+                </div>
+              </TabsContent>
+
+              <TabsContent value="mcp" className="space-y-3 mt-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
+                  <CopyField value={mcpCmd} label="MCP install" />
+                  <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 type AgentEvent = {
   id: string;
   kind: string;
@@ -437,95 +526,5 @@ function ActivityFeed({ userId, agents }: { userId?: string; agents: Agent[] }) 
         );
       })}
     </div>
-  );
-}
-
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl [&>*]:min-w-0">
-        <DialogHeader className="min-w-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-amber-400" />
-            Connect {agent?.name}
-          </DialogTitle>
-          <DialogDescription>
-            Two ways to plug in. <span className="text-foreground font-medium">Direct API</span> is instant — no restart, no handshake.
-          </DialogDescription>
-        </DialogHeader>
-
-        {agent && (
-          <div className="space-y-4 min-w-0">
-            <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-2">
-              <span className={cn(
-                "h-2 w-2 rounded-full",
-                agent.status === "connected" ? "bg-emerald-400 animate-pulse" : "bg-amber-400 animate-pulse"
-              )} />
-              <span className="text-xs">
-                {agent.status === "connected" ? (
-                  <>Connected · last seen {agent.last_seen_at ? new Date(agent.last_seen_at).toLocaleTimeString() : "just now"}</>
-                ) : (
-                  <>Waiting for first ping…</>
-                )}
-              </span>
-            </div>
-
-            <Tabs defaultValue="prompt">
-              <TabsList className="w-full grid grid-cols-3">
-                <TabsTrigger value="prompt">
-                  <Zap className="h-3.5 w-3.5 mr-1.5" /> System Prompt
-                </TabsTrigger>
-                <TabsTrigger value="api">Direct API</TabsTrigger>
-                <TabsTrigger value="mcp">MCP</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="prompt" className="space-y-3 mt-4">
-                <p className="text-xs text-muted-foreground">
-                  Paste this into Claude Code (e.g. in your <code className="text-foreground">CLAUDE.md</code>) or any agent's system prompt. Token is already baked in — the agent will self-onboard and start using Synapse on its next message.
-                </p>
-                <CopyField value={systemPrompt} label="Agent system prompt" multiline />
-                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
-                  <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Synapse data.
-                </div>
-              </TabsContent>
-
-              <TabsContent value="api" className="space-y-4 mt-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Endpoint</label>
-                  <CopyField value={apiUrl} label="Endpoint" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Bearer token (keep secret)</label>
-                  <CopyField value={token} label="Token" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">List commands + whoami</label>
-                  <CopyField value={curlWhoami} label="whoami" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Store a memory</label>
-                  <CopyField value={curlRemember} label="memory.remember" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Recall</label>
-                  <CopyField value={curlRecall} label="memory.recall" />
-                </div>
-                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
-                  <span className="text-primary font-medium">Tip:</span> any agent (Claude Code via bash, scripts, your own tools) can call this with no restart. Available actions: <code className="text-foreground">whoami</code>, <code className="text-foreground">memory.remember/recall/update/delete</code>, <code className="text-foreground">documents.list</code>, <code className="text-foreground">skills.list</code>, <code className="text-foreground">events.log/list</code>.
-                </div>
-              </TabsContent>
-
-              <TabsContent value="mcp" className="space-y-3 mt-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
-                  <CopyField value={mcpCmd} label="MCP install" />
-                  <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }
