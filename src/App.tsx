@@ -48,6 +48,13 @@ const App = () => (
             >
               <Route index element={<DashboardHome />} />
               <Route path="memory" element={<Memory />} />
+              <Route path="skills" element={<Skills />} />
+              <Route path="plugins" element={<Plugins />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="images" element={<Images />} />
+              <Route path="voices" element={<Voices />} />
+              <Route path="database" element={<DatabasePage />} />
+              <Route path="vault" element={<Vault />} />
               <Route path="connectors" element={<Connectors />} />
               <Route path="events" element={<Events />} />
               <Route path="logs" element={<Logs />} />
