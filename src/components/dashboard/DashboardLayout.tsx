@@ -62,7 +62,7 @@ function DashboardLayoutInner() {
   useRegisterCoreCommands();
 
   return (
-    <div className="min-h-screen flex w-full bg-background text-foreground">
+    <div className="h-screen overflow-hidden flex w-full bg-background text-foreground">
       <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
         <div className="h-14 px-4 flex items-center gap-2 border-b border-border">
           <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
