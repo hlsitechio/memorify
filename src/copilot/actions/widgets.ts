@@ -1,6 +1,6 @@
 // Dashboard widget commands — entirely client-scope.
 
-import type { CommandDef } from "./types";
+import type { CommandDef } from "../types";
 
 const ROUTES = ["/dashboard"];
 

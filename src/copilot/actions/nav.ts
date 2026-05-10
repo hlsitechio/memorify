@@ -1,7 +1,7 @@
 // Client-scope nav/UI commands. Always-on (registered globally in App).
 
-import type { CommandDef } from "./types";
-import { listCommands } from "./registry";
+import type { CommandDef } from "../types";
+import { listCommands } from "../registry";
 
 export const navCommands: CommandDef[] = [
   {

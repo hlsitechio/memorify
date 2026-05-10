@@ -2,7 +2,7 @@
 // Server handlers live in supabase/functions/copilot-action/index.ts;
 // this file only declares the manifest.
 
-import type { CommandDef } from "./types";
+import type { CommandDef } from "../types";
 
 const ROUTES = ["/dashboard/plugins", "/dashboard"];
 
