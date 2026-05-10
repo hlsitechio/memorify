@@ -42,7 +42,7 @@ function endpointUrl() {
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-ping`;
 }
 
-function CopyField({ value, label, mono = true }: { value: string; label?: string; mono?: boolean }) {
+function CopyField({ value, label, mono = true, multiline = false }: { value: string; label?: string; mono?: boolean; multiline?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(value);
@@ -50,6 +50,20 @@ function CopyField({ value, label, mono = true }: { value: string; label?: strin
     toast.success(`${label ?? "Copied"} to clipboard`);
     setTimeout(() => setCopied(false), 1400);
   };
+  if (multiline) {
+    return (
+      <div className="relative rounded-md border border-border bg-secondary/40 overflow-hidden min-w-0 w-full">
+        <pre className={cn("max-h-72 overflow-auto px-3 py-2 pr-12 text-[11px] leading-relaxed whitespace-pre-wrap break-words", mono && "font-mono")}>{value}</pre>
+        <button
+          onClick={copy}
+          className="absolute top-1.5 right-1.5 rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title="Copy"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="flex items-stretch rounded-md border border-border bg-secondary/40 overflow-hidden group min-w-0 w-full">
       <code className={cn("flex-1 min-w-0 px-3 py-2 text-xs truncate", mono && "font-mono")} title={value}>{value}</code>
@@ -63,6 +77,7 @@ function CopyField({ value, label, mono = true }: { value: string; label?: strin
     </div>
   );
 }
+
 
 export default function Agents() {
   const { user } = useAuth();
@@ -281,6 +296,50 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
+  const systemPrompt = `You are connected to Synapse — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
+
+## Your credentials
+- Endpoint: ${apiUrl}
+- Token:    ${token}
+- Auth:     Authorization: Bearer <token>
+
+## How to call any command
+Run this in a bash tool:
+\`\`\`bash
+curl -s -X POST ${apiUrl} \\
+  -H "Authorization: Bearer ${token}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"<ACTION>","params":{...}}'
+\`\`\`
+Every response is JSON: \`{ ok, action, result, agent }\` on success, or \`{ ok:false, error }\` on failure.
+
+## First thing to do, ONCE per session
+1. GET ${apiUrl} with your bearer token. If \`first_connection: true\`, carefully read the \`welcome\` markdown — it explains the platform.
+2. Call \`memory.recall\` with no query to see the user's latest 10 memories. This gives you context about who they are and what they're working on.
+
+## Available actions
+- \`synapse.welcome\` — re-read the onboarding guide
+- \`whoami\` — confirm identity
+- \`memory.remember\` — params: { content, tags?, category?, namespace? }
+- \`memory.recall\`   — params: { query?, limit?, category? }
+- \`memory.update\`   — params: { id, content?, tags?, category? }
+- \`memory.delete\`   — params: { id }
+- \`documents.list\`  — params: { limit? }
+- \`skills.list\`
+- \`events.log\`      — params: { kind, payload?, source? }
+- \`events.list\`     — params: { limit? }
+
+## Rules of engagement
+1. **Recall before answering.** At the start of any task, \`memory.recall\` with a relevant query.
+2. **Remember what matters.** When the user states a preference, fact, decision, or context worth keeping — call \`memory.remember\` with descriptive tags (e.g. \`["preference"]\`, \`["project:synapse"]\`).
+3. **Don't duplicate.** Recall first; if a similar memory exists, \`memory.update\` it instead of adding a new one.
+4. **Log meaningful actions** with \`events.log\` (kind: \`"task_completed"\`, \`"file_generated"\`, etc.) so the user has an audit trail.
+5. **Use namespaces** to separate contexts: \`default\`, \`work\`, \`personal\`, or per-project.
+6. **Stay scoped.** Your token is bound to one user — everything you read/write belongs to them.
+
+You're ready. Begin by running the GET request above to confirm the connection.`;
+
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl [&>*]:min-w-0">
@@ -310,13 +369,24 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
               </span>
             </div>
 
-            <Tabs defaultValue="api">
-              <TabsList className="w-full grid grid-cols-2">
-                <TabsTrigger value="api">
-                  <Zap className="h-3.5 w-3.5 mr-1.5" /> Direct API (recommended)
+            <Tabs defaultValue="prompt">
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="prompt">
+                  <Zap className="h-3.5 w-3.5 mr-1.5" /> System Prompt
                 </TabsTrigger>
-                <TabsTrigger value="mcp">MCP (restart required)</TabsTrigger>
+                <TabsTrigger value="api">Direct API</TabsTrigger>
+                <TabsTrigger value="mcp">MCP</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="prompt" className="space-y-3 mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Paste this into Claude Code (e.g. in your <code className="text-foreground">CLAUDE.md</code>) or any agent's system prompt. Token is already baked in — the agent will self-onboard and start using Synapse on its next message.
+                </p>
+                <CopyField value={systemPrompt} label="Agent system prompt" multiline />
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Synapse data.
+                </div>
+              </TabsContent>
 
               <TabsContent value="api" className="space-y-4 mt-4">
                 <div className="space-y-1.5">
