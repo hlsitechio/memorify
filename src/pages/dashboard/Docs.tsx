@@ -193,10 +193,8 @@ export default function Docs() {
   };
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_220px] gap-0">
+    <div className="flex-1 min-h-0 overflow-y-auto" ref={containerRef}>
 
-      {/* Main */}
-      <div ref={containerRef} className="overflow-y-auto">
         <div className="max-w-3xl mx-auto px-8 py-10">
           {/* Hero */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
@@ -260,36 +258,7 @@ export default function Docs() {
               When a feature ships, moves to beta, or is queued — update <code className="px-1 py-0.5 rounded bg-background border border-border">src/pages/dashboard/Docs.tsx</code>. This page is the single source of truth.
             </div>
           </div>
-        </div>
       </div>
-
-      {/* Right TOC */}
-      <aside className="border-l border-border overflow-y-auto hidden lg:block">
-        <div className="p-4 sticky top-0">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-3">
-            <List className="h-3.5 w-3.5" /> On this page
-          </div>
-          <nav className="space-y-1">
-            {sections.map((s) => {
-              const active = activeId === s.id;
-              return (
-                <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  className={cn(
-                    "block text-xs py-1 border-l-2 pl-3 transition-colors",
-                    active
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {s.title}
-                </a>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
     </div>
   );
 }
