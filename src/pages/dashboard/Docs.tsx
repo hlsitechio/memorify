@@ -144,6 +144,15 @@ const navGroups = [
   { label: "Operations", ids: ["observe", "project"] },
 ];
 
+export const docsNavGroups = navGroups.map((g) => ({
+  label: g.label,
+  items: g.ids
+    .map((id) => sections.find((s) => s.id === id))
+    .filter((s): s is Section => !!s)
+    .map((s) => ({ id: s.id, title: s.title })),
+}));
+
+
 export default function Docs() {
   const [activeId, setActiveId] = useState<string>(sections[0].id);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -184,43 +193,7 @@ export default function Docs() {
   };
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[220px_minmax(0,1fr)_220px] gap-0">
-      {/* Left nav */}
-      <aside className="border-r border-border bg-card/40 overflow-y-auto">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-primary" />
-            <div className="text-sm font-semibold">Docs</div>
-          </div>
-          <div className="mt-2 text-[11px] text-muted-foreground">v0.1 · living document</div>
-        </div>
-        <nav className="p-2 space-y-4">
-          {navGroups.map((g) => (
-            <div key={g.label} className="space-y-0.5">
-              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</div>
-              {g.ids.map((id) => {
-                const s = sections.find((x) => x.id === id);
-                if (!s) return null;
-                const active = activeId === id;
-                return (
-                  <a
-                    key={id}
-                    href={`#${id}`}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors",
-                      active
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-                    )}
-                  >
-                    <span className="truncate">{s.title}</span>
-                  </a>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </aside>
+    <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_220px] gap-0">
 
       {/* Main */}
       <div ref={containerRef} className="overflow-y-auto">
