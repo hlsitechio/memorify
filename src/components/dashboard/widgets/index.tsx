@@ -24,7 +24,7 @@ export function WidgetShell({
         <div className="text-xs font-medium tracking-tight">{title}</div>
         <div className="ml-auto">{action}</div>
       </div>
-      <div className="flex-1 min-h-0 overflow-auto p-4">{children}</div>
+      <div className="flex-1 min-h-0 overflow-auto scrollbar-thin p-4">{children}</div>
     </div>
   );
 }
