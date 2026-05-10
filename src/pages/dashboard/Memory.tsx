@@ -404,7 +404,6 @@ export default function Memory() {
               ))
             )}
           </div>
-        </div>
       </div>
 
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
