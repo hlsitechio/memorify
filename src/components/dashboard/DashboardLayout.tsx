@@ -8,6 +8,7 @@ import { AIChatSidebar } from "./AIChatSidebar";
 import { Button } from "@/components/ui/button";
 import { CopilotBusProvider } from "@/copilot/bus";
 import { useRegisterCoreCommands } from "@/copilot/useRegisterCoreCommands";
+import { CopilotChatProvider } from "@/copilot/chat-context";
 
 const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
   {
@@ -185,7 +186,9 @@ export default function DashboardLayout() {
   return (
     <DashboardUIProvider>
       <CopilotBusProvider>
-        <DashboardLayoutInner />
+        <CopilotChatProvider>
+          <DashboardLayoutInner />
+        </CopilotChatProvider>
       </CopilotBusProvider>
     </DashboardUIProvider>
   );
