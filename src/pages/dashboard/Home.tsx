@@ -75,6 +75,10 @@ export default function DashboardHome() {
             containerPadding={[0, 0]}
             draggableHandle=".drag-handle"
             onLayoutChange={(l) => setLayout(l)}
+            onDragStart={() => document.body.classList.add("rgl-dragging")}
+            onDragStop={() => document.body.classList.remove("rgl-dragging")}
+            onResizeStart={() => document.body.classList.add("rgl-dragging")}
+            onResizeStop={() => document.body.classList.remove("rgl-dragging")}
             compactType="vertical"
           >
             {WIDGETS.map((w) => (
