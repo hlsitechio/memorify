@@ -17,21 +17,21 @@ const RGL = WidthProvider(GridLayout);
 type WidgetDef = { i: string; el: React.ReactNode; default: Omit<Layout, "i"> };
 
 const WIDGETS: WidgetDef[] = [
-  { i: "welcome",    el: <WelcomeWidget />,        default: { x: 0, y: 0, w: 8, h: 4, minW: 4, minH: 3 } },
-  { i: "usage",      el: <UsageWidget />,          default: { x: 8, y: 0, w: 4, h: 4, minW: 3, minH: 3 } },
-  { i: "memories",   el: <MemoriesStatWidget />,   default: { x: 0, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
-  { i: "connectors", el: <ConnectorsStatWidget />, default: { x: 3, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
-  { i: "events",     el: <EventsStatWidget />,     default: { x: 6, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
-  { i: "docs",       el: <DocsWidget />,           default: { x: 9, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
-  { i: "analytics",  el: <AnalyticsWidget />,      default: { x: 0, y: 8, w: 6, h: 5, minW: 4, minH: 4 } },
-  { i: "skills",     el: <SkillsResumeWidget />,   default: { x: 6, y: 8, w: 3, h: 5, minW: 3, minH: 4 } },
-  { i: "plugins",    el: <PluginsSummaryWidget />, default: { x: 9, y: 8, w: 3, h: 5, minW: 3, minH: 4 } },
-  { i: "activity",   el: <RecentActivityWidget />, default: { x: 0, y: 13, w: 6, h: 4, minW: 4, minH: 3 } },
-  { i: "quickstart", el: <QuickStartWidget />,     default: { x: 6, y: 13, w: 3, h: 4, minW: 3, minH: 3 } },
-  { i: "project",    el: <ProjectInfoWidget />,    default: { x: 9, y: 13, w: 3, h: 4, minW: 3, minH: 3 } },
+  { i: "welcome",    el: <WelcomeWidget />,        default: { x: 0, y: 0,  w: 8, h: 6, minW: 4, minH: 5 } },
+  { i: "usage",      el: <UsageWidget />,          default: { x: 8, y: 0,  w: 4, h: 6, minW: 3, minH: 5 } },
+  { i: "memories",   el: <MemoriesStatWidget />,   default: { x: 0, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { i: "connectors", el: <ConnectorsStatWidget />, default: { x: 3, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { i: "events",     el: <EventsStatWidget />,     default: { x: 6, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { i: "docs",       el: <DocsWidget />,           default: { x: 9, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { i: "analytics",  el: <AnalyticsWidget />,      default: { x: 0, y: 12, w: 6, h: 8, minW: 4, minH: 6 } },
+  { i: "skills",     el: <SkillsResumeWidget />,   default: { x: 6, y: 12, w: 3, h: 8, minW: 3, minH: 5 } },
+  { i: "plugins",    el: <PluginsSummaryWidget />, default: { x: 9, y: 12, w: 3, h: 8, minW: 3, minH: 5 } },
+  { i: "activity",   el: <RecentActivityWidget />, default: { x: 0, y: 20, w: 6, h: 6, minW: 4, minH: 5 } },
+  { i: "quickstart", el: <QuickStartWidget />,     default: { x: 6, y: 20, w: 3, h: 6, minW: 3, minH: 5 } },
+  { i: "project",    el: <ProjectInfoWidget />,    default: { x: 9, y: 20, w: 3, h: 6, minW: 3, minH: 5 } },
 ];
 
-const STORAGE_KEY = "synapse:dashboard:layout:v1";
+const STORAGE_KEY = "synapse:dashboard:layout:v2";
 
 export default function DashboardHome() {
   const defaultLayout = useMemo<Layout[]>(
@@ -70,8 +70,8 @@ export default function DashboardHome() {
             className="layout"
             layout={layout}
             cols={12}
-            rowHeight={36}
-            margin={[16, 16]}
+            rowHeight={20}
+            margin={[14, 14]}
             containerPadding={[0, 0]}
             draggableHandle=".drag-handle"
             onLayoutChange={(l) => setLayout(l)}
