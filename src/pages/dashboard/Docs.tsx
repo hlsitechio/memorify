@@ -134,7 +134,7 @@ const sections: Section[] = [
     title: "API & access",
     features: [
       { title: "API keys", desc: "Reveal-once token creation + revoke.", status: "stable", icon: KeyRound, to: "/dashboard/api-keys" },
-      { title: "Per-command permissions", desc: "Settings UI to allow/deny each Copilot command class.", status: "next" },
+      { title: "Per-command permissions", desc: "Settings UI to allow/deny each Copilot command class.", status: "next", icon: ShieldCheck },
     ],
   },
 ];
