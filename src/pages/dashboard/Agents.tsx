@@ -287,7 +287,7 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
         </DialogHeader>
 
         {agent && (
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-2">
               <span className={cn(
                 "h-2 w-2 rounded-full",
