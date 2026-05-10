@@ -42,7 +42,7 @@ function endpointUrl() {
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-ping`;
 }
 
-function CopyField({ value, label, mono = true }: { value: string; label?: string; mono?: boolean }) {
+function CopyField({ value, label, mono = true, multiline = false }: { value: string; label?: string; mono?: boolean; multiline?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(value);
@@ -50,6 +50,20 @@ function CopyField({ value, label, mono = true }: { value: string; label?: strin
     toast.success(`${label ?? "Copied"} to clipboard`);
     setTimeout(() => setCopied(false), 1400);
   };
+  if (multiline) {
+    return (
+      <div className="relative rounded-md border border-border bg-secondary/40 overflow-hidden min-w-0 w-full">
+        <pre className={cn("max-h-72 overflow-auto px-3 py-2 pr-12 text-[11px] leading-relaxed whitespace-pre-wrap break-words", mono && "font-mono")}>{value}</pre>
+        <button
+          onClick={copy}
+          className="absolute top-1.5 right-1.5 rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title="Copy"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="flex items-stretch rounded-md border border-border bg-secondary/40 overflow-hidden group min-w-0 w-full">
       <code className={cn("flex-1 min-w-0 px-3 py-2 text-xs truncate", mono && "font-mono")} title={value}>{value}</code>
@@ -63,6 +77,7 @@ function CopyField({ value, label, mono = true }: { value: string; label?: strin
     </div>
   );
 }
+
 
 export default function Agents() {
   const { user } = useAuth();
