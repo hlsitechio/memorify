@@ -285,6 +285,9 @@ export type Database = {
       }
       memories: {
         Row: {
+          archived: boolean
+          archived_at: string | null
+          category: string
           content: string
           created_at: string
           id: string
@@ -295,6 +298,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived?: boolean
+          archived_at?: string | null
+          category?: string
           content: string
           created_at?: string
           id?: string
@@ -305,6 +311,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived?: boolean
+          archived_at?: string | null
+          category?: string
           content?: string
           created_at?: string
           id?: string
@@ -315,6 +324,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      memory_versions: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          memory_id: string
+          metadata: Json | null
+          namespace: string
+          tags: string[] | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          memory_id: string
+          metadata?: Json | null
+          namespace: string
+          tags?: string[] | null
+          user_id: string
+          version: number
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          memory_id?: string
+          metadata?: Json | null
+          namespace?: string
+          tags?: string[] | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_versions_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: false
+            referencedRelation: "memories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plugins: {
         Row: {
