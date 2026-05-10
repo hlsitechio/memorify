@@ -171,21 +171,23 @@ function DashboardLayoutInner() {
 
         {inDocs ? <DocsNav /> : <MainNav />}
 
-        <div className={cn("p-2 border-t border-border space-y-1", inDocs && "hidden")}>
-          <NavLink
-            to="/dashboard/docs"
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
-                isActive
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-              )
-            }
-          >
-            <BookOpen className="h-4 w-4" />
-            Docs
-          </NavLink>
+        <div className="p-2 border-t border-border space-y-1">
+          {!inDocs && (
+            <NavLink
+              to="/dashboard/docs"
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                )
+              }
+            >
+              <BookOpen className="h-4 w-4" />
+              Docs
+            </NavLink>
+          )}
           <NavLink
             to="/dashboard/settings"
             className={({ isActive }) =>
