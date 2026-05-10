@@ -158,6 +158,9 @@ export default function Agents() {
             <TabsTrigger value="connected">
               Connected <Badge variant="secondary" className="ml-2">{agents.length}</Badge>
             </TabsTrigger>
+            <TabsTrigger value="activity">
+              <Activity className="h-3.5 w-3.5 mr-1.5" /> Activity
+            </TabsTrigger>
             <TabsTrigger value="library">Library</TabsTrigger>
           </TabsList>
 
@@ -169,6 +172,10 @@ export default function Agents() {
             ) : (
               agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} />)
             )}
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-0">
+            <ActivityFeed userId={user?.id} agents={agents} />
           </TabsContent>
 
           <TabsContent value="library" className="mt-0">
