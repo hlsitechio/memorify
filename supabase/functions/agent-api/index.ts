@@ -95,6 +95,15 @@ type Cmd = {
 
 const COMMANDS: Cmd[] = [
   {
+    name: "synapse.welcome",
+    description: "Read the onboarding guide for new agents (what Synapse is, how to use it, etiquette).",
+    run: async (_sb, _userId, _p, agent) => ({
+      welcome: WELCOME_MD,
+      agent: { id: agent.id, name: agent.name, kind: agent.kind },
+      tip: "Call GET /agent-api anytime to list all commands.",
+    }),
+  },
+  {
     name: "whoami",
     description: "Return the connected agent's identity.",
     run: async (_sb, userId, _p, agent) => ({ agent_id: agent.id, name: agent.name, kind: agent.kind, user_id: userId }),
