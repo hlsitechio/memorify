@@ -275,10 +275,29 @@ Deno.serve(async (req) => {
   const cmd = COMMANDS.find((c) => c.name === action);
   if (!cmd) return json({ ok: false, error: `unknown action "${action}"`, available: COMMANDS.map((c) => c.name) }, 404);
 
+  const startedAt = Date.now();
   try {
     const result = await cmd.run(admin(), agent.user_id, params, agent);
+    // Fire-and-forget activity log (skip noisy reads on every poll)
+    admin().from("events").insert({
+      user_id: agent.user_id,
+      kind: `agent.${action}`,
+      source: `agent:${agent.name}`,
+      payload: {
+        agent_id: agent.id,
+        ok: true,
+        duration_ms: Date.now() - startedAt,
+        params: action.startsWith("memory.") || action.startsWith("events.log") ? params : undefined,
+      },
+    }).then(() => {});
     return json({ ok: true, action, result, agent: { id: agent.id, name: agent.name } });
   } catch (e: any) {
+    admin().from("events").insert({
+      user_id: agent.user_id,
+      kind: `agent.${action}.error`,
+      source: `agent:${agent.name}`,
+      payload: { agent_id: agent.id, error: e?.message ?? "error" },
+    }).then(() => {});
     return json({ ok: false, action, error: e.message ?? "error" }, 400);
   }
 });
