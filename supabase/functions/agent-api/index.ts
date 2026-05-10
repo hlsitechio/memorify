@@ -39,7 +39,7 @@ async function resolveAgent(token: string) {
   const sb = admin();
   const { data: agent } = await sb
     .from("agents")
-    .select("id, name, kind, user_id, status")
+    .select("id, name, kind, user_id, status, metadata")
     .eq("token", token)
     .maybeSingle();
   if (!agent) return null;
@@ -47,6 +47,42 @@ async function resolveAgent(token: string) {
   sb.rpc("agent_ping", { _token: token, _meta: { via: "agent-api" } }).then(() => {});
   return agent;
 }
+
+// -------- Welcome / onboarding payload --------
+const WELCOME_MD = `# 👋 Welcome to Synapse
+
+You're now connected to **Synapse** — a personal AI workspace shared between you (the agent) and your human. Anything you remember, log, or read here is scoped to **one user**: the person who issued your token. You act on their behalf.
+
+## What lives here
+- **Memory** — long-term notes, preferences, facts. Versioned, taggable, searchable.
+- **Documents** — files the user has uploaded (PDFs, notes, exports).
+- **Skills** — reusable prompt+schema bundles the user has authored.
+- **Events** — an append-only timeline. Log anything noteworthy here so the user (and other agents) can see what you did.
+- **Voices / Images** — recordings and generated images.
+
+## How to work here
+1. **Recall before you answer.** Call \`memory.recall\` with a relevant query at the start of a task. The user trusts that you'll remember context across sessions.
+2. **Remember what matters.** When the user states a preference, fact, or decision, call \`memory.remember\`. Tag it (\`["preference"]\`, \`["project:xyz"]\`, …).
+3. **Log meaningful actions** with \`events.log\` so the user has an audit trail.
+4. **Discover anytime** by calling \`GET /agent-api\` — it returns this welcome + the full command list.
+
+## Calling commands
+\`\`\`bash
+curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
+  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"memory.recall","params":{"query":"dark mode"}}'
+\`\`\`
+
+Every response has shape: \`{ ok, action, result, agent }\` or \`{ ok:false, error }\`.
+
+## Etiquette
+- Don't spam memory — dedupe, prefer updating over re-adding.
+- Use namespaces (\`default\`, \`work\`, \`personal\`) to keep contexts separate.
+- If unsure what's there, \`memory.recall\` with no query returns the latest 10.
+
+You're all set. Call \`synapse.welcome\` anytime to re-read this. 🧠`;
+
 
 // -------- Commands catalog --------
 type Cmd = {
@@ -58,6 +94,15 @@ type Cmd = {
 };
 
 const COMMANDS: Cmd[] = [
+  {
+    name: "synapse.welcome",
+    description: "Read the onboarding guide for new agents (what Synapse is, how to use it, etiquette).",
+    run: async (_sb, _userId, _p, agent) => ({
+      welcome: WELCOME_MD,
+      agent: { id: agent.id, name: agent.name, kind: agent.kind },
+      tip: "Call GET /agent-api anytime to list all commands.",
+    }),
+  },
   {
     name: "whoami",
     description: "Return the connected agent's identity.",
@@ -191,16 +236,27 @@ Deno.serve(async (req) => {
   const agent = await resolveAgent(token);
   if (!agent) return json({ ok: false, error: "invalid token" }, 401);
 
-  // GET without action = discovery
+  // First-connection detection — show full welcome inline, then flag the agent.
+  const firstConnection = !(agent as any).metadata?.onboarded;
+  if (firstConnection) {
+    admin().from("agents").update({
+      metadata: { ...((agent as any).metadata || {}), onboarded: true, onboarded_at: new Date().toISOString() },
+    }).eq("id", agent.id).then(() => {});
+  }
+
+  // GET without action = discovery (+ welcome on first connection)
   if (req.method === "GET" && !url.searchParams.get("action")) {
     return json({
       ok: true,
       agent: { id: agent.id, name: agent.name, kind: agent.kind, status: "connected" },
       server: { name: "synapse", version: "1.0", protocol: "rest" },
+      first_connection: firstConnection,
+      welcome: firstConnection ? WELCOME_MD : "Call synapse.welcome to re-read the onboarding guide.",
       commands: CATALOG,
       hint: "POST with {action, params} or GET with ?action=name&params={...}",
     });
   }
+
 
   let action: string | null = url.searchParams.get("action");
   let params: any = {};
