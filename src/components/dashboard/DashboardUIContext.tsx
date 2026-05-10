@@ -13,7 +13,16 @@ const Ctx = createContext<{
 
 export function DashboardUIProvider({ children }: { children: ReactNode }) {
   const [cmd, setCmd] = useState<CmdState>({ open: false, initialQuery: "" });
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpenState] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem("synapse.copilot.open");
+      return v === null ? true : v === "1";
+    } catch { return true; }
+  });
+  const setChatOpen = useCallback((v: boolean) => {
+    setChatOpenState(v);
+    try { localStorage.setItem("synapse.copilot.open", v ? "1" : "0"); } catch {}
+  }, []);
 
   const openCmd = useCallback((q = "") => setCmd({ open: true, initialQuery: q }), []);
   const closeCmd = useCallback(() => setCmd((s) => ({ ...s, open: false })), []);
