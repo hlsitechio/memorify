@@ -63,6 +63,7 @@ const App = () => (
               <Route path="logs" element={<Logs />} />
               <Route path="api-keys" element={<ApiKeys />} />
               <Route path="docs" element={<Docs />} />
+              <Route path="docs/:sectionId" element={<Docs />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
