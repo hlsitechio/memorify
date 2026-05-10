@@ -1,10 +1,14 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock } from "lucide-react";
+import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock, Search, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
+import { CommandPalette } from "./CommandPalette";
+import { AIChatSidebar } from "./AIChatSidebar";
+import { Button } from "@/components/ui/button";
 
 const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
   {
@@ -51,7 +55,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   },
 ];
 
-export default function DashboardLayout() {
+function DashboardLayoutInner() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
@@ -128,8 +132,56 @@ export default function DashboardLayout() {
       </aside>
 
       <main className="flex-1 min-w-0 flex flex-col">
-        <Outlet />
+        <DashboardTopbar />
+        <div className="flex-1 min-h-0 flex flex-col">
+          <Outlet />
+        </div>
       </main>
+
+      <AIChatSidebar />
+      <CommandPalette />
     </div>
+  );
+}
+
+function DashboardTopbar() {
+  const { openCmd, toggleChat, chatOpen } = useDashboardUI();
+  const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+  const mod = isMac ? "⌘" : "Ctrl";
+  return (
+    <header className="h-14 shrink-0 border-b border-border bg-background/80 backdrop-blur px-4 flex items-center gap-3 sticky top-0 z-20">
+      <button
+        onClick={() => openCmd()}
+        className="flex-1 max-w-xl flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-secondary/40 hover:bg-secondary text-sm text-muted-foreground transition-colors"
+      >
+        <Search className="h-4 w-4" />
+        <span>Search routes, actions, docs…</span>
+        <span className="ml-auto text-[11px] font-mono px-1.5 py-0.5 rounded border border-border bg-background">
+          {mod}K
+        </span>
+      </button>
+      <div className="ml-auto flex items-center gap-2">
+        <Button
+          variant={chatOpen ? "secondary" : "outline"}
+          size="sm"
+          onClick={toggleChat}
+          className="gap-2"
+        >
+          <Bot className="h-4 w-4" />
+          Copilot
+          <span className="text-[11px] font-mono px-1 py-0.5 rounded border border-border bg-background text-muted-foreground">
+            {mod}I
+          </span>
+        </Button>
+      </div>
+    </header>
+  );
+}
+
+export default function DashboardLayout() {
+  return (
+    <DashboardUIProvider>
+      <DashboardLayoutInner />
+    </DashboardUIProvider>
   );
 }

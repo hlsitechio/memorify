@@ -1,0 +1,48 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+type CmdState = { open: boolean; initialQuery: string };
+
+const Ctx = createContext<{
+  cmd: CmdState;
+  openCmd: (q?: string) => void;
+  closeCmd: () => void;
+  chatOpen: boolean;
+  toggleChat: () => void;
+  setChatOpen: (v: boolean) => void;
+} | null>(null);
+
+export function DashboardUIProvider({ children }: { children: ReactNode }) {
+  const [cmd, setCmd] = useState<CmdState>({ open: false, initialQuery: "" });
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const openCmd = useCallback((q = "") => setCmd({ open: true, initialQuery: q }), []);
+  const closeCmd = useCallback(() => setCmd((s) => ({ ...s, open: false })), []);
+  const toggleChat = useCallback(() => setChatOpen((v) => !v), []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openCmd();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        toggleChat();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openCmd, toggleChat]);
+
+  const value = useMemo(
+    () => ({ cmd, openCmd, closeCmd, chatOpen, toggleChat, setChatOpen }),
+    [cmd, openCmd, closeCmd, chatOpen, toggleChat]
+  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useDashboardUI() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useDashboardUI must be used within DashboardUIProvider");
+  return ctx;
+}
