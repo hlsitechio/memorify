@@ -485,30 +485,63 @@ export type Database = {
       }
       voices: {
         Row: {
+          action_items: Json
           created_at: string
+          duration_sec: number | null
           id: string
           kind: string
+          mime: string | null
           name: string
           params: Json
+          recorded_at: string
           sample_url: string | null
+          size: number | null
+          status: string
+          storage_path: string | null
+          summary: string | null
+          title: string | null
+          transcript: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
+          action_items?: Json
           created_at?: string
+          duration_sec?: number | null
           id?: string
           kind?: string
+          mime?: string | null
           name: string
           params?: Json
+          recorded_at?: string
           sample_url?: string | null
+          size?: number | null
+          status?: string
+          storage_path?: string | null
+          summary?: string | null
+          title?: string | null
+          transcript?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          action_items?: Json
           created_at?: string
+          duration_sec?: number | null
           id?: string
           kind?: string
+          mime?: string | null
           name?: string
           params?: Json
+          recorded_at?: string
           sample_url?: string | null
+          size?: number | null
+          status?: string
+          storage_path?: string | null
+          summary?: string | null
+          title?: string | null
+          transcript?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
