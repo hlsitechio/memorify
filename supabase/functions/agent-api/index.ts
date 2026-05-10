@@ -236,16 +236,27 @@ Deno.serve(async (req) => {
   const agent = await resolveAgent(token);
   if (!agent) return json({ ok: false, error: "invalid token" }, 401);
 
-  // GET without action = discovery
+  // First-connection detection — show full welcome inline, then flag the agent.
+  const firstConnection = !(agent as any).metadata?.onboarded;
+  if (firstConnection) {
+    admin().from("agents").update({
+      metadata: { ...((agent as any).metadata || {}), onboarded: true, onboarded_at: new Date().toISOString() },
+    }).eq("id", agent.id).then(() => {});
+  }
+
+  // GET without action = discovery (+ welcome on first connection)
   if (req.method === "GET" && !url.searchParams.get("action")) {
     return json({
       ok: true,
       agent: { id: agent.id, name: agent.name, kind: agent.kind, status: "connected" },
       server: { name: "synapse", version: "1.0", protocol: "rest" },
+      first_connection: firstConnection,
+      welcome: firstConnection ? WELCOME_MD : "Call synapse.welcome to re-read the onboarding guide.",
       commands: CATALOG,
       hint: "POST with {action, params} or GET with ?action=name&params={...}",
     });
   }
+
 
   let action: string | null = url.searchParams.get("action");
   let params: any = {};
