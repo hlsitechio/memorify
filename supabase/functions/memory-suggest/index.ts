@@ -21,7 +21,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You convert a user's note into a structured memory. Pick a concise namespace (lowercase slug), 1-5 short tags, and rewrite content into a clear single sentence or paragraph." },
+          { role: "system", content: "You convert a user's note into a structured memory. Pick a high-level category (lowercase slug like 'work', 'personal', 'preferences', 'projects', 'general'), a finer namespace (lowercase slug), 1-5 short tags, and rewrite content into a clear single sentence or paragraph." },
           { role: "user", content: input },
         ],
         tools: [{
@@ -32,11 +32,12 @@ serve(async (req) => {
             parameters: {
               type: "object",
               properties: {
+                category: { type: "string" },
                 namespace: { type: "string" },
                 content: { type: "string" },
                 tags: { type: "array", items: { type: "string" } },
               },
-              required: ["namespace", "content", "tags"],
+              required: ["category", "namespace", "content", "tags"],
               additionalProperties: false,
             },
           },
