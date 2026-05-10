@@ -236,6 +236,22 @@ Deno.serve(async (req) => {
   const agent = await resolveAgent(token);
   if (!agent) return json({ ok: false, error: "invalid token" }, 401);
 
+  // Honor pause / revoke states set from the dashboard.
+  if (agent.status === "paused") {
+    return json({
+      ok: false,
+      error: "agent_paused",
+      message: "This agent is paused by the user. Resume it from the Synapse dashboard to continue.",
+    }, 423);
+  }
+  if (agent.status === "revoked" || agent.status === "disconnected") {
+    return json({
+      ok: false,
+      error: "agent_disconnected",
+      message: "This agent's access was revoked. Ask the user to re-pair you with a fresh token.",
+    }, 401);
+  }
+
   // First-connection detection — show full welcome inline, then flag the agent.
   const firstConnection = !(agent as any).metadata?.onboarded;
   if (firstConnection) {
