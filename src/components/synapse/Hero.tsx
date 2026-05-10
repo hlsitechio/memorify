@@ -1,16 +1,17 @@
-import heroImg from "@/assets/hero-grid.jpg";
+import heroVideo from "@/assets/hero-bg.mp4.asset.json";
 import { ArrowRight, Terminal } from "lucide-react";
 
 export const Hero = () => {
   return (
     <section className="relative pt-32 pb-24 overflow-hidden">
-      <img
-        src={heroImg}
-        alt=""
+      <video
+        src={heroVideo.url}
+        autoPlay
+        muted
+        loop
+        playsInline
         aria-hidden
-        width={1920}
-        height={1088}
-        className="absolute inset-0 w-full h-full object-cover opacity-40 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black_30%,transparent_80%)]"
+        className="absolute inset-0 w-full h-full object-cover opacity-50 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black_30%,transparent_80%)]"
       />
       <div className="absolute inset-0 bg-grid" aria-hidden />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" aria-hidden />
