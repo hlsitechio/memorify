@@ -55,7 +55,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   },
 ];
 
-export default function DashboardLayout() {
+function DashboardLayoutInner() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
