@@ -114,8 +114,8 @@ const sections: Section[] = [
     features: [
       { title: "AI-Native Collections", desc: "Schemaless JSON docs, AI smart import, natural-language query bar.", status: "stable", icon: Table2, to: "/dashboard/database" },
       { title: "Vault", desc: "Per-user secret names registry (values stored in backend secrets).", status: "stable", icon: Lock, to: "/dashboard/vault" },
-      { title: "Collections NL query", desc: "Works on common shapes; complex nested filters still iterating.", status: "beta" },
-      { title: "Graph / relations layer", desc: "Edges between items (people ↔ projects ↔ docs) for relational reasoning.", status: "next" },
+      { title: "Collections NL query", desc: "Works on common shapes; complex nested filters still iterating.", status: "beta", icon: Search },
+      { title: "Graph / relations layer", desc: "Edges between items (people ↔ projects ↔ docs) for relational reasoning.", status: "next", icon: Share2 },
     ],
   },
   {
