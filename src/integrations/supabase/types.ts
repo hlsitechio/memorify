@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          last_seen_at: string | null
+          metadata: Json
+          name: string
+          status: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          last_seen_at?: string | null
+          metadata?: Json
+          name: string
+          status?: string
+          token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          last_seen_at?: string | null
+          metadata?: Json
+          name?: string
+          status?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -652,7 +691,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      agent_ping: {
+        Args: { _meta?: Json; _token: string }
+        Returns: {
+          id: string
+          name: string
+          status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

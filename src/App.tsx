@@ -26,6 +26,7 @@ import DatabasePage from "./pages/dashboard/Database";
 import Vault from "./pages/dashboard/Vault";
 import Mcp from "./pages/dashboard/Mcp";
 import Docs from "./pages/dashboard/Docs";
+import Agents from "./pages/dashboard/Agents";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
               }
             >
               <Route index element={<DashboardHome />} />
+              <Route path="agents" element={<Agents />} />
               <Route path="memory" element={<Memory />} />
               <Route path="skills" element={<Skills />} />
               <Route path="plugins" element={<Plugins />} />
