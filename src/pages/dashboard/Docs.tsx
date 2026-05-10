@@ -72,11 +72,11 @@ const sections: Section[] = [
     features: [
       { title: "Multi-turn agent chat", desc: "Streaming, tool-calling, persistent across reloads and tab switches.", status: "stable", icon: Bot },
       { title: "Action registry (Wave A+B)", desc: "Unified CommandDef — nav, widgets, plugins commands wired to the agent.", status: "stable", icon: Puzzle },
-      { title: "Action chips in chat", desc: "Each tool call rendered as a card with status and result.", status: "beta" },
-      { title: "Wave C — memory / skills / mcp", desc: "Full Copilot CRUD over memory, skills, and MCP servers.", status: "next" },
-      { title: "Wave D — docs / images / voices / api keys", desc: "Upload, generate, register, revoke — all via Copilot.", status: "next" },
-      { title: "Wave E — db / vault / events / profile / ui", desc: "Reads, secret names, theme + density commands.", status: "next" },
-      { title: "Undo + confirm gates", desc: "meta.confirm for destructive ops, meta.undo via the event log.", status: "next" },
+      { title: "Action chips in chat", desc: "Each tool call rendered as a card with status and result.", status: "beta", icon: MessageSquare },
+      { title: "Wave C — memory / skills / mcp", desc: "Full Copilot CRUD over memory, skills, and MCP servers.", status: "next", icon: ListChecks },
+      { title: "Wave D — docs / images / voices / api keys", desc: "Upload, generate, register, revoke — all via Copilot.", status: "next", icon: Workflow },
+      { title: "Wave E — db / vault / events / profile / ui", desc: "Reads, secret names, theme + density commands.", status: "next", icon: ShieldCheck },
+      { title: "Undo + confirm gates", desc: "meta.confirm for destructive ops, meta.undo via the event log.", status: "next", icon: Undo2 },
     ],
   },
   {
