@@ -44,6 +44,86 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_items: {
+        Row: {
+          ai_summary: string | null
+          collection_id: string
+          created_at: string
+          data: Json
+          id: string
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          collection_id: string
+          created_at?: string
+          data?: Json
+          id?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_summary?: string | null
+          collection_id?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          item_count: number
+          name: string
+          schema: Json
+          slug: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          item_count?: number
+          name: string
+          schema?: Json
+          slug: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          item_count?: number
+          name?: string
+          schema?: Json
+          slug?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       connectors: {
         Row: {
           config: Json | null
