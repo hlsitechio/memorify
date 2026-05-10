@@ -26,7 +26,7 @@ export function DashboardUIProvider({ children }: { children: ReactNode }) {
 
   const openCmd = useCallback((q = "") => setCmd({ open: true, initialQuery: q }), []);
   const closeCmd = useCallback(() => setCmd((s) => ({ ...s, open: false })), []);
-  const toggleChat = useCallback(() => setChatOpen((v) => !v), []);
+  const toggleChat = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
