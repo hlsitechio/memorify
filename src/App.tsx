@@ -17,6 +17,13 @@ import Events from "./pages/dashboard/Events";
 import Logs from "./pages/dashboard/Logs";
 import ApiKeys from "./pages/dashboard/ApiKeys";
 import Settings from "./pages/dashboard/Settings";
+import Skills from "./pages/dashboard/Skills";
+import Plugins from "./pages/dashboard/Plugins";
+import Documents from "./pages/dashboard/Documents";
+import Images from "./pages/dashboard/Images";
+import Voices from "./pages/dashboard/Voices";
+import DatabasePage from "./pages/dashboard/Database";
+import Vault from "./pages/dashboard/Vault";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +48,13 @@ const App = () => (
             >
               <Route index element={<DashboardHome />} />
               <Route path="memory" element={<Memory />} />
+              <Route path="skills" element={<Skills />} />
+              <Route path="plugins" element={<Plugins />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="images" element={<Images />} />
+              <Route path="voices" element={<Voices />} />
+              <Route path="database" element={<DatabasePage />} />
+              <Route path="vault" element={<Vault />} />
               <Route path="connectors" element={<Connectors />} />
               <Route path="events" element={<Events />} />
               <Route path="logs" element={<Logs />} />

@@ -1,19 +1,54 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown } from "lucide-react";
+import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const items = [
-  { to: "/dashboard", label: "Home", icon: Home, end: true },
-  { to: "/dashboard/memory", label: "Memory", icon: Database },
-  { to: "/dashboard/connectors", label: "Connectors", icon: Plug },
-  { to: "/dashboard/events", label: "Events", icon: Activity },
-  { to: "/dashboard/logs", label: "Logs", icon: ScrollText },
-  { to: "/dashboard/api-keys", label: "API keys", icon: KeyRound },
-  { to: "/dashboard/settings", label: "Settings", icon: Settings },
+const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
+  {
+    label: "Workspace",
+    items: [{ to: "/dashboard", label: "Home", icon: Home, end: true }],
+  },
+  {
+    label: "Build",
+    items: [
+      { to: "/dashboard/skills", label: "Skills", icon: Sparkles },
+      { to: "/dashboard/plugins", label: "Plugins", icon: Puzzle },
+      { to: "/dashboard/connectors", label: "Connectors", icon: Plug },
+    ],
+  },
+  {
+    label: "Knowledge",
+    items: [
+      { to: "/dashboard/memory", label: "Memory", icon: Database },
+      { to: "/dashboard/documents", label: "Documents", icon: FileText },
+      { to: "/dashboard/images", label: "Images", icon: ImageIcon },
+      { to: "/dashboard/voices", label: "Voices", icon: Mic },
+    ],
+  },
+  {
+    label: "Data",
+    items: [
+      { to: "/dashboard/database", label: "Database", icon: Table2 },
+      { to: "/dashboard/vault", label: "Vault", icon: Lock },
+    ],
+  },
+  {
+    label: "Observe",
+    items: [
+      { to: "/dashboard/events", label: "Events", icon: Activity },
+      { to: "/dashboard/logs", label: "Logs", icon: ScrollText },
+    ],
+  },
+  {
+    label: "Project",
+    items: [
+      { to: "/dashboard/api-keys", label: "API keys", icon: KeyRound },
+      { to: "/dashboard/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 export default function DashboardLayout() {
@@ -34,25 +69,31 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        <nav className="flex-1 p-2 space-y-0.5">
-          <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">Workspace</div>
-          {items.map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                )
-              }
-            >
-              <it.icon className="h-4 w-4" />
-              {it.label}
-            </NavLink>
+        <nav className="flex-1 p-2 space-y-3 overflow-y-auto">
+          {sections.map((section) => (
+            <div key={section.label} className="space-y-0.5">
+              <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                {section.label}
+              </div>
+              {section.items.map((it) => (
+                <NavLink
+                  key={it.to}
+                  to={it.to}
+                  end={it.end}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    )
+                  }
+                >
+                  <it.icon className="h-4 w-4" />
+                  {it.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
