@@ -24,6 +24,7 @@ import Images from "./pages/dashboard/Images";
 import Voices from "./pages/dashboard/Voices";
 import DatabasePage from "./pages/dashboard/Database";
 import Vault from "./pages/dashboard/Vault";
+import Mcp from "./pages/dashboard/Mcp";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="database" element={<DatabasePage />} />
               <Route path="vault" element={<Vault />} />
               <Route path="connectors" element={<Connectors />} />
+              <Route path="mcp" element={<Mcp />} />
               <Route path="events" element={<Events />} />
               <Route path="logs" element={<Logs />} />
               <Route path="api-keys" element={<ApiKeys />} />
