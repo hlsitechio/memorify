@@ -1,88 +1,86 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useMemo, useState, useEffect } from "react";
+import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { Database, Plug, Activity, ArrowUpRight, BookOpen, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
+import {
+  WelcomeWidget, MemoriesStatWidget, ConnectorsStatWidget, EventsStatWidget,
+  QuickStartWidget, ProjectInfoWidget, AnalyticsWidget, SkillsResumeWidget,
+  PluginsSummaryWidget, RecentActivityWidget, UsageWidget, DocsWidget,
+} from "@/components/dashboard/widgets";
 
-type Stats = { memories: number; connectors: number; events: number };
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+
+const RGL = WidthProvider(GridLayout);
+
+type WidgetDef = { i: string; el: React.ReactNode; default: Omit<Layout, "i"> };
+
+const WIDGETS: WidgetDef[] = [
+  { i: "welcome",    el: <WelcomeWidget />,        default: { x: 0, y: 0, w: 8, h: 4, minW: 4, minH: 3 } },
+  { i: "usage",      el: <UsageWidget />,          default: { x: 8, y: 0, w: 4, h: 4, minW: 3, minH: 3 } },
+  { i: "memories",   el: <MemoriesStatWidget />,   default: { x: 0, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
+  { i: "connectors", el: <ConnectorsStatWidget />, default: { x: 3, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
+  { i: "events",     el: <EventsStatWidget />,     default: { x: 6, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
+  { i: "docs",       el: <DocsWidget />,           default: { x: 9, y: 4, w: 3, h: 4, minW: 2, minH: 3 } },
+  { i: "analytics",  el: <AnalyticsWidget />,      default: { x: 0, y: 8, w: 6, h: 5, minW: 4, minH: 4 } },
+  { i: "skills",     el: <SkillsResumeWidget />,   default: { x: 6, y: 8, w: 3, h: 5, minW: 3, minH: 4 } },
+  { i: "plugins",    el: <PluginsSummaryWidget />, default: { x: 9, y: 8, w: 3, h: 5, minW: 3, minH: 4 } },
+  { i: "activity",   el: <RecentActivityWidget />, default: { x: 0, y: 13, w: 6, h: 4, minW: 4, minH: 3 } },
+  { i: "quickstart", el: <QuickStartWidget />,     default: { x: 6, y: 13, w: 3, h: 4, minW: 3, minH: 3 } },
+  { i: "project",    el: <ProjectInfoWidget />,    default: { x: 9, y: 13, w: 3, h: 4, minW: 3, minH: 3 } },
+];
+
+const STORAGE_KEY = "synapse:dashboard:layout:v1";
 
 export default function DashboardHome() {
-  const { user } = useAuth();
-  const [stats, setStats] = useState<Stats>({ memories: 0, connectors: 0, events: 0 });
+  const defaultLayout = useMemo<Layout[]>(
+    () => WIDGETS.map((w) => ({ i: w.i, ...w.default })),
+    []
+  );
+
+  const [layout, setLayout] = useState<Layout[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return defaultLayout;
+  });
 
   useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      supabase.from("memories").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("connectors").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("events").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    ]).then(([m, c, e]) =>
-      setStats({ memories: m.count ?? 0, connectors: c.count ?? 0, events: e.count ?? 0 })
-    );
-  }, [user]);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(layout)); } catch {}
+  }, [layout]);
 
-  const cards = [
-    { label: "Memories", value: stats.memories, icon: Database, to: "/dashboard/memory", hint: "Stored across all namespaces" },
-    { label: "Connectors", value: stats.connectors, icon: Plug, to: "/dashboard/connectors", hint: "Tools & data sources" },
-    { label: "Events (24h)", value: stats.events, icon: Activity, to: "/dashboard/events", hint: "Real-time bus" },
-  ];
+  const reset = () => setLayout(defaultLayout);
 
   return (
     <>
-      <PageHeader title="Home" description="Project overview" />
-      <div className="p-6 space-y-6 max-w-6xl">
-        <div className="rounded-lg border border-border bg-card p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-mesh opacity-40 pointer-events-none" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground mb-3">
-              <Sparkles className="h-3 w-3" /> Welcome to Synapse
-            </div>
-            <h2 className="text-xl font-semibold tracking-tight">{user?.email}</h2>
-            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-              Your agent memory layer is live. Add memories, plug in connectors, and watch your event bus.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {cards.map((c) => (
-            <Link
-              key={c.label}
-              to={c.to}
-              className="group rounded-lg border border-border bg-card p-5 hover:border-primary/40 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <c.icon className="h-4 w-4 text-muted-foreground" />
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="mt-4 text-3xl font-semibold tabular-nums">{c.value}</div>
-              <div className="text-sm font-medium mt-1">{c.label}</div>
-              <div className="text-xs text-muted-foreground">{c.hint}</div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-border bg-card p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Quick start</h3>
-            </div>
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              <li>1. Create your first memory in the <Link to="/dashboard/memory" className="text-primary hover:underline">Memory browser</Link></li>
-              <li>2. Connect a tool from the <Link to="/dashboard/connectors" className="text-primary hover:underline">Connectors</Link> page</li>
-              <li>3. Generate an <Link to="/dashboard/api-keys" className="text-primary hover:underline">API key</Link> and call the gateway</li>
-            </ol>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-3">Project info</h3>
-            <dl className="text-sm space-y-2">
-              <div className="flex justify-between"><dt className="text-muted-foreground">Plan</dt><dd>Free</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Region</dt><dd>auto</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">User ID</dt><dd className="font-mono text-xs truncate max-w-[180px]">{user?.id}</dd></div>
-            </dl>
-          </div>
+      <PageHeader
+        title="Home"
+        description="Drag widgets by their handle, resize from the corners."
+        actions={
+          <Button variant="outline" size="sm" onClick={reset} className="gap-2">
+            <RotateCcw className="h-3.5 w-3.5" /> Reset layout
+          </Button>
+        }
+      />
+      <div className="flex-1 min-h-0 overflow-auto">
+        <div className="mx-auto max-w-7xl px-6 py-6">
+          <RGL
+            className="layout"
+            layout={layout}
+            cols={12}
+            rowHeight={36}
+            margin={[16, 16]}
+            containerPadding={[0, 0]}
+            draggableHandle=".drag-handle"
+            onLayoutChange={(l) => setLayout(l)}
+            compactType="vertical"
+          >
+            {WIDGETS.map((w) => (
+              <div key={w.i}>{w.el}</div>
+            ))}
+          </RGL>
         </div>
       </div>
     </>
