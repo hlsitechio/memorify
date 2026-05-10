@@ -3,7 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import {
   BookOpen, Rocket, Sparkles, Puzzle, Plug, Server, Database, FileText,
   Image as ImageIcon, Mic, Table2, Lock, Activity, ScrollText, KeyRound,
-  Bot, ChevronRight, Copy, Check, ArrowUpRight, ArrowRight, type LucideIcon,
+  Bot, ChevronRight, Copy, Check, ArrowUpRight, ArrowRight,
+  Cloud, LayoutDashboard, Users, MessageSquare, ListChecks, Workflow, ShieldCheck, Undo2,
+  Mic2, Search, Network, Share2, GitBranch, Radio, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
