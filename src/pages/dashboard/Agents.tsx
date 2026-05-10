@@ -275,8 +275,8 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-xl [&>*]:min-w-0">
+        <DialogHeader className="min-w-0">
           <DialogTitle className="flex items-center gap-2">
             <Terminal className="h-4 w-4 text-amber-400" />
             Connect {agent?.name}
@@ -287,7 +287,7 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
         </DialogHeader>
 
         {agent && (
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-2">
               <span className={cn(
                 "h-2 w-2 rounded-full",
