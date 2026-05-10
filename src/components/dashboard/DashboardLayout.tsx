@@ -20,6 +20,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   {
     label: "Build",
     items: [
+      { to: "/dashboard/agents", label: "Agents", icon: Bot },
       { to: "/dashboard/skills", label: "Skills", icon: Sparkles },
       { to: "/dashboard/plugins", label: "Plugins", icon: Puzzle },
       { to: "/dashboard/connectors", label: "Connectors", icon: Plug },
