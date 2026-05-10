@@ -55,7 +55,7 @@ const CodeBlock = ({ label, code, accent }: { label: string; code: string; accen
       </div>
       <span className="text-[10px] font-mono tracking-wider text-muted-foreground">{label}</span>
     </div>
-    <pre className="p-5 text-xs md:text-sm font-mono leading-relaxed overflow-x-auto">
+    <pre className="p-5 text-xs md:text-sm font-mono leading-relaxed overflow-x-auto scrollbar-thin">
       <code className="text-foreground/90 whitespace-pre">{code}</code>
     </pre>
   </div>
