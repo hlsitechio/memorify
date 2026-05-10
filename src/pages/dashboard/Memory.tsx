@@ -290,68 +290,43 @@ export default function Memory() {
         }
       />
 
-      <div className="flex h-[calc(100vh-3.5rem)]">
-        <aside className="w-60 border-r border-border bg-secondary/20 overflow-y-auto scrollbar-thin p-3 space-y-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1">Library</div>
-            <button
-              onClick={() => setView({ kind: "all" })}
-              className={cn("w-full text-left text-xs px-2 py-1.5 rounded hover:bg-secondary flex items-center justify-between",
-                view.kind === "all" && "bg-secondary text-foreground")}
-            >
-              <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" /> All</span>
-              <span className="text-muted-foreground tabular-nums">{active.length}</span>
-            </button>
-            <button
-              onClick={() => setView({ kind: "archive" })}
-              className={cn("w-full text-left text-xs px-2 py-1.5 rounded hover:bg-secondary flex items-center justify-between",
-                view.kind === "archive" && "bg-secondary text-foreground")}
-            >
-              <span className="flex items-center gap-2"><Archive className="h-3.5 w-3.5" /> Archive</span>
-              <span className="text-muted-foreground tabular-nums">{archivedRows.length}</span>
-            </button>
-          </div>
+      <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setView({ kind: "all" })}
+            className={cn("text-xs px-3 py-1.5 rounded-md border transition-colors flex items-center gap-1.5",
+              view.kind === "all" ? "bg-secondary border-border text-foreground" : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/50")}
+          >
+            <Database className="h-3.5 w-3.5" /> All
+            <span className="tabular-nums text-muted-foreground">{active.length}</span>
+          </button>
+          <button
+            onClick={() => setView({ kind: "archive" })}
+            className={cn("text-xs px-3 py-1.5 rounded-md border transition-colors flex items-center gap-1.5",
+              view.kind === "archive" ? "bg-secondary border-border text-foreground" : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/50")}
+          >
+            <Archive className="h-3.5 w-3.5" /> Archive
+            <span className="tabular-nums text-muted-foreground">{archivedRows.length}</span>
+          </button>
+          {categories.map(([cat, nsMap]) => {
+            const total = Array.from(nsMap.values()).reduce((a, b) => a + b, 0);
+            const isActive = view.kind === "category" && view.name === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setView({ kind: "category", name: cat })}
+                className={cn("text-xs px-3 py-1.5 rounded-md border transition-colors flex items-center gap-1.5",
+                  isActive ? "bg-secondary border-border text-foreground" : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/50")}
+              >
+                {isActive ? <FolderOpen className="h-3.5 w-3.5" /> : <Folder className="h-3.5 w-3.5" />}
+                <span className="truncate max-w-[160px]">{cat}</span>
+                <span className="tabular-nums text-muted-foreground">{total}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1">Categories</div>
-            {categories.length === 0 && (
-              <div className="text-[11px] text-muted-foreground px-2 py-1">No categories yet</div>
-            )}
-            {categories.map(([cat, nsMap]) => {
-              const total = Array.from(nsMap.values()).reduce((a, b) => a + b, 0);
-              const isOpen = view.kind === "category" && view.name === cat || view.kind === "namespace" && Array.from(nsMap.keys()).includes(view.name);
-              return (
-                <div key={cat}>
-                  <button
-                    onClick={() => setView({ kind: "category", name: cat })}
-                    className={cn("w-full text-left text-xs px-2 py-1.5 rounded hover:bg-secondary flex items-center justify-between",
-                      view.kind === "category" && view.name === cat && "bg-secondary text-foreground")}
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      {isOpen ? <FolderOpen className="h-3.5 w-3.5" /> : <Folder className="h-3.5 w-3.5" />}
-                      <span className="truncate">{cat}</span>
-                    </span>
-                    <span className="text-muted-foreground tabular-nums">{total}</span>
-                  </button>
-                  {isOpen && Array.from(nsMap.entries()).sort().map(([ns, count]) => (
-                    <button
-                      key={ns}
-                      onClick={() => setView({ kind: "namespace", name: ns })}
-                      className={cn("w-full text-left font-mono text-[11px] px-2 py-1 ml-4 rounded hover:bg-secondary flex items-center justify-between truncate",
-                        view.kind === "namespace" && view.name === ns && "bg-secondary text-foreground")}
-                    >
-                      <span className="truncate">{ns}</span>
-                      <span className="text-muted-foreground tabular-nums">{count}</span>
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
             <div className="text-sm font-medium">{viewLabel}</div>
             <div className="relative flex-1 max-w-md ml-4">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -429,7 +404,6 @@ export default function Memory() {
               ))
             )}
           </div>
-        </div>
       </div>
 
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
