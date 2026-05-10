@@ -103,7 +103,7 @@ const sections: Section[] = [
       { title: "Plugins", desc: "Registry with toggles, reorder, multi-source (skill / connector / MCP / HTTP).", status: "stable", icon: Puzzle, to: "/dashboard/plugins" },
       { title: "Connectors", desc: "External service connections with config + test endpoint.", status: "stable", icon: Plug, to: "/dashboard/connectors" },
       { title: "MCP", desc: "Model Context Protocol servers, handshake, per-tool toggles.", status: "stable", icon: Server, to: "/dashboard/mcp" },
-      { title: "MCP tool invocation", desc: "Handshake + listing works; live invoke routing still hardening.", status: "beta" },
+      { title: "MCP tool invocation", desc: "Handshake + listing works; live invoke routing still hardening.", status: "beta", icon: Network },
     ],
   },
   {
