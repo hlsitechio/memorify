@@ -26,6 +26,7 @@ import DatabasePage from "./pages/dashboard/Database";
 import Vault from "./pages/dashboard/Vault";
 import Mcp from "./pages/dashboard/Mcp";
 import Docs from "./pages/dashboard/Docs";
+import Agents from "./pages/dashboard/Agents";
 
 const queryClient = new QueryClient();
 
