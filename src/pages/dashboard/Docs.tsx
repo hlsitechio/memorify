@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
   BookOpen, Rocket, Sparkles, Puzzle, Plug, Server, Database, FileText,
   Image as ImageIcon, Mic, Table2, Lock, Activity, ScrollText, KeyRound,
-  Bot, ChevronRight, List, Copy, Check, ArrowUpRight, type LucideIcon,
+  Bot, ChevronRight, Copy, Check, ArrowUpRight, ArrowRight, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -152,26 +152,9 @@ export const docsNavGroups = navGroups.map((g) => ({
     .map((s) => ({ id: s.id, title: s.title })),
 }));
 
-
 export default function Docs() {
-  const [activeId, setActiveId] = useState<string>(sections[0].id);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { sectionId } = useParams<{ sectionId?: string }>();
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActiveId(visible[0].target.id);
-      },
-      { rootMargin: "-80px 0px -60% 0px", threshold: 0 },
-    );
-    sections.forEach((s) => {
-      const el = document.getElementById(s.id);
-      if (el) obs.observe(el);
-    });
-    return () => obs.disconnect();
-  }, []);
 
   const counts = useMemo(() => {
     const all = sections.flatMap((s) => s.features);
@@ -192,72 +175,111 @@ export default function Docs() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const section = sectionId ? sections.find((s) => s.id === sectionId) : null;
+  const idx = section ? sections.findIndex((s) => s.id === section.id) : -1;
+  const prev = idx > 0 ? sections[idx - 1] : null;
+  const next = idx >= 0 && idx < sections.length - 1 ? sections[idx + 1] : null;
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" ref={containerRef}>
+    <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="max-w-3xl mx-auto px-8 py-10">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+          <Link to="/dashboard/docs" className="hover:text-foreground transition-colors">Docs</Link>
+          <ChevronRight className="h-3 w-3" />
+          <span className="text-foreground">{section ? section.title : "Overview"}</span>
+        </div>
 
-        <div className="max-w-3xl mx-auto px-8 py-10">
-          {/* Hero */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-            <span>Docs</span>
-            <ChevronRight className="h-3 w-3" />
-            <span className="text-foreground">Overview</span>
-          </div>
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <h1 className="text-4xl font-bold tracking-tight">Synapse Docs</h1>
-            <button
-              onClick={copyMarkdown}
-              className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-card hover:bg-secondary/60 text-xs"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-              Copy markdown
-            </button>
-          </div>
-          <p className="text-base text-muted-foreground leading-relaxed">
-            The living source of truth for what's shipped, what's in beta, and what's coming next. Inspired by the way framework docs evolve — keep this in sync as the platform grows.
-          </p>
-
-          {/* Status legend */}
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Badge status="stable" count={counts.stable} />
-            <Badge status="beta" count={counts.beta} />
-            <Badge status="next" count={counts.next} />
-          </div>
-
-          {/* Quickstart strip */}
-          <div className="mt-8 rounded-xl border border-border bg-gradient-to-br from-primary/5 via-card to-card p-5">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Rocket className="h-3.5 w-3.5" /> Quickstart
+        {!section ? (
+          <>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <h1 className="text-4xl font-bold tracking-tight">Synapse Docs</h1>
+              <button
+                onClick={copyMarkdown}
+                className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-card hover:bg-secondary/60 text-xs"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                Copy markdown
+              </button>
             </div>
-            <div className="mt-1 text-lg font-semibold">Three things to try right now</div>
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-              {sections[0].features.map((f, i) => (
-                <QuickCard key={i} feature={f} />
+            <p className="text-base text-muted-foreground leading-relaxed">
+              The living source of truth for what's shipped, what's in beta, and what's coming next. Pick a section in the sidebar to dive in.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Badge status="stable" count={counts.stable} />
+              <Badge status="beta" count={counts.beta} />
+              <Badge status="next" count={counts.next} />
+            </div>
+
+            <div className="mt-8 rounded-xl border border-border bg-gradient-to-br from-primary/5 via-card to-card p-5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Rocket className="h-3.5 w-3.5" /> Quickstart
+              </div>
+              <div className="mt-1 text-lg font-semibold">Three things to try right now</div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                {sections[0].features.map((f, i) => (
+                  <QuickCard key={i} feature={f} />
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {sections.map((s) => (
+                <Link
+                  key={s.id}
+                  to={`/dashboard/docs/${s.id}`}
+                  className="group rounded-lg border border-border bg-card p-4 hover:border-primary/40 hover:bg-card/80 transition-colors"
+                >
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{s.group}</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="text-sm font-semibold">{s.title}</div>
+                    <ArrowUpRight className="h-3.5 w-3.5 ml-auto text-muted-foreground group-hover:text-foreground" />
+                  </div>
+                  {s.intro && <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{s.intro}</div>}
+                </Link>
               ))}
             </div>
-          </div>
-
-          {/* Sections */}
-          <div className="mt-10 space-y-12">
-            {sections.slice(1).map((s) => (
-              <section key={s.id} id={s.id} className="scroll-mt-20">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{s.group}</div>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight">{s.title}</h2>
-                {s.intro && <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{s.intro}</p>}
-                <div className="mt-5 rounded-lg border border-border bg-card divide-y divide-border">
-                  {s.features.map((f, i) => (
-                    <FeatureRow key={i} feature={f} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-
-          <div className="mt-16 rounded-lg border border-dashed border-border bg-secondary/30 p-4 flex items-start gap-3">
-            <BookOpen className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="text-xs text-muted-foreground">
-              When a feature ships, moves to beta, or is queued — update <code className="px-1 py-0.5 rounded bg-background border border-border">src/pages/dashboard/Docs.tsx</code>. This page is the single source of truth.
+          </>
+        ) : (
+          <>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{section.group}</div>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">{section.title}</h1>
+            {section.intro && <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{section.intro}</p>}
+            <div className="mt-6 rounded-lg border border-border bg-card divide-y divide-border">
+              {section.features.map((f, i) => (
+                <FeatureRow key={i} feature={f} />
+              ))}
             </div>
+
+            <div className="mt-10 flex items-center gap-3">
+              {prev ? (
+                <Link
+                  to={`/dashboard/docs/${prev.id}`}
+                  className="flex-1 rounded-lg border border-border bg-card p-3 hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="text-[11px] text-muted-foreground">← Previous</div>
+                  <div className="text-sm font-medium">{prev.title}</div>
+                </Link>
+              ) : <div className="flex-1" />}
+              {next ? (
+                <Link
+                  to={`/dashboard/docs/${next.id}`}
+                  className="flex-1 rounded-lg border border-border bg-card p-3 hover:bg-secondary/50 transition-colors text-right"
+                >
+                  <div className="text-[11px] text-muted-foreground flex items-center justify-end gap-1">Next <ArrowRight className="h-3 w-3" /></div>
+                  <div className="text-sm font-medium">{next.title}</div>
+                </Link>
+              ) : <div className="flex-1" />}
+            </div>
+          </>
+        )}
+
+        <div className="mt-16 rounded-lg border border-dashed border-border bg-secondary/30 p-4 flex items-start gap-3">
+          <BookOpen className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <div className="text-xs text-muted-foreground">
+            When a feature ships, moves to beta, or is queued — update <code className="px-1 py-0.5 rounded bg-background border border-border">src/pages/dashboard/Docs.tsx</code>. This page is the single source of truth.
           </div>
+        </div>
       </div>
     </div>
   );

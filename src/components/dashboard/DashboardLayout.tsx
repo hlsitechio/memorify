@@ -58,14 +58,6 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
 ];
 
 function DocsNav({ collapsed }: { collapsed: boolean }) {
-  const [hash, setHash] = useState<string>(typeof window !== "undefined" ? window.location.hash.slice(1) : "");
-  useEffect(() => {
-    const onHash = () => setHash(window.location.hash.slice(1));
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-  const firstId = docsNavGroups[0]?.items[0]?.id;
-  const active = hash || firstId;
   return (
     <>
       <nav className="flex-1 p-2 space-y-4 overflow-y-auto">
@@ -75,26 +67,36 @@ function DocsNav({ collapsed }: { collapsed: boolean }) {
             <div className="text-sm font-semibold">Docs</div>
           </div>
         )}
+        <NavLink
+          to="/dashboard/docs"
+          end
+          title={collapsed ? "Overview" : undefined}
+          className={({ isActive }) =>
+            cn(
+              "rounded-md text-sm transition-colors",
+              collapsed
+                ? "mx-auto h-8 w-8 flex items-center justify-center font-mono text-[11px]"
+                : "block px-2.5 py-1.5",
+              isActive
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+            )
+          }
+        >
+          {collapsed ? "·" : "Overview"}
+        </NavLink>
         {docsNavGroups.map((g) => (
           <div key={g.label} className="space-y-0.5">
             {!collapsed && (
               <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</div>
             )}
-            {g.items.map((it) => {
-              const isActive = active === it.id;
-              return (
-                <a
-                  key={it.id}
-                  href={`/dashboard/docs#${it.id}`}
-                  title={collapsed ? it.title : undefined}
-                  onClick={(e) => {
-                    if (window.location.pathname === "/dashboard/docs") {
-                      e.preventDefault();
-                      window.location.hash = it.id;
-                      document.getElementById(it.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  }}
-                  className={cn(
+            {g.items.map((it) => (
+              <NavLink
+                key={it.id}
+                to={`/dashboard/docs/${it.id}`}
+                title={collapsed ? it.title : undefined}
+                className={({ isActive }) =>
+                  cn(
                     "rounded-md text-sm transition-colors",
                     collapsed
                       ? "mx-auto h-8 w-8 flex items-center justify-center font-mono text-[11px]"
@@ -102,12 +104,12 @@ function DocsNav({ collapsed }: { collapsed: boolean }) {
                     isActive
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-                  )}
-                >
-                  {collapsed ? it.title.charAt(0).toUpperCase() : it.title}
-                </a>
-              );
-            })}
+                  )
+                }
+              >
+                {collapsed ? it.title.charAt(0).toUpperCase() : it.title}
+              </NavLink>
+            ))}
           </div>
         ))}
       </nav>
