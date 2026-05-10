@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Puzzle, Trash2, Sparkles, Wrench, Plug, Globe } from "lucide-react";
+import { Plus, Puzzle, Trash2, Sparkles, Wrench, Plug, Globe, GripVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCopilotBus } from "@/copilot/bus";
 
 type Plugin = {
   id: string;
@@ -31,21 +32,51 @@ const KIND_META: Record<string, { icon: any; label: string; tone: string }> = {
 
 export default function Plugins() {
   const { user } = useAuth();
+  const { registerFlash } = useCopilotBus();
   const [rows, setRows] = useState<Plugin[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", url: "", method: "POST", headers: "" });
+  const [flashing, setFlashing] = useState<string | null>(null);
+  const dragId = useRef<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("plugins").select("*").eq("user_id", user.id).order("position").order("created_at", { ascending: false });
+    const { data } = await supabase.from("plugins").select("*").eq("user_id", user.id)
+      .order("position", { ascending: true })
+      .order("created_at", { ascending: false });
     setRows((data as any) ?? []);
-  };
-  useEffect(() => { load(); }, [user]);
+  }, [user]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Realtime: refetch on any change so copilot mutations show up live.
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase.channel(`plugins:${user.id}`)
+      .on("postgres_changes",
+          { event: "*", schema: "public", table: "plugins", filter: `user_id=eq.${user.id}` },
+          () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user, load]);
+
+  // Allow plugins.flash to pulse a row.
+  useEffect(() => {
+    const unregs = rows.map((p) =>
+      registerFlash(`plugin:${p.id}`, () => {
+        setFlashing(p.id);
+        window.setTimeout(() => setFlashing((x) => (x === p.id ? null : x)), 1200);
+      })
+    );
+    return () => unregs.forEach((u) => u());
+  }, [rows, registerFlash]);
 
   const createHttp = async () => {
     if (!user || !form.name || !form.url) return toast.error("Name and URL required");
     let headers: any = {};
-    if (form.headers.trim()) { try { headers = JSON.parse(form.headers); } catch { return toast.error("Headers must be JSON"); } }
+    if (form.headers.trim()) {
+      try { headers = JSON.parse(form.headers); } catch { return toast.error("Headers must be JSON"); }
+    }
     const { error } = await supabase.from("plugins").insert({
       user_id: user.id, name: form.name, kind: "http",
       config: { url: form.url, method: form.method, headers },
@@ -65,11 +96,35 @@ export default function Plugins() {
     load();
   };
 
+  // Native HTML5 drag reorder. Persists positions on drop.
+  const onDragStart = (id: string) => { dragId.current = id; };
+  const onDragOver = (e: React.DragEvent, overId: string) => {
+    e.preventDefault();
+    if (!dragId.current || dragId.current === overId) return;
+    setRows((prev) => {
+      const from = prev.findIndex((r) => r.id === dragId.current);
+      const to = prev.findIndex((r) => r.id === overId);
+      if (from === -1 || to === -1) return prev;
+      const next = prev.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+  const onDrop = async () => {
+    dragId.current = null;
+    const ids = rows.map((r) => r.id);
+    for (let i = 0; i < ids.length; i++) {
+      await supabase.from("plugins").update({ position: i }).eq("id", ids[i]);
+    }
+    load();
+  };
+
   return (
     <>
       <PageHeader
         title="Plugins"
-        description="Wired tools your agents can call"
+        description="Wired tools your agents can call. Drag to reorder."
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> Add HTTP plugin</Button></DialogTrigger>
@@ -102,7 +157,7 @@ export default function Plugins() {
           <div className="rounded-lg border border-dashed border-border p-12 text-center">
             <Puzzle className="h-8 w-8 mx-auto mb-3 text-muted-foreground/60" />
             <p className="text-sm font-medium">No plugins</p>
-            <p className="text-xs text-muted-foreground mt-1">Add an HTTP plugin here, or wire skills/MCP tools as plugins from their pages.</p>
+            <p className="text-xs text-muted-foreground mt-1">Add an HTTP plugin here, or ask Copilot: "Add a Slack relay HTTP plugin".</p>
           </div>
         ) : (
           <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -110,7 +165,19 @@ export default function Plugins() {
               const meta = KIND_META[p.kind] ?? { icon: Puzzle, label: p.kind, tone: "text-muted-foreground" };
               const Icon = meta.icon;
               return (
-                <div key={p.id} className="grid grid-cols-[28px_120px_1fr_auto] items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
+                <div
+                  key={p.id}
+                  draggable
+                  onDragStart={() => onDragStart(p.id)}
+                  onDragOver={(e) => onDragOver(e, p.id)}
+                  onDrop={onDrop}
+                  onDragEnd={onDrop}
+                  className={cn(
+                    "grid grid-cols-[20px_28px_120px_1fr_auto] items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors",
+                    flashing === p.id && "bg-primary/15 ring-1 ring-primary/40"
+                  )}
+                >
+                  <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 cursor-grab active:cursor-grabbing" />
                   <Icon className={cn("h-4 w-4", meta.tone)} />
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{meta.label}</span>
                   <div className="min-w-0">
