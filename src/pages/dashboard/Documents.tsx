@@ -1,19 +1,136 @@
-import { ComingSoon } from "@/components/dashboard/ComingSoon";
-import { FileText } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Upload, FileText, Trash2, Download, RefreshCcw, Search } from "lucide-react";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+
+type Doc = { id: string; name: string; mime: string | null; size: number | null; storage_path: string; status: string; created_at: string };
 
 export default function Documents() {
+  const { user } = useAuth();
+  const [rows, setRows] = useState<Doc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [drag, setDrag] = useState(false);
+  const [uploading, setUploading] = useState(0);
+
+  const load = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase.from("documents").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
+    setRows((data as any) ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [user]);
+
+  const upload = useCallback(async (files: FileList | File[]) => {
+    if (!user) return;
+    const list = Array.from(files);
+    setUploading(list.length);
+    for (const f of list) {
+      try {
+        const path = `${user.id}/${crypto.randomUUID()}-${f.name}`;
+        const { error: upErr } = await supabase.storage.from("documents").upload(path, f, { contentType: f.type });
+        if (upErr) throw upErr;
+        const { error: insErr } = await supabase.from("documents").insert({
+          user_id: user.id, name: f.name, mime: f.type, size: f.size, storage_path: path, status: "ready",
+        });
+        if (insErr) throw insErr;
+      } catch (e: any) { toast.error(`${f.name}: ${e.message}`); }
+      setUploading((n) => n - 1);
+    }
+    toast.success(`Uploaded ${list.length} file${list.length > 1 ? "s" : ""}`);
+    load();
+  }, [user]);
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDrag(false);
+    if (e.dataTransfer.files?.length) upload(e.dataTransfer.files);
+  };
+
+  const del = async (d: Doc) => {
+    await supabase.storage.from("documents").remove([d.storage_path]);
+    const { error } = await supabase.from("documents").delete().eq("id", d.id);
+    if (error) return toast.error(error.message);
+    toast.success("Deleted");
+    load();
+  };
+
+  const open = async (d: Doc) => {
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(d.storage_path, 300);
+    if (error) return toast.error(error.message);
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const filtered = rows.filter((r) => !q || r.name.toLowerCase().includes(q.toLowerCase()));
+
   return (
-    <ComingSoon
-      title="Documents"
-      description="Ingest, chunk, and ground your agents in your own knowledge."
-      icon={FileText}
-      blurb="Upload PDFs, Markdown, HTML, or sync from Drive/Notion. Synapse parses, chunks, embeds, and indexes — your agents query through Memory."
-      bullets={[
-        "Drag-and-drop upload, or sync from connectors",
-        "Automatic chunking + embedding pipeline",
-        "Per-namespace access control",
-        "Re-index on change, with cost preview",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Documents"
+        description="Drag, drop, done."
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={load}><RefreshCcw className="h-3.5 w-3.5 mr-1.5" /> Refresh</Button>
+            <label>
+              <input type="file" multiple className="hidden" onChange={(e) => e.target.files && upload(e.target.files)} />
+              <Button size="sm" asChild><span><Upload className="h-3.5 w-3.5 mr-1.5" /> Upload</span></Button>
+            </label>
+          </>
+        }
+      />
+      <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={onDrop}
+          onClick={() => (document.querySelector<HTMLInputElement>('input[type=file]'))?.click()}
+          className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${drag ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-card"}`}
+        >
+          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-sm font-medium">Drop files here or click to upload</p>
+          <p className="text-xs text-muted-foreground mt-1">PDF, Markdown, text, images — anything up to 50MB.</p>
+          {uploading > 0 && <p className="text-xs text-primary mt-2">Uploading {uploading}…</p>}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input className="pl-8 h-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <div className="text-xs text-muted-foreground tabular-nums">{filtered.length} files</div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {loading ? (
+            <div className="p-12 text-center text-sm text-muted-foreground">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center">
+              <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground/60" />
+              <p className="text-sm font-medium">No documents yet</p>
+            </div>
+          ) : filtered.map((d) => (
+            <div key={d.id} className="grid grid-cols-[1fr_120px_120px_140px_80px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30">
+              <div className="flex items-center gap-2 truncate">
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm truncate">{d.name}</span>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono truncate">{d.mime ?? "—"}</div>
+              <div className="text-xs text-muted-foreground tabular-nums">{d.size ? `${(d.size / 1024).toFixed(1)} KB` : "—"}</div>
+              <div className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</div>
+              <div className="flex items-center gap-1 justify-end">
+                <button onClick={() => open(d)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>
+                <button onClick={() => del(d)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }
