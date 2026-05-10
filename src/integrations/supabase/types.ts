@@ -131,6 +131,86 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_servers: {
+        Row: {
+          auth: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          last_error: string | null
+          last_handshake_at: string | null
+          name: string
+          transport: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          auth?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_error?: string | null
+          last_handshake_at?: string | null
+          name: string
+          transport?: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          auth?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_error?: string | null
+          last_handshake_at?: string | null
+          name?: string
+          transport?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mcp_tools: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          input_schema: Json
+          mcp_server_id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          input_schema?: Json
+          mcp_server_id: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          input_schema?: Json
+          mcp_server_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mcp_tools_mcp_server_id_fkey"
+            columns: ["mcp_server_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memories: {
         Row: {
           content: string
@@ -164,6 +244,45 @@ export type Database = {
         }
         Relationships: []
       }
+      plugins: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          kind: string
+          name: string
+          position: number
+          ref_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          kind: string
+          name: string
+          position?: number
+          ref_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          kind?: string
+          name?: string
+          position?: number
+          ref_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -188,6 +307,51 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      skills: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          model: string
+          name: string
+          prompt: string
+          schema: Json
+          slug: string
+          status: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          model?: string
+          name: string
+          prompt?: string
+          schema?: Json
+          slug: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          model?: string
+          name?: string
+          prompt?: string
+          schema?: Json
+          slug?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
         }
         Relationships: []
       }
