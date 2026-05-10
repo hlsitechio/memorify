@@ -36,7 +36,7 @@ export function AIChatSidebar() {
   return (
     <aside
       className={cn(
-        "shrink-0 border-l border-border bg-card flex flex-col transition-[width] duration-200 overflow-hidden",
+        "shrink-0 border-l border-border bg-card flex flex-col transition-[width] duration-200 overflow-hidden sticky top-0 h-screen self-start",
         chatOpen ? "w-96" : "w-0"
       )}
       aria-hidden={!chatOpen}
