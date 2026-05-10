@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import GridLayout, { WidthProvider } from "react-grid-layout";
-import type { Layout } from "react-grid-layout";
+import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
