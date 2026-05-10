@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck } from "lucide-react";
+import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -157,6 +158,9 @@ export default function Agents() {
             <TabsTrigger value="connected">
               Connected <Badge variant="secondary" className="ml-2">{agents.length}</Badge>
             </TabsTrigger>
+            <TabsTrigger value="activity">
+              <Activity className="h-3.5 w-3.5 mr-1.5" /> Activity
+            </TabsTrigger>
             <TabsTrigger value="library">Library</TabsTrigger>
           </TabsList>
 
@@ -168,6 +172,10 @@ export default function Agents() {
             ) : (
               agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} />)
             )}
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-0">
+            <ActivityFeed userId={user?.id} agents={agents} />
           </TabsContent>
 
           <TabsContent value="library" className="mt-0">
@@ -338,6 +346,99 @@ Every response is JSON: \`{ ok, action, result, agent }\` on success, or \`{ ok:
 6. **Stay scoped.** Your token is bound to one user — everything you read/write belongs to them.
 
 You're ready. Begin by running the GET request above to confirm the connection.`;
+
+type AgentEvent = {
+  id: string;
+  kind: string;
+  source: string | null;
+  payload: any;
+  created_at: string;
+};
+
+function ActivityFeed({ userId, agents }: { userId?: string; agents: Agent[] }) {
+  const [events, setEvents] = useState<AgentEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const agentById = useMemo(() => Object.fromEntries(agents.map(a => [a.id, a])), [agents]);
+
+  const load = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("events")
+      .select("id, kind, source, payload, created_at")
+      .eq("user_id", userId)
+      .like("kind", "agent.%")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setEvents((data as AgentEvent[]) ?? []);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase
+      .channel(`agent-activity:${userId}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "events", filter: `user_id=eq.${userId}` },
+        (p) => {
+          const ev = p.new as AgentEvent;
+          if (ev.kind?.startsWith("agent.")) setEvents((prev) => [ev, ...prev].slice(0, 50));
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId]);
+
+  if (loading) return <div className="text-sm text-muted-foreground">Loading activity…</div>;
+  if (!events.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card/40 p-10 text-center">
+        <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+        <div className="text-sm font-medium">No agent activity yet</div>
+        <p className="text-xs text-muted-foreground mt-1">As soon as an agent calls the API, you'll see it here in realtime.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
+      {events.map((e) => {
+        const isError = e.kind.endsWith(".error");
+        const action = e.kind.replace(/^agent\./, "").replace(/\.error$/, "");
+        const agentId = e.payload?.agent_id as string | undefined;
+        const agent = agentId ? agentById[agentId] : undefined;
+        const agentName = agent?.name ?? e.source?.replace(/^agent:/, "") ?? "Unknown";
+        const dur = typeof e.payload?.duration_ms === "number" ? `${e.payload.duration_ms}ms` : null;
+        return (
+          <div key={e.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/30 transition-colors">
+            <div className={cn(
+              "h-8 w-8 rounded-md flex items-center justify-center shrink-0",
+              isError ? "bg-destructive/15 text-destructive" : "bg-emerald-500/15 text-emerald-400",
+            )}>
+              {isError ? <AlertTriangle className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium truncate">{agentName}</span>
+                <code className="text-[11px] font-mono text-muted-foreground truncate">{action}</code>
+                {isError && <Badge variant="destructive" className="text-[9px] h-4 px-1.5">error</Badge>}
+              </div>
+              {(isError ? e.payload?.error : e.payload?.params) && (
+                <div className="text-[11px] text-muted-foreground truncate font-mono mt-0.5">
+                  {isError ? e.payload.error : JSON.stringify(e.payload.params)}
+                </div>
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground shrink-0 flex flex-col items-end">
+              <span>{formatDistanceToNow(new Date(e.created_at), { addSuffix: true })}</span>
+              {dur && <span className="font-mono text-[10px] opacity-70">{dur}</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 
   return (
