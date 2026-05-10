@@ -1,10 +1,14 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock } from "lucide-react";
+import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock, Search, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
+import { CommandPalette } from "./CommandPalette";
+import { AIChatSidebar } from "./AIChatSidebar";
+import { Button } from "@/components/ui/button";
 
 const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
   {
