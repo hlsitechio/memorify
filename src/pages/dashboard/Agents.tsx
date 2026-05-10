@@ -268,21 +268,29 @@ function AgentRow({ agent, onOpen, onDelete }: { agent: Agent; onOpen: () => voi
 
 function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const open = !!agent;
-  const url = endpointUrl();
-  const fullUrl = agent ? `${url}?token=${agent.token}` : "";
-  const claudeCmd = agent ? `claude mcp add synapse --transport http ${fullUrl}` : "";
-  const curlCmd = agent ? `curl -X POST "${fullUrl}" -H "Content-Type: application/json" -d '{"client":"manual"}'` : "";
+  const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const apiUrl = `${base}/agent-api`;
+  const pingUrl = `${base}/agent-ping`;
+  const token = agent?.token ?? "";
+
+  const curlWhoami =
+    `curl -s ${apiUrl} -H "Authorization: Bearer ${token}"`;
+  const curlRemember =
+    `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.remember","params":{"content":"User prefers dark mode","tags":["preference"]}}'`;
+  const curlRecall =
+    `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
+  const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl [&>*]:min-w-0">
+      <DialogContent className="max-w-2xl [&>*]:min-w-0">
         <DialogHeader className="min-w-0">
           <DialogTitle className="flex items-center gap-2">
             <Terminal className="h-4 w-4 text-amber-400" />
             Connect {agent?.name}
           </DialogTitle>
           <DialogDescription>
-            Run the command below in your terminal. The status flips to <span className="text-emerald-400 font-medium">Connected</span> as soon as your agent pings the endpoint.
+            Two ways to plug in. <span className="text-foreground font-medium">Direct API</span> is instant — no restart, no handshake.
           </DialogDescription>
         </DialogHeader>
 
@@ -302,32 +310,48 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
               </span>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">1. Install in Claude Code</label>
-              <CopyField value={claudeCmd} label="Install command" />
-              <p className="text-[11px] text-muted-foreground">
-                Registers this workspace as an MCP server in your Claude Code config. Restart Claude Code afterward.
-              </p>
-            </div>
+            <Tabs defaultValue="api">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="api">
+                  <Zap className="h-3.5 w-3.5 mr-1.5" /> Direct API (recommended)
+                </TabsTrigger>
+                <TabsTrigger value="mcp">MCP (restart required)</TabsTrigger>
+              </TabsList>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">2. Or test the endpoint manually</label>
-              <CopyField value={curlCmd} label="Test command" />
-            </div>
+              <TabsContent value="api" className="space-y-4 mt-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Endpoint</label>
+                  <CopyField value={apiUrl} label="Endpoint" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Bearer token (keep secret)</label>
+                  <CopyField value={token} label="Token" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">List commands + whoami</label>
+                  <CopyField value={curlWhoami} label="whoami" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Store a memory</label>
+                  <CopyField value={curlRemember} label="memory.remember" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Recall</label>
+                  <CopyField value={curlRecall} label="memory.recall" />
+                </div>
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-primary font-medium">Tip:</span> any agent (Claude Code via bash, scripts, your own tools) can call this with no restart. Available actions: <code className="text-foreground">whoami</code>, <code className="text-foreground">memory.remember/recall/update/delete</code>, <code className="text-foreground">documents.list</code>, <code className="text-foreground">skills.list</code>, <code className="text-foreground">events.log/list</code>.
+                </div>
+              </TabsContent>
 
-            <details className="rounded-md border border-border bg-secondary/20 px-3 py-2 group">
-              <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">Advanced: raw URL & token</summary>
-              <div className="space-y-2 mt-2.5">
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Endpoint</div>
-                  <CopyField value={url} label="Endpoint" />
+              <TabsContent value="mcp" className="space-y-3 mt-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
+                  <CopyField value={mcpCmd} label="MCP install" />
+                  <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
                 </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Token (keep secret)</div>
-                  <CopyField value={agent.token} label="Token" />
-                </div>
-              </div>
-            </details>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </DialogContent>
