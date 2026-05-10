@@ -69,25 +69,31 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        <nav className="flex-1 p-2 space-y-0.5">
-          <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">Workspace</div>
-          {items.map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                )
-              }
-            >
-              <it.icon className="h-4 w-4" />
-              {it.label}
-            </NavLink>
+        <nav className="flex-1 p-2 space-y-3 overflow-y-auto">
+          {sections.map((section) => (
+            <div key={section.label} className="space-y-0.5">
+              <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                {section.label}
+              </div>
+              {section.items.map((it) => (
+                <NavLink
+                  key={it.to}
+                  to={it.to}
+                  end={it.end}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    )
+                  }
+                >
+                  <it.icon className="h-4 w-4" />
+                  {it.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
