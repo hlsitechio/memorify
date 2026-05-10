@@ -136,6 +136,34 @@ export default function Agents() {
     load();
   };
 
+  const pauseToggle = async (a: Agent) => {
+    const next = a.status === "paused" ? "connected" : "paused";
+    await supabase.from("agents").update({ status: next }).eq("id", a.id);
+    toast.success(next === "paused" ? "Agent paused — API calls blocked" : "Agent resumed");
+    load();
+  };
+
+  const resync = async (a: Agent) => {
+    // Clear onboarded flag so next GET /agent-api re-sends the full welcome + command catalog.
+    const meta = { ...(a.metadata || {}) } as Record<string, unknown>;
+    delete meta.onboarded;
+    delete meta.onboarded_at;
+    await supabase.from("agents").update({ metadata: meta }).eq("id", a.id);
+    toast.success("Resync queued — agent will receive the new command list on its next call");
+    load();
+  };
+
+  const revokeToken = async (a: Agent) => {
+    // Rotate the bearer token; old token immediately stops working.
+    const newToken = crypto.getRandomValues(new Uint8Array(24));
+    const hex = Array.from(newToken).map(b => b.toString(16).padStart(2, "0")).join("");
+    await supabase.from("agents").update({ token: hex, status: "pending", last_seen_at: null }).eq("id", a.id);
+    toast.success("Token rotated — old token revoked. Open Setup to copy the new one.");
+    setWizardId(a.id);
+    load();
+  };
+
+
   const wizardAgent = useMemo(
     () => agents.find((a) => a.id === wizardId) ?? null,
     [agents, wizardId],
