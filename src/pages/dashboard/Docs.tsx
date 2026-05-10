@@ -59,9 +59,9 @@ const sections: Section[] = [
     title: "Platform",
     intro: "The bedrock everything runs on — backend, auth, storage, observability.",
     features: [
-      { title: "Lovable Cloud backend", desc: "Postgres + Auth (email + Google) + Storage + Edge Functions, all RLS-scoped per user.", status: "stable" },
-      { title: "Dashboard shell", desc: "Sidebar nav, command palette (⌘K), persistent Copilot sidebar (⌘I), per-tab routing.", status: "stable" },
-      { title: "Workspace sharing", desc: "Invite collaborators with roles and shared memory namespaces.", status: "next" },
+      { title: "Lovable Cloud backend", desc: "Postgres + Auth (email + Google) + Storage + Edge Functions, all RLS-scoped per user.", status: "stable", icon: Cloud },
+      { title: "Dashboard shell", desc: "Sidebar nav, command palette (⌘K), persistent Copilot sidebar (⌘I), per-tab routing.", status: "stable", icon: LayoutDashboard },
+      { title: "Workspace sharing", desc: "Invite collaborators with roles and shared memory namespaces.", status: "next", icon: Users },
     ],
   },
   {
