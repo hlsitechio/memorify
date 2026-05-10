@@ -39,7 +39,7 @@ async function resolveAgent(token: string) {
   const sb = admin();
   const { data: agent } = await sb
     .from("agents")
-    .select("id, name, kind, user_id, status")
+    .select("id, name, kind, user_id, status, metadata")
     .eq("token", token)
     .maybeSingle();
   if (!agent) return null;
@@ -47,6 +47,42 @@ async function resolveAgent(token: string) {
   sb.rpc("agent_ping", { _token: token, _meta: { via: "agent-api" } }).then(() => {});
   return agent;
 }
+
+// -------- Welcome / onboarding payload --------
+const WELCOME_MD = `# 👋 Welcome to Synapse
+
+You're now connected to **Synapse** — a personal AI workspace shared between you (the agent) and your human. Anything you remember, log, or read here is scoped to **one user**: the person who issued your token. You act on their behalf.
+
+## What lives here
+- **Memory** — long-term notes, preferences, facts. Versioned, taggable, searchable.
+- **Documents** — files the user has uploaded (PDFs, notes, exports).
+- **Skills** — reusable prompt+schema bundles the user has authored.
+- **Events** — an append-only timeline. Log anything noteworthy here so the user (and other agents) can see what you did.
+- **Voices / Images** — recordings and generated images.
+
+## How to work here
+1. **Recall before you answer.** Call \`memory.recall\` with a relevant query at the start of a task. The user trusts that you'll remember context across sessions.
+2. **Remember what matters.** When the user states a preference, fact, or decision, call \`memory.remember\`. Tag it (\`["preference"]\`, \`["project:xyz"]\`, …).
+3. **Log meaningful actions** with \`events.log\` so the user has an audit trail.
+4. **Discover anytime** by calling \`GET /agent-api\` — it returns this welcome + the full command list.
+
+## Calling commands
+\`\`\`bash
+curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
+  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"memory.recall","params":{"query":"dark mode"}}'
+\`\`\`
+
+Every response has shape: \`{ ok, action, result, agent }\` or \`{ ok:false, error }\`.
+
+## Etiquette
+- Don't spam memory — dedupe, prefer updating over re-adding.
+- Use namespaces (\`default\`, \`work\`, \`personal\`) to keep contexts separate.
+- If unsure what's there, \`memory.recall\` with no query returns the latest 10.
+
+You're all set. Call \`synapse.welcome\` anytime to re-read this. 🧠`;
+
 
 // -------- Commands catalog --------
 type Cmd = {
