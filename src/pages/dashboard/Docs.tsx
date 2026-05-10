@@ -3,7 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import {
   BookOpen, Rocket, Sparkles, Puzzle, Plug, Server, Database, FileText,
   Image as ImageIcon, Mic, Table2, Lock, Activity, ScrollText, KeyRound,
-  Bot, ChevronRight, Copy, Check, ArrowUpRight, ArrowRight, type LucideIcon,
+  Bot, ChevronRight, Copy, Check, ArrowUpRight, ArrowRight,
+  Cloud, LayoutDashboard, Users, MessageSquare, ListChecks, Workflow, ShieldCheck, Undo2,
+  Mic2, Search, Network, Share2, GitBranch, Radio, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -57,9 +59,9 @@ const sections: Section[] = [
     title: "Platform",
     intro: "The bedrock everything runs on — backend, auth, storage, observability.",
     features: [
-      { title: "Lovable Cloud backend", desc: "Postgres + Auth (email + Google) + Storage + Edge Functions, all RLS-scoped per user.", status: "stable" },
-      { title: "Dashboard shell", desc: "Sidebar nav, command palette (⌘K), persistent Copilot sidebar (⌘I), per-tab routing.", status: "stable" },
-      { title: "Workspace sharing", desc: "Invite collaborators with roles and shared memory namespaces.", status: "next" },
+      { title: "Lovable Cloud backend", desc: "Postgres + Auth (email + Google) + Storage + Edge Functions, all RLS-scoped per user.", status: "stable", icon: Cloud },
+      { title: "Dashboard shell", desc: "Sidebar nav, command palette (⌘K), persistent Copilot sidebar (⌘I), per-tab routing.", status: "stable", icon: LayoutDashboard },
+      { title: "Workspace sharing", desc: "Invite collaborators with roles and shared memory namespaces.", status: "next", icon: Users },
     ],
   },
   {
@@ -70,11 +72,11 @@ const sections: Section[] = [
     features: [
       { title: "Multi-turn agent chat", desc: "Streaming, tool-calling, persistent across reloads and tab switches.", status: "stable", icon: Bot },
       { title: "Action registry (Wave A+B)", desc: "Unified CommandDef — nav, widgets, plugins commands wired to the agent.", status: "stable", icon: Puzzle },
-      { title: "Action chips in chat", desc: "Each tool call rendered as a card with status and result.", status: "beta" },
-      { title: "Wave C — memory / skills / mcp", desc: "Full Copilot CRUD over memory, skills, and MCP servers.", status: "next" },
-      { title: "Wave D — docs / images / voices / api keys", desc: "Upload, generate, register, revoke — all via Copilot.", status: "next" },
-      { title: "Wave E — db / vault / events / profile / ui", desc: "Reads, secret names, theme + density commands.", status: "next" },
-      { title: "Undo + confirm gates", desc: "meta.confirm for destructive ops, meta.undo via the event log.", status: "next" },
+      { title: "Action chips in chat", desc: "Each tool call rendered as a card with status and result.", status: "beta", icon: MessageSquare },
+      { title: "Wave C — memory / skills / mcp", desc: "Full Copilot CRUD over memory, skills, and MCP servers.", status: "next", icon: ListChecks },
+      { title: "Wave D — docs / images / voices / api keys", desc: "Upload, generate, register, revoke — all via Copilot.", status: "next", icon: Workflow },
+      { title: "Wave E — db / vault / events / profile / ui", desc: "Reads, secret names, theme + density commands.", status: "next", icon: ShieldCheck },
+      { title: "Undo + confirm gates", desc: "meta.confirm for destructive ops, meta.undo via the event log.", status: "next", icon: Undo2 },
     ],
   },
   {
@@ -87,8 +89,8 @@ const sections: Section[] = [
       { title: "Documents", desc: "Drag-drop upload, signed URLs, private per-user storage.", status: "stable", icon: FileText, to: "/dashboard/documents" },
       { title: "Images", desc: "AI generation via Lovable AI Gateway + upload library.", status: "stable", icon: ImageIcon, to: "/dashboard/images" },
       { title: "Voices (Otter-style)", desc: "Record, upload, transcribe, AI summary + action items.", status: "stable", icon: Mic, to: "/dashboard/voices" },
-      { title: "Voice auto-transcription", desc: "Manual paste today; ElevenLabs Scribe wiring is staged.", status: "beta" },
-      { title: "Document Q&A + embeddings", desc: "pgvector-backed semantic search across documents and memory.", status: "next" },
+      { title: "Voice auto-transcription", desc: "Manual paste today; ElevenLabs Scribe wiring is staged.", status: "beta", icon: Mic2 },
+      { title: "Document Q&A + embeddings", desc: "pgvector-backed semantic search across documents and memory.", status: "next", icon: Search },
     ],
   },
   {
@@ -101,7 +103,7 @@ const sections: Section[] = [
       { title: "Plugins", desc: "Registry with toggles, reorder, multi-source (skill / connector / MCP / HTTP).", status: "stable", icon: Puzzle, to: "/dashboard/plugins" },
       { title: "Connectors", desc: "External service connections with config + test endpoint.", status: "stable", icon: Plug, to: "/dashboard/connectors" },
       { title: "MCP", desc: "Model Context Protocol servers, handshake, per-tool toggles.", status: "stable", icon: Server, to: "/dashboard/mcp" },
-      { title: "MCP tool invocation", desc: "Handshake + listing works; live invoke routing still hardening.", status: "beta" },
+      { title: "MCP tool invocation", desc: "Handshake + listing works; live invoke routing still hardening.", status: "beta", icon: Network },
     ],
   },
   {
@@ -112,8 +114,8 @@ const sections: Section[] = [
     features: [
       { title: "AI-Native Collections", desc: "Schemaless JSON docs, AI smart import, natural-language query bar.", status: "stable", icon: Table2, to: "/dashboard/database" },
       { title: "Vault", desc: "Per-user secret names registry (values stored in backend secrets).", status: "stable", icon: Lock, to: "/dashboard/vault" },
-      { title: "Collections NL query", desc: "Works on common shapes; complex nested filters still iterating.", status: "beta" },
-      { title: "Graph / relations layer", desc: "Edges between items (people ↔ projects ↔ docs) for relational reasoning.", status: "next" },
+      { title: "Collections NL query", desc: "Works on common shapes; complex nested filters still iterating.", status: "beta", icon: Search },
+      { title: "Graph / relations layer", desc: "Edges between items (people ↔ projects ↔ docs) for relational reasoning.", status: "next", icon: Share2 },
     ],
   },
   {
@@ -132,7 +134,7 @@ const sections: Section[] = [
     title: "API & access",
     features: [
       { title: "API keys", desc: "Reveal-once token creation + revoke.", status: "stable", icon: KeyRound, to: "/dashboard/api-keys" },
-      { title: "Per-command permissions", desc: "Settings UI to allow/deny each Copilot command class.", status: "next" },
+      { title: "Per-command permissions", desc: "Settings UI to allow/deny each Copilot command class.", status: "next", icon: ShieldCheck },
     ],
   },
 ];
