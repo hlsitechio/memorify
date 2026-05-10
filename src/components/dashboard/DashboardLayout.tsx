@@ -1,10 +1,7 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, ChevronsUpDown, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock, Search, Bot } from "lucide-react";
+import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock, Search, Bot, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
 import { CommandPalette } from "./CommandPalette";
 import { AIChatSidebar } from "./AIChatSidebar";
@@ -21,6 +18,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
       { to: "/dashboard/skills", label: "Skills", icon: Sparkles },
       { to: "/dashboard/plugins", label: "Plugins", icon: Puzzle },
       { to: "/dashboard/connectors", label: "Connectors", icon: Plug },
+      { to: "/dashboard/mcp", label: "MCP", icon: Server },
     ],
   },
   {
@@ -50,7 +48,6 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
     label: "Project",
     items: [
       { to: "/dashboard/api-keys", label: "API keys", icon: KeyRound },
-      { to: "/dashboard/settings", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -101,33 +98,36 @@ function DashboardLayoutInner() {
           ))}
         </nav>
 
-        <div className="p-2 border-t border-border">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-secondary/60 transition-colors">
-              <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground">
-                {initial}
+        <div className="p-2 border-t border-border space-y-1">
+          <NavLink
+            to="/dashboard/settings"
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+                isActive
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              )
+            }
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </NavLink>
+          <button
+            onClick={async () => { await signOut(); navigate("/"); }}
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-secondary/60 transition-colors text-left group"
+            title="Sign out"
+          >
+            <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground shrink-0">
+              {initial}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs truncate">{user?.email}</div>
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <LogOut className="h-3 w-3" /> Sign out
               </div>
-              <div className="flex-1 min-w-0 text-left">
-                <div className="text-sm truncate">{user?.email}</div>
-                <div className="text-[11px] text-muted-foreground">Free plan</div>
-              </div>
-              <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>
-                <Settings className="h-4 w-4 mr-2" /> Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={async () => {
-                  await signOut();
-                  navigate("/");
-                }}
-              >
-                <LogOut className="h-4 w-4 mr-2" /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </div>
+          </button>
         </div>
       </aside>
 
