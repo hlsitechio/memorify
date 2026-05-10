@@ -50,6 +50,7 @@ const App = () => (
               }
             >
               <Route index element={<DashboardHome />} />
+              <Route path="agents" element={<Agents />} />
               <Route path="memory" element={<Memory />} />
               <Route path="skills" element={<Skills />} />
               <Route path="plugins" element={<Plugins />} />
