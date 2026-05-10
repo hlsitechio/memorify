@@ -57,7 +57,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   },
 ];
 
-function DocsNav() {
+function DocsNav({ collapsed }: { collapsed: boolean }) {
   const [hash, setHash] = useState<string>(typeof window !== "undefined" ? window.location.hash.slice(1) : "");
   useEffect(() => {
     const onHash = () => setHash(window.location.hash.slice(1));
@@ -69,19 +69,24 @@ function DocsNav() {
   return (
     <>
       <nav className="flex-1 p-2 space-y-4 overflow-y-auto">
-        <div className="px-2 pt-2 pb-1 flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary" />
-          <div className="text-sm font-semibold">Docs</div>
-        </div>
+        {!collapsed && (
+          <div className="px-2 pt-2 pb-1 flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <div className="text-sm font-semibold">Docs</div>
+          </div>
+        )}
         {docsNavGroups.map((g) => (
           <div key={g.label} className="space-y-0.5">
-            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</div>
+            {!collapsed && (
+              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</div>
+            )}
             {g.items.map((it) => {
               const isActive = active === it.id;
               return (
                 <a
                   key={it.id}
                   href={`/dashboard/docs#${it.id}`}
+                  title={collapsed ? it.title : undefined}
                   onClick={(e) => {
                     if (window.location.pathname === "/dashboard/docs") {
                       e.preventDefault();
@@ -90,13 +95,16 @@ function DocsNav() {
                     }
                   }}
                   className={cn(
-                    "block px-2.5 py-1.5 rounded-md text-sm transition-colors",
+                    "rounded-md text-sm transition-colors",
+                    collapsed
+                      ? "mx-auto h-8 w-8 flex items-center justify-center font-mono text-[11px]"
+                      : "block px-2.5 py-1.5",
                     isActive
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
                   )}
                 >
-                  {it.title}
+                  {collapsed ? it.title.charAt(0).toUpperCase() : it.title}
                 </a>
               );
             })}
@@ -107,31 +115,39 @@ function DocsNav() {
         <NavLink
           to="/dashboard"
           end
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          title={collapsed ? "Back to workspace" : undefined}
+          className={cn(
+            "flex items-center rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors",
+            collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2"
+          )}
         >
-          <ArrowLeft className="h-4 w-4" /> Back to workspace
+          <ArrowLeft className="h-4 w-4" /> {!collapsed && "Back to workspace"}
         </NavLink>
       </div>
     </>
   );
 }
 
-function MainNav() {
+function MainNav({ collapsed }: { collapsed: boolean }) {
   return (
     <nav className="flex-1 p-2 space-y-3 overflow-y-auto">
       {sections.map((section) => (
         <div key={section.label} className="space-y-0.5">
-          <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-            {section.label}
-          </div>
+          {!collapsed && (
+            <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+              {section.label}
+            </div>
+          )}
           {section.items.map((it) => (
             <NavLink
               key={it.to}
               to={it.to}
               end={it.end}
+              title={collapsed ? it.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+                  "flex items-center rounded-md text-sm transition-colors",
+                  collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
                   isActive
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -139,7 +155,7 @@ function MainNav() {
               }
             >
               <it.icon className="h-4 w-4" />
-              {it.label}
+              {!collapsed && it.label}
             </NavLink>
           ))}
         </div>
