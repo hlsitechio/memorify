@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.memory-suggest]
 verify_jwt = false
+
+[functions.copilot-action]
+verify_jwt = false

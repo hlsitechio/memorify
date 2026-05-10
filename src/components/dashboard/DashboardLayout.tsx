@@ -6,6 +6,8 @@ import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
 import { CommandPalette } from "./CommandPalette";
 import { AIChatSidebar } from "./AIChatSidebar";
 import { Button } from "@/components/ui/button";
+import { CopilotBusProvider } from "@/copilot/bus";
+import { useRegisterCoreCommands } from "@/copilot/useRegisterCoreCommands";
 
 const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
   {
@@ -56,6 +58,7 @@ function DashboardLayoutInner() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
+  useRegisterCoreCommands();
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground">
@@ -181,7 +184,9 @@ function DashboardTopbar() {
 export default function DashboardLayout() {
   return (
     <DashboardUIProvider>
-      <DashboardLayoutInner />
+      <CopilotBusProvider>
+        <DashboardLayoutInner />
+      </CopilotBusProvider>
     </DashboardUIProvider>
   );
 }
