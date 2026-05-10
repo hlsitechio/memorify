@@ -232,11 +232,18 @@ export function UsageWidget() {
 
 export function DocsWidget() {
   return (
-    <WidgetShell title="Documents" icon={FileText} action={<Link to="/dashboard/documents" className="text-[11px] text-primary hover:underline">Open</Link>}>
-      <div className="space-y-1">
-        <div className="text-2xl font-semibold tabular-nums">0</div>
-        <div className="text-xs text-muted-foreground">Indexed sources · ready for grounding</div>
-      </div>
+    <WidgetShell title="Documents" icon={FileText}>
+      <Link to="/dashboard/documents" className="group h-full flex flex-col justify-between">
+        <div className="flex items-center justify-between">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+        <div>
+          <div className="text-3xl font-semibold tabular-nums">0</div>
+          <div className="text-sm font-medium mt-0.5">Documents</div>
+          <div className="text-xs text-muted-foreground">Indexed sources · ready for grounding</div>
+        </div>
+      </Link>
     </WidgetShell>
   );
 }
