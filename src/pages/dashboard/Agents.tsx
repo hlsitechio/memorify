@@ -148,7 +148,7 @@ export default function Agents() {
     const meta = { ...(a.metadata || {}) } as Record<string, unknown>;
     delete meta.onboarded;
     delete meta.onboarded_at;
-    await supabase.from("agents").update({ metadata: meta }).eq("id", a.id);
+    await supabase.from("agents").update({ metadata: meta as any }).eq("id", a.id);
     toast.success("Resync queued — agent will receive the new command list on its next call");
     load();
   };
