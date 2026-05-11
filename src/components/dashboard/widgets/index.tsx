@@ -214,31 +214,24 @@ export function AgentsStatWidget({ onRemove }: RProps) {
         const activeAgent = agents.find((a) => activeId === `agent:${a.id}`);
         const otherAgents = agents.filter((a) => a.id !== activeAgent?.id);
 
+        // Build a single ordered list: active row first, then the rest.
+        const rows: React.ReactNode[] = [];
+        if (activeAgent) {
+          rows.push(renderAgentRow(activeAgent, true));
+          if (user) rows.push(renderUserRow(false));
+        } else {
+          if (user) rows.push(renderUserRow(true));
+        }
+        for (const a of otherAgents) rows.push(renderAgentRow(a, false));
+
         return (
           <div className="space-y-1.5">
-            {/* Active workspace pinned to top */}
-            <div className="px-2 pt-0.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
-              Active
-            </div>
-            {activeAgent
-              ? renderAgentRow(activeAgent, true)
-              : renderUserRow(true)}
-
-            {/* Other workspaces */}
-            <div className="px-2 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
-              Workspaces
-            </div>
-            {!userActive && renderUserRow(false)}
-
-            <div className="px-2 pt-1 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
-              Sub-agents ({agents.length})
-            </div>
+            {rows}
             {agents.length === 0 && (
               <div className="px-2 py-3 text-[11px] text-muted-foreground">
                 No agents yet. <Link to="/dashboard/agents" className="text-primary hover:underline">Connect one →</Link>
               </div>
             )}
-            {otherAgents.map((a) => renderAgentRow(a, false))}
           </div>
         );
       })()}
