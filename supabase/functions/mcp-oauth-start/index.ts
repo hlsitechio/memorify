@@ -30,7 +30,7 @@ async function tryFetch(url: string): Promise<any | null> {
 }
 
 // Discover OAuth AS metadata. Try resource metadata first, then well-known on the server.
-async function discover(serverUrl: string): Promise<{ authorization_endpoint: string; token_endpoint: string; registration_endpoint?: string; scopes_supported?: string[] } | null> {
+async function discover(serverUrl: string): Promise<{ authorization_endpoint: string; token_endpoint: string; registration_endpoint?: string; scopes_supported?: string[]; client_id_metadata_document_supported?: boolean } | null> {
   const u = new URL(serverUrl);
   const origin = `${u.protocol}//${u.host}`;
 
