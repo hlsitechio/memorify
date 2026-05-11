@@ -289,6 +289,12 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       agent: { id: agent.id, name: agent.name, kind: agent.kind, status: "connected" },
+      workspace: {
+        id: `agent:${agent.id}`,
+        name: ((agent as any).metadata?.workspace_name as string) || agent.name,
+        scope: "agent",
+        shared_namespace: "default",
+      },
       server: { name: "synapse", version: "1.0", protocol: "rest" },
       first_connection: firstConnection,
       welcome: firstConnection ? WELCOME_MD : "Call synapse.welcome to re-read the onboarding guide.",
