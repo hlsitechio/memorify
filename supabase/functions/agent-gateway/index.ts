@@ -78,12 +78,12 @@ Deno.serve(async (req) => {
   if (!agentName || !action) return fail("missing 'agent' or 'action'");
 
   try {
-    if (agent === "gateway" && action === "ping") {
-      return ok({ pong: true }, "gateway");
+    if (agentName === "gateway" && action === "ping") {
+      return ok({ pong: true, agent: agent.id }, "gateway");
     }
 
-    if (agent === "memory") {
-      const namespace = (input.namespace as string) || "public";
+    if (agentName === "memory") {
+      const namespace = (input.namespace as string) || `agent:${agent.id}`;
 
       if (action === "remember") {
         const content = input.content as string;
@@ -91,8 +91,8 @@ Deno.serve(async (req) => {
         const tags = Array.isArray(input.tags) ? (input.tags as string[]) : [];
         const metadata = (input.metadata as Record<string, unknown>) ?? {};
         const { data, error } = await supabase
-          .from("demo_memories")
-          .insert({ namespace, content, tags, metadata })
+          .from("memories")
+          .insert({ user_id: agent.user_id, namespace, content, tags, metadata })
           .select()
           .single();
         if (error) return fail(error.message, 500);
@@ -103,8 +103,9 @@ Deno.serve(async (req) => {
         const query = (input.query as string)?.toLowerCase() ?? "";
         const limit = Math.min(Number(input.limit) || 10, 50);
         const { data, error } = await supabase
-          .from("demo_memories")
+          .from("memories")
           .select("*")
+          .eq("user_id", agent.user_id)
           .eq("namespace", namespace)
           .order("created_at", { ascending: false })
           .limit(200);
@@ -121,8 +122,9 @@ Deno.serve(async (req) => {
       if (action === "list") {
         const limit = Math.min(Number(input.limit) || 20, 100);
         const { data, error } = await supabase
-          .from("demo_memories")
+          .from("memories")
           .select("*")
+          .eq("user_id", agent.user_id)
           .eq("namespace", namespace)
           .order("created_at", { ascending: false })
           .limit(limit);
@@ -131,7 +133,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return fail(`unknown agent.action: ${agent}.${action}`, 404);
+    return fail(`unknown agent.action: ${agentName}.${action}`, 404);
   } catch (e) {
     return fail((e as Error).message, 500);
   }
