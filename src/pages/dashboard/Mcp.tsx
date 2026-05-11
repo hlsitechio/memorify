@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, RefreshCcw, Trash2, Server, Wrench, Plug2, Play, Sparkles } from "lucide-react";
+import { Plus, RefreshCcw, Trash2, Server, Wrench, Plug2, Play, Sparkles, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -359,8 +360,8 @@ export default function Mcp() {
           servers.map((s) => {
             const stools = tools.filter((t) => t.mcp_server_id === s.id);
             return (
-              <div key={s.id} className="rounded-lg border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b border-border">
+              <Collapsible key={s.id} className="rounded-lg border border-border bg-card overflow-hidden group/srv">
+                <div className="flex items-center justify-between p-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <Server className="h-4 w-4 text-muted-foreground" />
@@ -376,6 +377,13 @@ export default function Mcp() {
                     {s.last_handshake_at && !s.last_error && <div className="text-[10px] text-muted-foreground mt-0.5">Last sync {formatDistanceToNow(new Date(s.last_handshake_at), { addSuffix: true })}</div>}
                   </div>
                   <div className="flex items-center gap-2">
+                    <CollapsibleTrigger asChild>
+                      <Button size="sm" variant="ghost" className="gap-1.5">
+                        <Wrench className="h-3.5 w-3.5" />
+                        <span className="text-xs">{stools.length} tool{stools.length === 1 ? "" : "s"}</span>
+                        <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]/srv:rotate-180" />
+                      </Button>
+                    </CollapsibleTrigger>
                     <Switch checked={s.enabled} onCheckedChange={() => toggleServer(s)} />
                     <Button size="sm" variant="outline" onClick={() => handshake(s.id)} disabled={busy === s.id}>
                       <RefreshCcw className={cn("h-3.5 w-3.5 mr-1.5", busy === s.id && "animate-spin")} /> Sync
@@ -383,27 +391,29 @@ export default function Mcp() {
                     <Button size="sm" variant="ghost" onClick={() => del(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
-                <div className="divide-y divide-border">
-                  {stools.length === 0 ? (
-                    <div className="p-4 text-xs text-muted-foreground">No tools discovered yet — click Sync.</div>
-                  ) : stools.map((t) => (
-                    <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
-                      <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-mono truncate">{t.name}</div>
-                        {t.description && <div className="text-[11px] text-muted-foreground truncate">{t.description}</div>}
+                <CollapsibleContent>
+                  <div className="divide-y divide-border border-t border-border">
+                    {stools.length === 0 ? (
+                      <div className="p-4 text-xs text-muted-foreground">No tools discovered yet — click Sync.</div>
+                    ) : stools.map((t) => (
+                      <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-mono truncate">{t.name}</div>
+                          {t.description && <div className="text-[11px] text-muted-foreground truncate">{t.description}</div>}
+                        </div>
+                        <Switch checked={t.enabled} onCheckedChange={() => toggleTool(t)} />
+                        <Button size="sm" variant="ghost" onClick={() => openTest(s, t)}>
+                          <Play className="h-3.5 w-3.5 mr-1.5" /> Test
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => addAsPlugin(s, t)}>
+                          <Plug2 className="h-3.5 w-3.5 mr-1.5" /> As plugin
+                        </Button>
                       </div>
-                      <Switch checked={t.enabled} onCheckedChange={() => toggleTool(t)} />
-                      <Button size="sm" variant="ghost" onClick={() => openTest(s, t)}>
-                        <Play className="h-3.5 w-3.5 mr-1.5" /> Test
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => addAsPlugin(s, t)}>
-                        <Plug2 className="h-3.5 w-3.5 mr-1.5" /> As plugin
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             );
           })
         )}
@@ -411,3 +421,4 @@ export default function Mcp() {
     </>
   );
 }
+
