@@ -190,6 +190,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                 subtitle: wsName || wsId,
                 kind: "agent",
                 short: shortName,
+                agentId: a.id,
               })}
               className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
                 active
