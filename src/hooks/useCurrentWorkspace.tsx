@@ -12,11 +12,12 @@ export function workspaceIdForAgent(agentId: string): string {
 }
 
 export type CurrentWorkspace = {
-  id: string;          // e.g. "user:<uid>" or "agent:<aid>"
+  id: string;          // e.g. "user:<uid>" or "ws_<shortid>"
   name: string;        // display name
   subtitle?: string;   // e.g. "main" or workspace ID
   kind: "user" | "agent";
   short?: string;      // 1–3 char placeholder for logo/avatar (e.g. "Sam")
+  agentId?: string;    // full agent UUID when kind === "agent" (drives data scoping)
 };
 
 const KEY = "synapse:current_workspace";
