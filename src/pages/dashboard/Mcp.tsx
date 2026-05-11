@@ -89,11 +89,11 @@ const PRESETS: Preset[] = [
     url: "https://mcp.lovable.dev",
     transport: "http",
     needsToken: true,
-    tokenLabel: "Lovable API key",
-    tokenHint: "Generate from Lovable → Workspace Settings → API keys. Starts with lov_. Pro/Business plan required.",
+    tokenLabel: "Lovable bearer token (Firebase JWT)",
+    tokenHint:
+      "Open lovable.dev → DevTools (F12) → Network tab → click any request to api.lovable.dev → copy the Authorization: Bearer eyJ… value. Lasts ~1 hour.",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
-    authHeader: "Lovable-API-Key",
-    tokenPlaceholder: "lov_…",
+    tokenPlaceholder: "eyJhbGciOi…",
   },
 ];
 
