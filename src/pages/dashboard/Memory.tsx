@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 type MemoryRow = {
   id: string;
+  mem_id: string | null;
   namespace: string;
   category: string;
   content: string;
@@ -426,8 +427,9 @@ export default function Memory() {
           </div>
 
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="grid grid-cols-[40px_120px_120px_1fr_160px_120px_40px] text-[11px] uppercase tracking-wider text-muted-foreground bg-secondary/40 px-4 py-2 border-b border-border">
+            <div className="grid grid-cols-[40px_140px_110px_120px_1fr_140px_110px_40px] text-[11px] uppercase tracking-wider text-muted-foreground bg-secondary/40 px-4 py-2 border-b border-border">
               <div></div>
+              <div>Memory ID</div>
               <div>Category</div>
               <div>Namespace</div>
               <div>Content</div>
@@ -445,10 +447,11 @@ export default function Memory() {
               </div>
             ) : (
               filtered.map((r) => (
-                <div key={r.id} className="grid grid-cols-[40px_120px_120px_1fr_160px_120px_40px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => openEdit(r)}>
+                <div key={r.id} className="grid grid-cols-[40px_140px_110px_120px_1fr_140px_110px_40px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => openEdit(r)}>
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggle(r.id)} />
                   </div>
+                  <div className="font-mono text-[11px] text-primary truncate" title={r.mem_id ?? ""}>{r.mem_id ?? "—"}</div>
                   <div className="text-xs truncate">{r.category || "general"}</div>
                   <div className="font-mono text-xs text-muted-foreground truncate">{r.namespace}</div>
                   <div className="text-sm truncate pr-4">{r.content}</div>
@@ -475,7 +478,14 @@ export default function Memory() {
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <SheetContent className="sm:max-w-2xl overflow-y-auto scrollbar-thin">
           <SheetHeader>
-            <SheetTitle>Edit memory</SheetTitle>
+            <SheetTitle className="flex items-center gap-2">
+              Edit memory
+              {editing?.mem_id && (
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                  {editing.mem_id}
+                </span>
+              )}
+            </SheetTitle>
             {editing && (
               <p className="text-xs text-muted-foreground">
                 Created {format(new Date(editing.created_at), "PP p")} · Last updated {format(new Date(editing.updated_at), "PP p")}
