@@ -138,58 +138,47 @@ export function AgentsStatWidget({ onRemove }: RProps) {
       action={<Link to="/dashboard/agents" className="text-[11px] text-primary hover:underline">Manage</Link>}
       onRemove={onRemove}
     >
-      <div className="space-y-1.5">
-        {/* User workspace — always first */}
-        {(() => {
-          const userActive = user && activeId === `user:${user.id}`;
-          return (
-            <Link
-              to="/dashboard"
-              onClick={() => user && setCurrentWorkspace({
-                id: `user:${user.id}`,
-                name: "User Workspace",
-                subtitle: "main",
-                kind: "user",
-                short: (user.email ?? "U").charAt(0).toUpperCase(),
-              })}
-              className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
-                userActive
-                  ? "border border-primary bg-primary/15 ring-1 ring-primary/40"
-                  : "border border-transparent hover:bg-secondary/60 hover:border-border"
-              }`}
-            >
-              <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                <Sparkles className="h-3 w-3" />
+      {(() => {
+        const userId = user?.id ?? "";
+        const userRowId = `user:${userId}`;
+        const userActive = !!user && activeId === userRowId;
+
+        const renderUserRow = (active: boolean) => (
+          <Link
+            key="user-ws"
+            to="/dashboard"
+            onClick={() => user && setCurrentWorkspace({
+              id: userRowId,
+              name: "User Workspace",
+              subtitle: "main",
+              kind: "user",
+              short: (user.email ?? "U").charAt(0).toUpperCase(),
+            })}
+            className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+              active
+                ? "border border-primary bg-primary/15 ring-1 ring-primary/40"
+                : "border border-transparent hover:bg-secondary/60 hover:border-border"
+            }`}
+          >
+            <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
+              <Sparkles className="h-3 w-3" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate">User Workspace</div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                user:{user?.id?.slice(0, 8)}… · main
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate">User Workspace</div>
-                <div className="text-[10px] text-muted-foreground truncate">
-                  user:{user?.id?.slice(0, 8)}… · main
-                </div>
-              </div>
-              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </Link>
-          );
-        })()}
+            </div>
+            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+          </Link>
+        );
 
-        {/* Divider */}
-        <div className="px-2 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
-          Sub-agents ({agents.length})
-        </div>
-
-        {agents.length === 0 && (
-          <div className="px-2 py-3 text-[11px] text-muted-foreground">
-            No agents yet. <Link to="/dashboard/agents" className="text-primary hover:underline">Connect one →</Link>
-          </div>
-        )}
-
-        {agents.map((a) => {
+        const renderAgentRow = (a: typeof agents[number], active: boolean) => {
           const meta = (a.metadata as any) || {};
           const wsName = meta.workspace_name as string | undefined;
           const shortName = (meta.short_name as string | undefined) ||
             (a.name || a.kind || "A").slice(0, 2).toUpperCase();
           const connected = a.status === "connected";
-          const isActive = activeId === `agent:${a.id}`;
           return (
             <Link
               key={a.id}
@@ -202,7 +191,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                 short: shortName,
               })}
               className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
-                isActive
+                active
                   ? "border border-primary bg-primary/15 ring-1 ring-primary/40"
                   : "border border-transparent hover:bg-secondary/60 hover:border-border"
               }`}
@@ -220,8 +209,39 @@ export function AgentsStatWidget({ onRemove }: RProps) {
               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
           );
-        })}
-      </div>
+        };
+
+        const activeAgent = agents.find((a) => activeId === `agent:${a.id}`);
+        const otherAgents = agents.filter((a) => a.id !== activeAgent?.id);
+
+        return (
+          <div className="space-y-1.5">
+            {/* Active workspace pinned to top */}
+            <div className="px-2 pt-0.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+              Active
+            </div>
+            {activeAgent
+              ? renderAgentRow(activeAgent, true)
+              : renderUserRow(true)}
+
+            {/* Other workspaces */}
+            <div className="px-2 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+              Workspaces
+            </div>
+            {!userActive && renderUserRow(false)}
+
+            <div className="px-2 pt-1 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+              Sub-agents ({agents.length})
+            </div>
+            {agents.length === 0 && (
+              <div className="px-2 py-3 text-[11px] text-muted-foreground">
+                No agents yet. <Link to="/dashboard/agents" className="text-primary hover:underline">Connect one →</Link>
+              </div>
+            )}
+            {otherAgents.map((a) => renderAgentRow(a, false))}
+          </div>
+        );
+      })()}
     </WidgetShell>
   );
 }
