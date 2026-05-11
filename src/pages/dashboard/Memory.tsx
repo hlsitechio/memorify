@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 type MemoryRow = {
   id: string;
+  mem_id: string | null;
   namespace: string;
   category: string;
   content: string;
