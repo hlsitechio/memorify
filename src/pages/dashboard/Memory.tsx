@@ -427,8 +427,9 @@ export default function Memory() {
           </div>
 
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="grid grid-cols-[40px_120px_120px_1fr_160px_120px_40px] text-[11px] uppercase tracking-wider text-muted-foreground bg-secondary/40 px-4 py-2 border-b border-border">
+            <div className="grid grid-cols-[40px_140px_110px_120px_1fr_140px_110px_40px] text-[11px] uppercase tracking-wider text-muted-foreground bg-secondary/40 px-4 py-2 border-b border-border">
               <div></div>
+              <div>Memory ID</div>
               <div>Category</div>
               <div>Namespace</div>
               <div>Content</div>
