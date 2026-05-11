@@ -322,16 +322,19 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }
         <div className="text-[11px] font-mono text-muted-foreground mt-0.5 truncate">
           {agent.kind} · last seen {last}
         </div>
-        <button
-          type="button"
-          onClick={() => { navigator.clipboard.writeText(agent.id); toast.success("Agent ID copied"); }}
-          className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors"
-          title="Click to copy full ID"
-        >
-          <span className="opacity-60">ID</span>
-          <code className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border">{agent.id}</code>
-          <Copy className="h-3 w-3 opacity-50" />
-        </button>
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <button
+            type="button"
+            onClick={() => { navigator.clipboard.writeText(agent.id); toast.success("Agent ID copied"); }}
+            className="inline-flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+            title="Click to copy full ID"
+          >
+            <span className="opacity-60">ID</span>
+            <code className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border">{agent.id}</code>
+            <Copy className="h-3 w-3 opacity-50" />
+          </button>
+          <WorkspaceStats agentId={agent.id} agentName={agent.name} />
+        </div>
       </div>
       <Button size="sm" variant="outline" onClick={onOpen}>
         <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Setup
@@ -362,6 +365,28 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }
   );
 }
 
+function WorkspaceStats({ agentId, agentName }: { agentId: string; agentName: string }) {
+  const [stats, setStats] = useState<{ memories: number; events: number } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [{ count: memories }, { count: events }] = await Promise.all([
+        supabase.from("memories").select("id", { count: "exact", head: true }).eq("namespace", `agent:${agentId}`),
+        supabase.from("events").select("id", { count: "exact", head: true }).eq("source", `agent:${agentName}`),
+      ]);
+      if (!cancelled) setStats({ memories: memories ?? 0, events: events ?? 0 });
+    })();
+    return () => { cancelled = true; };
+  }, [agentId, agentName]);
+  if (!stats) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
+      <span className="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">
+        workspace: {stats.memories}m · {stats.events}e
+      </span>
+    </span>
+  );
+}
 
 function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const open = !!agent;

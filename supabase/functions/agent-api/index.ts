@@ -76,9 +76,12 @@ curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
 
 Every response has shape: \`{ ok, action, result, agent }\` or \`{ ok:false, error }\`.
 
+## Your workspace
+You have your **own private workspace** inside this user's Synapse — namespace \`agent:<your-id>\`. By default, \`memory.remember\` writes there and \`memory.recall\` reads from there, so other agents' notes won't pollute your context. Pass \`shared: true\` (write) or \`scope: "shared"\` / \`"all"\` (read) when you explicitly want to collaborate with other agents.
+
 ## Etiquette
 - Don't spam memory — dedupe, prefer updating over re-adding.
-- Use namespaces (\`default\`, \`work\`, \`personal\`) to keep contexts separate.
+- Keep private context in your own workspace; promote to \`shared\` only when other agents need it.
 - If unsure what's there, \`memory.recall\` with no query returns the latest 10.
 
 You're all set. Call \`synapse.welcome\` anytime to re-read this. 🧠`;
@@ -110,17 +113,19 @@ const COMMANDS: Cmd[] = [
   },
   {
     name: "memory.remember",
-    description: "Store a memory.",
-    params: { content: "string (required)", category: "string?", namespace: "string?", tags: "string[]?" },
+    description: "Store a memory in this agent's workspace (default) or a shared namespace.",
+    params: { content: "string (required)", category: "string?", namespace: "string? (default: this agent's workspace)", tags: "string[]?", shared: "boolean? (true = write to 'default' shared namespace)" },
     example: `{"action":"memory.remember","params":{"content":"User prefers dark mode","tags":["preference"]}}`,
-    run: async (sb, userId, p) => {
+    run: async (sb, userId, p, agent) => {
       if (!p?.content) throw new Error("content required");
+      const ns = p?.namespace ? String(p.namespace) : (p?.shared ? "default" : `agent:${agent.id}`);
       const { data, error } = await sb.from("memories").insert({
         user_id: userId,
         content: String(p.content),
         category: p.category || "general",
-        namespace: p.namespace || "default",
+        namespace: ns,
         tags: Array.isArray(p.tags) ? p.tags : [],
+        metadata: { agent_id: agent.id, agent_name: agent.name },
       }).select("id, category, namespace, content, tags, created_at").single();
       if (error) throw error;
       return data;
@@ -128,13 +133,18 @@ const COMMANDS: Cmd[] = [
   },
   {
     name: "memory.recall",
-    description: "Search memories (substring on content).",
-    params: { query: "string?", limit: "number? (default 10)", category: "string?" },
-    run: async (sb, userId, p) => {
+    description: "Search memories. Scope defaults to this agent's workspace.",
+    params: { query: "string?", limit: "number? (default 10)", category: "string?", scope: "'agent'|'shared'|'all'? (default 'agent')", namespace: "string?" },
+    run: async (sb, userId, p, agent) => {
       const limit = Math.min(Math.max(Number(p?.limit ?? 10), 1), 100);
+      const scope = String(p?.scope ?? "agent");
       let q = sb.from("memories").select("id, content, category, namespace, tags, updated_at")
         .eq("user_id", userId).eq("archived", false)
         .order("updated_at", { ascending: false }).limit(limit);
+      if (p?.namespace) q = q.eq("namespace", String(p.namespace));
+      else if (scope === "agent") q = q.eq("namespace", `agent:${agent.id}`);
+      else if (scope === "shared") q = q.eq("namespace", "default");
+      // scope === "all" → no namespace filter
       if (p?.query) q = q.ilike("content", `%${p.query}%`);
       if (p?.category) q = q.eq("category", String(p.category));
       const { data, error } = await q;
@@ -209,13 +219,16 @@ const COMMANDS: Cmd[] = [
   },
   {
     name: "events.list",
-    description: "List recent events.",
-    params: { limit: "number? (default 20)" },
-    run: async (sb, userId, p) => {
+    description: "List recent events. Defaults to this agent's own events.",
+    params: { limit: "number? (default 20)", scope: "'agent'|'all'? (default 'agent')" },
+    run: async (sb, userId, p, agent) => {
       const limit = Math.min(Math.max(Number(p?.limit ?? 20), 1), 200);
-      const { data, error } = await sb.from("events")
+      const scope = String(p?.scope ?? "agent");
+      let q = sb.from("events")
         .select("id, kind, payload, source, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+      if (scope === "agent") q = q.eq("source", `agent:${agent.name}`);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
