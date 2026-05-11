@@ -34,15 +34,5 @@ const Index = () => {
     </main>
   );
 };
-<main className="min-h-screen bg-background text-foreground">
-  <Nav />
-  <Hero />
-  <Problem />
-  <Architecture />
-  <Protocol />
-  <Primitives />
-  <LiveDemo />
-  <Waitlist />
-  <Footer />
-</main>;
+
 export default Index;
