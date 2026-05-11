@@ -116,7 +116,7 @@ const COMMANDS: Cmd[] = [
       user_id: userId,
       workspace: {
         id: `agent:${agent.id}`,
-        name: (agent.metadata?.workspace_name as string) || agent.name,
+        name: (agent.metadata?.workspace_name as string) || null,
         scope: "agent",
         shared_namespace: "default",
       },
@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
       agent: { id: agent.id, name: agent.name, kind: agent.kind, status: "connected" },
       workspace: {
         id: `agent:${agent.id}`,
-        name: ((agent as any).metadata?.workspace_name as string) || agent.name,
+        name: ((agent as any).metadata?.workspace_name as string) || null,
         scope: "agent",
         shared_namespace: "default",
       },
