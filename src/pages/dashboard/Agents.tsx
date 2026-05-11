@@ -437,6 +437,19 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
             workspaceName={workspaceName}
             onRenameWorkspace={onRenameWorkspace}
           />
+          <EditableLabel
+            value={shortName}
+            onSave={onSetShortName}
+            className={cn(
+              "px-1.5 py-0.5 rounded border text-[10px] font-mono",
+              shortName
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : "border-dashed border-border text-muted-foreground italic"
+            )}
+            inputClassName="text-[10px] w-14"
+            placeholder="+ short"
+            title="Short name (1–3 chars) — used as the logo/avatar placeholder"
+          />
         </div>
       </div>
       <Button size="sm" variant="outline" onClick={onOpen}>
