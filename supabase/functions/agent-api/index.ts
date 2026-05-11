@@ -492,6 +492,110 @@ const COMMANDS: Cmd[] = [
       return out?.result ?? out;
     },
   },
+  {
+    name: "mcp.add_server",
+    description: "Connect a new MCP server. Pass name, url, optional transport ('http'|'sse', default 'http'), optional auth ({bearer?, headers?}). Automatically handshakes and discovers tools.",
+    params: { name: "string (required)", url: "string (required)", transport: "'http'|'sse'? (default 'http')", auth: "object? ({bearer?: string, headers?: object})", enabled: "boolean? (default true)" },
+    example: `{"action":"mcp.add_server","params":{"name":"Netlify","url":"https://mcp.netlify.com/","auth":{"bearer":"nfp_xxx"}}}`,
+    run: async (sb, userId, p) => {
+      if (!p?.name) throw new Error("name required");
+      if (!p?.url) throw new Error("url required");
+      const { data: server, error } = await sb.from("mcp_servers").insert({
+        user_id: userId,
+        name: String(p.name),
+        url: String(p.url),
+        transport: String(p.transport ?? "http"),
+        auth: p.auth ?? {},
+        enabled: p.enabled !== false,
+      }).select("id, name, url, transport, enabled").single();
+      if (error) throw error;
+      // Try handshake immediately
+      const headers: Record<string, string> = {};
+      if (p.auth?.bearer) headers.Authorization = `Bearer ${p.auth.bearer}`;
+      if (p.auth?.headers) Object.assign(headers, p.auth.headers);
+      try {
+        await mcpRpc(server.url, "initialize", {
+          protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+        }, headers);
+        const list = await mcpRpc(server.url, "tools/list", {}, headers);
+        const tools = (list?.result?.tools ?? list?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
+        if (tools.length) {
+          await sb.from("mcp_tools").insert(tools.map((t) => ({
+            mcp_server_id: server.id, name: t.name, description: t.description ?? null, input_schema: t.inputSchema ?? {},
+          })));
+        }
+        await sb.from("mcp_servers").update({ last_handshake_at: new Date().toISOString(), last_error: null }).eq("id", server.id);
+        return { ...server, tools_count: tools.length };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "unknown";
+        await sb.from("mcp_servers").update({ last_error: msg, last_handshake_at: new Date().toISOString() }).eq("id", server.id);
+        return { ...server, tools_count: 0, handshake_error: msg };
+      }
+    },
+  },
+  {
+    name: "mcp.update_server",
+    description: "Update an MCP server's name, url, transport, or auth. Pass server_id plus any fields to change.",
+    params: { server_id: "uuid (required)", name: "string?", url: "string?", transport: "string?", auth: "object?", enabled: "boolean?" },
+    run: async (sb, userId, p) => {
+      if (!p?.server_id) throw new Error("server_id required");
+      const patch: Record<string, unknown> = {};
+      for (const k of ["name", "url", "transport", "auth", "enabled"] as const) {
+        if (p[k] !== undefined) patch[k] = p[k];
+      }
+      if (!Object.keys(patch).length) throw new Error("nothing to update");
+      const { data, error } = await sb.from("mcp_servers").update(patch)
+        .eq("id", p.server_id).eq("user_id", userId)
+        .select("id, name, url, transport, enabled, auth").single();
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "mcp.toggle_server",
+    description: "Enable or disable an MCP server.",
+    params: { server_id: "uuid (required)", enabled: "boolean (required)" },
+    run: async (sb, userId, p) => {
+      if (!p?.server_id) throw new Error("server_id required");
+      if (typeof p?.enabled !== "boolean") throw new Error("enabled (boolean) required");
+      const { data, error } = await sb.from("mcp_servers").update({ enabled: p.enabled })
+        .eq("id", p.server_id).eq("user_id", userId)
+        .select("id, name, enabled").single();
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "mcp.delete_server",
+    description: "Disconnect and delete an MCP server (cascades to its tools).",
+    params: { server_id: "uuid (required)" },
+    run: async (sb, userId, p) => {
+      if (!p?.server_id) throw new Error("server_id required");
+      const { error } = await sb.from("mcp_servers").delete()
+        .eq("id", p.server_id).eq("user_id", userId);
+      if (error) throw error;
+      return { ok: true, deleted: p.server_id };
+    },
+  },
+  {
+    name: "mcp.toggle_tool",
+    description: "Enable or disable a specific MCP tool.",
+    params: { tool_id: "uuid (required)", enabled: "boolean (required)" },
+    run: async (sb, userId, p) => {
+      if (!p?.tool_id) throw new Error("tool_id required");
+      if (typeof p?.enabled !== "boolean") throw new Error("enabled (boolean) required");
+      // Verify ownership via server join
+      const { data: tool, error: e1 } = await sb.from("mcp_tools")
+        .select("id, mcp_server_id, mcp_servers!inner(user_id)")
+        .eq("id", p.tool_id).maybeSingle();
+      if (e1) throw e1;
+      if (!tool || (tool as any).mcp_servers?.user_id !== userId) throw new Error("tool not found");
+      const { data, error } = await sb.from("mcp_tools").update({ enabled: p.enabled })
+        .eq("id", p.tool_id).select("id, name, enabled").single();
+      if (error) throw error;
+      return data;
+    },
+  },
 
   /* ─────────── Identity: agent self-management ─────────── */
   {
