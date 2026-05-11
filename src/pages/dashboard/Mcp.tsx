@@ -143,7 +143,37 @@ export default function Mcp() {
     handshake(srv.id);
   };
 
+  const startOAuth = async (p: Preset) => {
+    const redirect_uri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp-oauth-callback`;
+    const { data, error } = await supabase.functions.invoke("mcp-oauth-start", {
+      body: { server_url: p.url, server_name: p.name, transport: p.transport, redirect_uri },
+    });
+    if (error || !data?.ok) {
+      toast.error(data?.error ?? error?.message ?? "Could not start OAuth — try API key instead.");
+      return;
+    }
+    setPresetOpen(null);
+    const popup = window.open(data.authorize_url, "mcp-oauth", "width=520,height=720");
+    if (!popup) { toast.error("Popup blocked — allow popups for this site."); return; }
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.data?.type !== "mcp-oauth") return;
+      window.removeEventListener("message", onMsg);
+      if (ev.data.status === "ok") {
+        toast.success(`${p.name} connected`);
+        load();
+      } else {
+        toast.error(ev.data.message ?? "OAuth failed");
+      }
+    };
+    window.addEventListener("message", onMsg);
+    // Also poll for close as a fallback
+    const poll = setInterval(() => {
+      if (popup.closed) { clearInterval(poll); window.removeEventListener("message", onMsg); load(); }
+    }, 700);
+  };
+
   const addPreset = async (p: Preset) => {
+    if (p.oauth) return startOAuth(p);
     if (p.needsToken && !presetToken) return toast.error(`${p.tokenLabel} required`);
     const srv = await createServer({
       name: p.name, url: p.url, transport: p.transport,
