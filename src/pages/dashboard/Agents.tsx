@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { workspaceIdForAgent } from "@/hooks/useCurrentWorkspace";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -499,7 +500,7 @@ function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }
     })();
     return () => { cancelled = true; };
   }, [agentId, agentName]);
-  const workspaceId = `agent:${agentId}`;
+  const workspaceId = workspaceIdForAgent(agentId);
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
       <button
@@ -550,7 +551,7 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
   const agentId = agent?.id ?? "";
-  const workspaceId = agentId ? `agent:${agentId}` : "";
+  const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
   const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
 
   const systemPrompt = `You are connected to Synapse — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.

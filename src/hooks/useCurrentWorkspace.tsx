@@ -1,6 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Derive a workspace ID from an agent UUID that is visibly distinct
+ * from the agent ID itself. Stable + deterministic — no DB write needed.
+ * Example: agent "659cdca2-045d-46b5-af04-5f6a7ffe40b3" → "ws_5f6a7ffe40b3"
+ */
+export function workspaceIdForAgent(agentId: string): string {
+  const compact = (agentId || "").replace(/-/g, "");
+  return `ws_${compact.slice(-12) || compact || "unknown"}`;
+}
+
 export type CurrentWorkspace = {
   id: string;          // e.g. "user:<uid>" or "agent:<aid>"
   name: string;        // display name
