@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.mcp-oauth-callback]
 verify_jwt = false
+
+[functions.mcp-client-metadata]
+verify_jwt = false
