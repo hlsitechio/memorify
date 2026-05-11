@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import {
   Database, Plug, Activity, ArrowUpRight, BookOpen, Sparkles, Puzzle,
-  BarChart3, FileText, KeyRound, Zap, TrendingUp, Clock, GripVertical,
+  BarChart3, FileText, KeyRound, Zap, TrendingUp, Clock, GripVertical, X,
+  StickyNote, ListTodo, Bookmark, Plus, Trash2,
 } from "lucide-react";
 
 export function WidgetShell({
-  title, icon: Icon, action, children, className = "",
+  title, icon: Icon, action, children, className = "", onRemove,
 }: {
   title: string;
   icon?: any;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  onRemove?: () => void;
 }) {
   return (
     <div className={`group/widget h-full w-full rounded-lg border border-border bg-card flex flex-col overflow-hidden ${className}`}>
@@ -22,7 +24,18 @@ export function WidgetShell({
         <GripVertical className="drag-handle h-3.5 w-3.5 text-muted-foreground/40 cursor-grab active:cursor-grabbing" />
         {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
         <div className="text-xs font-medium tracking-tight">{title}</div>
-        <div className="ml-auto">{action}</div>
+        <div className="ml-auto flex items-center gap-1">
+          {action}
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              title="Remove widget"
+              className="opacity-0 group-hover/widget:opacity-100 transition-opacity h-5 w-5 inline-flex items-center justify-center rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex-1 min-h-0 overflow-auto scrollbar-thin p-4">{children}</div>
     </div>
