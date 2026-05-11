@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ type VersionRow = {
 
 export default function Memory() {
   const { user } = useAuth();
+  const [ws] = useCurrentWorkspace();
   const [rows, setRows] = useState<MemoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -62,7 +64,9 @@ export default function Memory() {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
-  const [form, setForm] = useState({ namespace: "default", category: "general", content: "", tags: "" });
+  const defaultNs = ws?.kind === "agent" && ws.agentId ? `agent:${ws.agentId}` : "default";
+  const [form, setForm] = useState({ namespace: defaultNs, category: "general", content: "", tags: "" });
+  useEffect(() => { setForm((f) => ({ ...f, namespace: defaultNs })); }, [defaultNs]);
   const [editing, setEditing] = useState<MemoryRow | null>(null);
   const [editForm, setEditForm] = useState({ namespace: "", category: "general", content: "", tags: "", metadata: "{}" });
   const [versions, setVersions] = useState<VersionRow[]>([]);
@@ -93,8 +97,21 @@ export default function Memory() {
     return () => { supabase.removeChannel(ch); };
   }, [user]);
 
-  const active = rows.filter((r) => !r.archived);
-  const archivedRows = rows.filter((r) => r.archived);
+  // Scope rows by current workspace: agent workspaces see only their own
+  // namespace; user workspace sees everything that isn't an agent namespace.
+  const scoped = useMemo(() => {
+    if (ws?.kind === "agent" && ws.agentId) {
+      const ns = `agent:${ws.agentId}`;
+      return rows.filter((r) => r.namespace === ns);
+    }
+    if (ws?.kind === "user") {
+      return rows.filter((r) => !r.namespace.startsWith("agent:"));
+    }
+    return rows;
+  }, [rows, ws]);
+
+  const active = scoped.filter((r) => !r.archived);
+  const archivedRows = scoped.filter((r) => r.archived);
 
   const categories = useMemo(() => {
     const m = new Map<string, Map<string, number>>();
