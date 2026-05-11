@@ -290,22 +290,31 @@ function DashboardLayoutInner() {
 }
 
 function DashboardTopbar() {
-  const { openCmd, toggleChat, chatOpen } = useDashboardUI();
+  const { openCmd, toggleChat, chatOpen, pageMeta } = useDashboardUI();
   const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
   const mod = isMac ? "⌘" : "Ctrl";
   return (
     <header className="h-14 shrink-0 border-b border-border bg-background/80 backdrop-blur px-4 flex items-center gap-3 sticky top-0 z-20">
+      {pageMeta && (
+        <div className="min-w-0 flex items-baseline gap-2 mr-1">
+          <h1 className="text-sm font-semibold tracking-tight truncate">{pageMeta.title}</h1>
+          {pageMeta.description && (
+            <p className="text-xs text-muted-foreground truncate hidden md:block">{pageMeta.description}</p>
+          )}
+        </div>
+      )}
       <button
         onClick={() => openCmd()}
         className="flex-1 max-w-xl flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-secondary/40 hover:bg-secondary text-sm text-muted-foreground transition-colors"
       >
         <Search className="h-4 w-4" />
-        <span>Search routes, actions, docs…</span>
+        <span className="truncate">Search routes, actions, docs…</span>
         <span className="ml-auto text-[11px] font-mono px-1.5 py-0.5 rounded border border-border bg-background">
           {mod}K
         </span>
       </button>
       <div className="ml-auto flex items-center gap-2">
+        {pageMeta?.actions}
         <Button
           variant={chatOpen ? "secondary" : "outline"}
           size="sm"
