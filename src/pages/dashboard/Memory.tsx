@@ -64,7 +64,9 @@ export default function Memory() {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
-  const [form, setForm] = useState({ namespace: "default", category: "general", content: "", tags: "" });
+  const defaultNs = ws?.kind === "agent" && ws.agentId ? `agent:${ws.agentId}` : "default";
+  const [form, setForm] = useState({ namespace: defaultNs, category: "general", content: "", tags: "" });
+  useEffect(() => { setForm((f) => ({ ...f, namespace: defaultNs })); }, [defaultNs]);
   const [editing, setEditing] = useState<MemoryRow | null>(null);
   const [editForm, setEditForm] = useState({ namespace: "", category: "general", content: "", tags: "", metadata: "{}" });
   const [versions, setVersions] = useState<VersionRow[]>([]);
