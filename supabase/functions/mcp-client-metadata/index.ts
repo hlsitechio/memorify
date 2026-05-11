@@ -5,8 +5,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 serve((req) => {
+  const envOrigin = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
   const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+  const origin = envOrigin ?? `${url.protocol}//${url.host}`;
   const redirectUri = `${origin}/functions/v1/mcp-oauth-callback`;
   const selfUrl = `${origin}/functions/v1/mcp-client-metadata`;
 
