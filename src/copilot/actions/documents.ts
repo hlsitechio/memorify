@@ -23,15 +23,15 @@ export const documentCommands: CommandDef[] = [
   {
     name: "documents.add_note",
     description:
-      "Create a notepad note as a document. Stores plain text or markdown content under the user's documents. Use this for quick text notes the agent wants to remember.",
+      "Create a notepad note as a document. Stores plain text, markdown, or JSON content under the user's documents. Use 'json' format to save structured data (object or JSON string) — it will be pretty-printed.",
     scope: "server",
     routes: ROUTES,
     parameters: {
       type: "object",
       properties: {
         title: { type: "string", description: "Filename without extension, e.g. 'meeting-notes'." },
-        content: { type: "string", description: "Note body (plain text or markdown)." },
-        format: { type: "string", enum: ["md", "txt"], description: "Defaults to 'md'." },
+        content: { description: "Note body. String for md/txt; object or JSON string for json." },
+        format: { type: "string", enum: ["md", "txt", "json"], description: "Defaults to 'md'." },
       },
       required: ["title", "content"],
     },
