@@ -500,7 +500,7 @@ function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }
     })();
     return () => { cancelled = true; };
   }, [agentId, agentName]);
-  const workspaceId = `agent:${agentId}`;
+  const workspaceId = workspaceIdForAgent(agentId);
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
       <button
