@@ -11,6 +11,7 @@ import { CopilotBusProvider } from "@/copilot/bus";
 import { useRegisterCoreCommands } from "@/copilot/useRegisterCoreCommands";
 import { CopilotChatProvider } from "@/copilot/chat-context";
 import { docsNavGroups } from "@/pages/dashboard/Docs";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useEffect, useState } from "react";
 
 const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
