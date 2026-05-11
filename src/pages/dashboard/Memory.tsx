@@ -447,10 +447,11 @@ export default function Memory() {
               </div>
             ) : (
               filtered.map((r) => (
-                <div key={r.id} className="grid grid-cols-[40px_120px_120px_1fr_160px_120px_40px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => openEdit(r)}>
+                <div key={r.id} className="grid grid-cols-[40px_140px_110px_120px_1fr_140px_110px_40px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => openEdit(r)}>
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggle(r.id)} />
                   </div>
+                  <div className="font-mono text-[11px] text-primary truncate" title={r.mem_id ?? ""}>{r.mem_id ?? "—"}</div>
                   <div className="text-xs truncate">{r.category || "general"}</div>
                   <div className="font-mono text-xs text-muted-foreground truncate">{r.namespace}</div>
                   <div className="text-sm truncate pr-4">{r.content}</div>
