@@ -135,22 +135,56 @@ export default function Documents() {
               <p className="text-sm font-medium">No documents yet</p>
             </div>
           ) : filtered.map((d) => (
-            <div key={d.id} className="grid grid-cols-[1fr_120px_120px_140px_80px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30">
+            <div key={d.id} className="grid grid-cols-[1fr_120px_120px_140px_110px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30">
               <div className="flex items-center gap-2 truncate">
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm truncate">{d.name}</span>
+                <button onClick={() => view(d)} className="text-sm truncate text-left hover:underline">{d.name}</button>
               </div>
               <div className="text-xs text-muted-foreground font-mono truncate">{d.mime ?? "—"}</div>
               <div className="text-xs text-muted-foreground tabular-nums">{d.size ? `${(d.size / 1024).toFixed(1)} KB` : "—"}</div>
               <div className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</div>
               <div className="flex items-center gap-1 justify-end">
-                <button onClick={() => open(d)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>
-                <button onClick={() => del(d)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => view(d)} title="View" className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"><Eye className="h-3.5 w-3.5" /></button>
+                <button onClick={() => open(d)} title="Download" className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>
+                <button onClick={() => del(d)} title="Delete" className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      <Dialog open={!!viewer} onOpenChange={(o) => !o && setViewer(null)}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-5 py-3 border-b border-border flex-row items-center justify-between space-y-0">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="truncate text-sm">{viewer?.doc.name}</DialogTitle>
+              <p className="text-xs text-muted-foreground font-mono truncate">{viewer?.doc.mime ?? "—"}</p>
+            </div>
+            {viewer && (
+              <a href={viewer.url} target="_blank" rel="noreferrer" className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground mr-6" title="Open in new tab">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-background">
+            {viewerLoading || !viewer ? (
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : viewer.text !== undefined ? (
+              <pre className="h-full overflow-auto scrollbar-thin p-5 text-xs font-mono whitespace-pre-wrap break-words">{viewer.text}</pre>
+            ) : (viewer.doc.mime ?? "").startsWith("image/") ? (
+              <div className="h-full flex items-center justify-center p-4 overflow-auto">
+                <img src={viewer.url} alt={viewer.doc.name} className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : (viewer.doc.mime ?? "").startsWith("video/") ? (
+              <video src={viewer.url} controls className="w-full h-full" />
+            ) : (viewer.doc.mime ?? "").startsWith("audio/") ? (
+              <div className="h-full flex items-center justify-center p-6"><audio src={viewer.url} controls className="w-full max-w-md" /></div>
+            ) : (
+              <iframe src={viewer.url} title={viewer.doc.name} className="w-full h-full border-0 bg-white" />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
