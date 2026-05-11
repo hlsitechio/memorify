@@ -45,6 +45,7 @@ type Preset = {
   tokenLabel: string;
   tokenHint: string;
   docsUrl: string;
+  oauth?: boolean;
 };
 
 const PRESETS: Preset[] = [
@@ -73,20 +74,22 @@ const PRESETS: Preset[] = [
     name: "Linear",
     url: "https://mcp.linear.app/mcp",
     transport: "http",
-    needsToken: true,
-    tokenLabel: "Linear API key",
-    tokenHint: "Create one at linear.app → Settings → API → Personal API keys.",
+    needsToken: false,
+    tokenLabel: "",
+    tokenHint: "One-click OAuth — sign in with your Linear account.",
     docsUrl: "https://linear.app/docs/mcp",
+    oauth: true,
   },
   {
     id: "lovable",
     name: "Lovable",
     url: "https://mcp.lovable.dev",
     transport: "http",
-    needsToken: true,
-    tokenLabel: "Lovable API key",
-    tokenHint: "Pro/Business plan required. Create one at lovable.dev → Account → API keys. Lets agents manage your Lovable projects (create, deploy, inspect, query DB).",
+    needsToken: false,
+    tokenLabel: "",
+    tokenHint: "One-click OAuth — sign in with your Lovable account (Pro/Business required).",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
+    oauth: true,
   },
 ];
 
@@ -140,7 +143,37 @@ export default function Mcp() {
     handshake(srv.id);
   };
 
+  const startOAuth = async (p: Preset) => {
+    const redirect_uri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp-oauth-callback`;
+    const { data, error } = await supabase.functions.invoke("mcp-oauth-start", {
+      body: { server_url: p.url, server_name: p.name, transport: p.transport, redirect_uri },
+    });
+    if (error || !data?.ok) {
+      toast.error(data?.error ?? error?.message ?? "Could not start OAuth — try API key instead.");
+      return;
+    }
+    setPresetOpen(null);
+    const popup = window.open(data.authorize_url, "mcp-oauth", "width=520,height=720");
+    if (!popup) { toast.error("Popup blocked — allow popups for this site."); return; }
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.data?.type !== "mcp-oauth") return;
+      window.removeEventListener("message", onMsg);
+      if (ev.data.status === "ok") {
+        toast.success(`${p.name} connected`);
+        load();
+      } else {
+        toast.error(ev.data.message ?? "OAuth failed");
+      }
+    };
+    window.addEventListener("message", onMsg);
+    // Also poll for close as a fallback
+    const poll = setInterval(() => {
+      if (popup.closed) { clearInterval(poll); window.removeEventListener("message", onMsg); load(); }
+    }, 700);
+  };
+
   const addPreset = async (p: Preset) => {
+    if (p.oauth) return startOAuth(p);
     if (p.needsToken && !presetToken) return toast.error(`${p.tokenLabel} required`);
     const srv = await createServer({
       name: p.name, url: p.url, transport: p.transport,
@@ -312,7 +345,9 @@ export default function Mcp() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setPresetOpen(null); setPresetToken(""); }}>Cancel</Button>
-            <Button onClick={() => presetOpen && addPreset(presetOpen)}>Connect</Button>
+            <Button onClick={() => presetOpen && addPreset(presetOpen)}>
+              {presetOpen?.oauth ? `Sign in with ${presetOpen.name}` : "Connect"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -295,6 +295,54 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_oauth_states: {
+        Row: {
+          authorization_endpoint: string
+          client_id: string
+          client_secret: string | null
+          code_verifier: string
+          created_at: string
+          redirect_uri: string
+          scope: string | null
+          server_name: string
+          server_url: string
+          state: string
+          token_endpoint: string
+          transport: string
+          user_id: string
+        }
+        Insert: {
+          authorization_endpoint: string
+          client_id: string
+          client_secret?: string | null
+          code_verifier: string
+          created_at?: string
+          redirect_uri: string
+          scope?: string | null
+          server_name: string
+          server_url: string
+          state: string
+          token_endpoint: string
+          transport?: string
+          user_id: string
+        }
+        Update: {
+          authorization_endpoint?: string
+          client_id?: string
+          client_secret?: string | null
+          code_verifier?: string
+          created_at?: string
+          redirect_uri?: string
+          scope?: string | null
+          server_name?: string
+          server_url?: string
+          state?: string
+          token_endpoint?: string
+          transport?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mcp_servers: {
         Row: {
           auth: Json
