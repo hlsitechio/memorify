@@ -617,6 +617,23 @@ const COMMANDS: Cmd[] = [
   },
 ];
 
+const MCP_ACCEPT = "application/json, text/event-stream";
+async function mcpRpc(url: string, method: string, params: any, headers: Record<string, string>) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
+    body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
+  if (text.startsWith("event:") || text.includes("data:")) {
+    const lines = text.split("\n").filter((l) => l.startsWith("data:"));
+    const last = lines[lines.length - 1]?.slice(5).trim();
+    return last ? JSON.parse(last) : {};
+  }
+  return JSON.parse(text);
+}
+
 function mimeFromName(name: string): string | null {
   const ext = name.toLowerCase().split(".").pop() || "";
   const map: Record<string, string> = {
