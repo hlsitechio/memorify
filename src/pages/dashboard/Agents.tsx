@@ -394,10 +394,14 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
-        "h-10 w-10 rounded-md flex items-center justify-center shrink-0",
+        "h-10 w-10 rounded-md flex items-center justify-center shrink-0 relative",
         paused ? "bg-amber-500/15 text-amber-400" : connected ? "bg-emerald-500/15 text-emerald-400" : "bg-secondary text-muted-foreground"
       )}>
-        <Terminal className="h-5 w-5" />
+        {shortName ? (
+          <span className="text-sm font-semibold tracking-tight">{shortName}</span>
+        ) : (
+          <Terminal className="h-5 w-5" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
