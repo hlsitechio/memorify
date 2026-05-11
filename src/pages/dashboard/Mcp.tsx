@@ -48,14 +48,34 @@ type Preset = {
 
 const PRESETS: Preset[] = [
   {
-    id: "netlify",
-    name: "Netlify",
-    url: "https://mcp.netlify.com/mcp",
+    id: "deepwiki",
+    name: "DeepWiki",
+    url: "https://mcp.deepwiki.com/mcp",
+    transport: "http",
+    needsToken: false,
+    tokenLabel: "",
+    tokenHint: "Public MCP — ask questions about any GitHub repo's docs.",
+    docsUrl: "https://docs.devin.ai/work-with-devin/deepwiki-mcp",
+  },
+  {
+    id: "githubmcp",
+    name: "GitHub",
+    url: "https://api.githubcopilot.com/mcp/",
     transport: "http",
     needsToken: true,
-    tokenLabel: "Netlify personal access token",
-    tokenHint: "Create one at app.netlify.com → User settings → Applications → Personal access tokens",
-    docsUrl: "https://docs.netlify.com/build/build-with-ai/netlify-mcp-server/",
+    tokenLabel: "GitHub personal access token",
+    tokenHint: "Create a fine-grained PAT at github.com → Settings → Developer settings → Personal access tokens.",
+    docsUrl: "https://github.com/github/github-mcp-server",
+  },
+  {
+    id: "linearmcp",
+    name: "Linear",
+    url: "https://mcp.linear.app/mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Linear API key",
+    tokenHint: "Create one at linear.app → Settings → API → Personal API keys.",
+    docsUrl: "https://linear.app/docs/mcp",
   },
 ];
 
