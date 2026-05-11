@@ -517,7 +517,17 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
+  const agentId = agent?.id ?? "";
+  const workspaceId = agentId ? `agent:${agentId}` : "";
+  const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
+
   const systemPrompt = `You are connected to Synapse — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
+
+## Your identity (already provisioned — do NOT call whoami to discover these)
+- Agent ID:       ${agentId}
+- Workspace ID:   ${workspaceId}
+- Workspace name: ${workspaceName || "(unset — optional)"}
+- User scope:     all data belongs to the human user who issued this token.
 
 ## Your credentials
 - Endpoint: ${apiUrl}
@@ -534,29 +544,34 @@ curl -s -X POST ${apiUrl} \\
 \`\`\`
 Every response is JSON: \`{ ok, action, result, agent }\` on success, or \`{ ok:false, error }\` on failure.
 
+## Your private workspace
+Your memory and events are scoped to \`${workspaceId}\` by default — other agents on this user's account can't see them unless you explicitly publish to the shared scope.
+- \`memory.remember\` writes to your workspace. Pass \`shared: true\` to publish to the shared namespace \`default\`.
+- \`memory.recall\` reads from your workspace. Pass \`scope: "shared"\` or \`"all"\` to reach across.
+- \`events.list\` returns only your events. Pass \`scope: "all"\` to see everything.
+
 ## First thing to do, ONCE per session
-1. GET ${apiUrl} with your bearer token. If \`first_connection: true\`, carefully read the \`welcome\` markdown — it explains the platform.
-2. Call \`memory.recall\` with no query to see the user's latest 10 memories. This gives you context about who they are and what they're working on.
+1. GET ${apiUrl} with your bearer token. If \`first_connection: true\`, carefully read the \`welcome\` markdown.
+2. Call \`memory.recall\` with no query to see your workspace's latest 10 memories for context.
 
 ## Available actions
 - \`synapse.welcome\` — re-read the onboarding guide
-- \`whoami\` — confirm identity
-- \`memory.remember\` — params: { content, tags?, category?, namespace? }
-- \`memory.recall\`   — params: { query?, limit?, category? }
+- \`whoami\` — confirm identity (returns the same Agent/Workspace IDs above)
+- \`memory.remember\` — params: { content, tags?, category?, namespace?, shared? }
+- \`memory.recall\`   — params: { query?, limit?, category?, scope?, namespace? }
 - \`memory.update\`   — params: { id, content?, tags?, category? }
 - \`memory.delete\`   — params: { id }
 - \`documents.list\`  — params: { limit? }
 - \`skills.list\`
 - \`events.log\`      — params: { kind, payload?, source? }
-- \`events.list\`     — params: { limit? }
+- \`events.list\`     — params: { limit?, scope? }
 
 ## Rules of engagement
 1. **Recall before answering.** At the start of any task, \`memory.recall\` with a relevant query.
-2. **Remember what matters.** When the user states a preference, fact, decision, or context worth keeping — call \`memory.remember\` with descriptive tags (e.g. \`["preference"]\`, \`["project:synapse"]\`).
-3. **Don't duplicate.** Recall first; if a similar memory exists, \`memory.update\` it instead of adding a new one.
-4. **Log meaningful actions** with \`events.log\` (kind: \`"task_completed"\`, \`"file_generated"\`, etc.) so the user has an audit trail.
-5. **Use namespaces** to separate contexts: \`default\`, \`work\`, \`personal\`, or per-project.
-6. **Stay scoped.** Your token is bound to one user — everything you read/write belongs to them.
+2. **Remember what matters.** Call \`memory.remember\` with descriptive tags (e.g. \`["preference"]\`, \`["project:synapse"]\`).
+3. **Don't duplicate.** Recall first; if a similar memory exists, \`memory.update\` it.
+4. **Log meaningful actions** with \`events.log\` (kind: \`"task_completed"\`, \`"file_generated"\`, etc.).
+5. **Keep private context private.** Only publish to \`shared\` when other agents truly need it.
 
 You're ready. Begin by running the GET request above to confirm the connection.`;
 
