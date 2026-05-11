@@ -100,8 +100,78 @@ export function EventsStatWidget({ onRemove }: RProps) {
   return <WidgetShell title="Events (24h)" icon={Activity} onRemove={onRemove}><StatCard label="Events" value={n} hint="Real-time bus" icon={Activity} to="/dashboard/events" /></WidgetShell>;
 }
 export function AgentsStatWidget({ onRemove }: RProps) {
-  const n = useCount("agents");
-  return <WidgetShell title="Agents" icon={Sparkles} onRemove={onRemove}><StatCard label="Agents" value={n} hint="Connected workspaces" icon={Sparkles} to="/dashboard/agents" /></WidgetShell>;
+  const { user } = useAuth();
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; kind: string; status: string; metadata: any }>>([]);
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("agents")
+      .select("id,name,kind,status,metadata")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then((r: any) => setAgents(r.data ?? []));
+  }, [user]);
+
+  return (
+    <WidgetShell
+      title="Agents"
+      icon={Sparkles}
+      action={<Link to="/dashboard/agents" className="text-[11px] text-primary hover:underline">Manage</Link>}
+      onRemove={onRemove}
+    >
+      <div className="space-y-1.5">
+        {/* User workspace — always first */}
+        <Link
+          to="/dashboard/agents"
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-primary/30 bg-primary/5"
+        >
+          <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
+            <Sparkles className="h-3 w-3" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium truncate">User Workspace</div>
+            <div className="text-[10px] text-muted-foreground truncate">
+              user:{user?.id?.slice(0, 8)}… · main
+            </div>
+          </div>
+          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+        </Link>
+
+        {/* Divider */}
+        <div className="px-2 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+          Sub-agents ({agents.length})
+        </div>
+
+        {agents.length === 0 && (
+          <div className="px-2 py-3 text-[11px] text-muted-foreground">
+            No agents yet. <Link to="/dashboard/agents" className="text-primary hover:underline">Connect one →</Link>
+          </div>
+        )}
+
+        {agents.map((a) => {
+          const wsName = (a.metadata as any)?.workspace_name as string | undefined;
+          const connected = a.status === "connected";
+          return (
+            <Link
+              key={a.id}
+              to={`/dashboard/agents?open=${a.id}`}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
+            >
+              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${connected ? "bg-emerald-400" : "bg-muted-foreground/40"}`} />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate">{a.name || a.kind}</div>
+                <div className="text-[10px] text-muted-foreground truncate font-mono">
+                  {wsName || `agent:${a.id.slice(0, 8)}…`}
+                </div>
+              </div>
+              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </Link>
+          );
+        })}
+      </div>
+    </WidgetShell>
+  );
 }
 export function SkillsStatWidget({ onRemove }: RProps) {
   const n = useCount("skills");
