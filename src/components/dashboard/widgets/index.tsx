@@ -176,6 +176,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
         const renderAgentRow = (a: typeof agents[number], active: boolean) => {
           const meta = (a.metadata as any) || {};
           const wsName = meta.workspace_name as string | undefined;
+          const wsId = workspaceIdForAgent(a.id);
           const shortName = (meta.short_name as string | undefined) ||
             (a.name || a.kind || "A").slice(0, 2).toUpperCase();
           const connected = a.status === "connected";
@@ -184,9 +185,9 @@ export function AgentsStatWidget({ onRemove }: RProps) {
               key={a.id}
               to="/dashboard"
               onClick={() => setCurrentWorkspace({
-                id: `agent:${a.id}`,
+                id: wsId,
                 name: `WS - ${a.name || a.kind}`,
-                subtitle: wsName || `agent:${a.id.slice(0, 8)}…`,
+                subtitle: wsName || wsId,
                 kind: "agent",
                 short: shortName,
               })}
@@ -200,7 +201,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate">{a.name || a.kind}</div>
                 <div className="text-[10px] text-muted-foreground truncate font-mono">
-                  {wsName || `agent:${a.id.slice(0, 8)}…`}
+                  {wsName || wsId}
                 </div>
               </div>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
@@ -211,7 +212,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
           );
         };
 
-        const activeAgent = agents.find((a) => activeId === `agent:${a.id}`);
+        const activeAgent = agents.find((a) => activeId === workspaceIdForAgent(a.id));
         const otherAgents = agents.filter((a) => a.id !== activeAgent?.id);
 
         // Build a single ordered list: active row first, then the rest.
