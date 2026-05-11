@@ -295,17 +295,19 @@ function DashboardTopbar() {
   const mod = isMac ? "⌘" : "Ctrl";
   return (
     <header className="h-14 shrink-0 border-b border-border bg-background/80 backdrop-blur px-4 flex items-center gap-3 sticky top-0 z-20">
-      {pageMeta && (
-        <div className="min-w-0 flex items-baseline gap-2 mr-1">
-          <h1 className="text-sm font-semibold tracking-tight truncate">{pageMeta.title}</h1>
-          {pageMeta.description && (
-            <p className="text-xs text-muted-foreground truncate hidden md:block">{pageMeta.description}</p>
-          )}
-        </div>
-      )}
+      <div className="flex-1 min-w-0 flex items-center">
+        {pageMeta && (
+          <div className="min-w-0 flex items-baseline gap-2">
+            <h1 className="text-sm font-semibold tracking-tight truncate">{pageMeta.title}</h1>
+            {pageMeta.description && (
+              <p className="text-xs text-muted-foreground truncate hidden md:block">{pageMeta.description}</p>
+            )}
+          </div>
+        )}
+      </div>
       <button
         onClick={() => openCmd()}
-        className="flex-1 max-w-xl flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-secondary/40 hover:bg-secondary text-sm text-muted-foreground transition-colors"
+        className="shrink-0 w-full max-w-xl flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-secondary/40 hover:bg-secondary text-sm text-muted-foreground transition-colors"
       >
         <Search className="h-4 w-4" />
         <span className="truncate">Search routes, actions, docs…</span>
@@ -313,7 +315,7 @@ function DashboardTopbar() {
           {mod}K
         </span>
       </button>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
         {pageMeta?.actions}
         <Button
           variant={chatOpen ? "secondary" : "outline"}
