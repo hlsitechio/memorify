@@ -345,7 +345,9 @@ export default function Mcp() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setPresetOpen(null); setPresetToken(""); }}>Cancel</Button>
-            <Button onClick={() => presetOpen && addPreset(presetOpen)}>Connect</Button>
+            <Button onClick={() => presetOpen && addPreset(presetOpen)}>
+              {presetOpen?.oauth ? `Sign in with ${presetOpen.name}` : "Connect"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
