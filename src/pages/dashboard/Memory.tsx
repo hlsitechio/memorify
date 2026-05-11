@@ -95,8 +95,21 @@ export default function Memory() {
     return () => { supabase.removeChannel(ch); };
   }, [user]);
 
-  const active = rows.filter((r) => !r.archived);
-  const archivedRows = rows.filter((r) => r.archived);
+  // Scope rows by current workspace: agent workspaces see only their own
+  // namespace; user workspace sees everything that isn't an agent namespace.
+  const scoped = useMemo(() => {
+    if (ws?.kind === "agent" && ws.agentId) {
+      const ns = `agent:${ws.agentId}`;
+      return rows.filter((r) => r.namespace === ns);
+    }
+    if (ws?.kind === "user") {
+      return rows.filter((r) => !r.namespace.startsWith("agent:"));
+    }
+    return rows;
+  }, [rows, ws]);
+
+  const active = scoped.filter((r) => !r.archived);
+  const archivedRows = scoped.filter((r) => r.archived);
 
   const categories = useMemo(() => {
     const m = new Map<string, Map<string, number>>();
