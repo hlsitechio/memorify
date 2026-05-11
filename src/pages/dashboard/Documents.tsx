@@ -18,6 +18,8 @@ export default function Documents() {
   const [q, setQ] = useState("");
   const [drag, setDrag] = useState(false);
   const [uploading, setUploading] = useState(0);
+  const [viewer, setViewer] = useState<{ doc: Doc; url: string; text?: string } | null>(null);
+  const [viewerLoading, setViewerLoading] = useState(false);
 
   const load = async () => {
     if (!user) return;
