@@ -117,6 +117,8 @@ export function EventsStatWidget({ onRemove }: RProps) {
 }
 export function AgentsStatWidget({ onRemove }: RProps) {
   const { user } = useAuth();
+  const [ws] = useCurrentWorkspace();
+  const activeId = ws?.id ?? (user ? `user:${user.id}` : "");
   const [agents, setAgents] = useState<Array<{ id: string; name: string; kind: string; status: string; metadata: any }>>([]);
   useEffect(() => {
     if (!user) return;
