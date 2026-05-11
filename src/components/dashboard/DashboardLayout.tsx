@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock, Search, Bot, Server, BookOpen, ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
+import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { CommandPalette } from "./CommandPalette";
 import { AIChatSidebar } from "./AIChatSidebar";
 import { Button } from "@/components/ui/button";
@@ -173,6 +174,11 @@ function DashboardLayoutInner() {
   const { pathname } = useLocation();
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
   const inDocs = pathname.startsWith("/dashboard/docs");
+  const [currentWs] = useCurrentWorkspace();
+  const wsTitle = inDocs ? "Synapse" : (currentWs?.name || "Synapse");
+  const wsSubtitle = inDocs
+    ? "Documentation"
+    : (currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Personal workspace"));
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("sidebar:collapsed") === "1";
@@ -197,8 +203,8 @@ function DashboardLayoutInner() {
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold tracking-tight truncate">Synapse</div>
-              <div className="text-[11px] text-muted-foreground truncate">{inDocs ? "Documentation" : "Personal workspace"}</div>
+              <div className="text-sm font-semibold tracking-tight truncate">{wsTitle}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{wsSubtitle}</div>
             </div>
           )}
         </div>
