@@ -203,6 +203,113 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       if (error) return { ok: false, error: error.message };
       return { ok: true, data: { ...data, workspace_id: `agent:${args.id}` } };
     }
+
+    /* ───────── documents ───────── */
+    case "documents.list": {
+      let qb = db.from("documents").select("id,name,mime,size,storage_path,status,created_at")
+        .eq("user_id", userId).order("created_at", { ascending: false })
+        .limit(Math.min(args.limit ?? 100, 200));
+      if (args.q) qb = qb.ilike("name", `%${args.q}%`);
+      const { data, error } = await qb;
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "documents.add_note": {
+      if (!args.title || typeof args.content !== "string") return { ok: false, error: "title and content required" };
+      const fmt = args.format === "txt" ? "txt" : "md";
+      const mime = fmt === "md" ? "text/markdown" : "text/plain";
+      const safe = String(args.title).replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "note";
+      const filename = `${safe}.${fmt}`;
+      const bytes = new TextEncoder().encode(args.content);
+      const path = `${userId}/${crypto.randomUUID()}-${filename}`;
+      const { error: upErr } = await db.storage.from("documents").upload(path, bytes, { contentType: mime });
+      if (upErr) return { ok: false, error: upErr.message };
+      const { data, error } = await db.from("documents").insert({
+        user_id: userId, name: filename, mime, size: bytes.byteLength, storage_path: path, status: "ready",
+        metadata: { kind: "note", format: fmt },
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "documents.add_from_base64": {
+      if (!args.name || !args.base64) return { ok: false, error: "name and base64 required" };
+      const b64 = String(args.base64).replace(/^data:[^;]+;base64,/, "");
+      let bytes: Uint8Array;
+      try {
+        const bin = atob(b64);
+        bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      } catch { return { ok: false, error: "invalid base64" }; }
+      const mime = args.mime || mimeFromName(args.name) || "application/octet-stream";
+      const path = `${userId}/${crypto.randomUUID()}-${args.name}`;
+      const { error: upErr } = await db.storage.from("documents").upload(path, bytes, { contentType: mime });
+      if (upErr) return { ok: false, error: upErr.message };
+      const { data, error } = await db.from("documents").insert({
+        user_id: userId, name: args.name, mime, size: bytes.byteLength, storage_path: path, status: "ready",
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "documents.add_from_url": {
+      if (!args.url) return { ok: false, error: "url required" };
+      let res: Response;
+      try { res = await fetch(args.url); } catch (e: any) { return { ok: false, error: `fetch failed: ${e.message}` }; }
+      if (!res.ok) return { ok: false, error: `fetch ${res.status}` };
+      const buf = new Uint8Array(await res.arrayBuffer());
+      const urlName = args.url.split("?")[0].split("/").pop() || "download";
+      const name = args.name || urlName;
+      const mime = res.headers.get("content-type")?.split(";")[0] || mimeFromName(name) || "application/octet-stream";
+      const path = `${userId}/${crypto.randomUUID()}-${name}`;
+      const { error: upErr } = await db.storage.from("documents").upload(path, buf, { contentType: mime });
+      if (upErr) return { ok: false, error: upErr.message };
+      const { data, error } = await db.from("documents").insert({
+        user_id: userId, name, mime, size: buf.byteLength, storage_path: path, status: "ready",
+        metadata: { source_url: args.url },
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "documents.delete": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data: row, error: e1 } = await db.from("documents").select("storage_path")
+        .eq("id", args.id).eq("user_id", userId).single();
+      if (e1) return { ok: false, error: e1.message };
+      if (row?.storage_path) await db.storage.from("documents").remove([row.storage_path]);
+      const { error } = await db.from("documents").delete().eq("id", args.id).eq("user_id", userId);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { id: args.id } };
+    }
+    case "documents.signed_url": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data: row, error: e1 } = await db.from("documents").select("storage_path,name")
+        .eq("id", args.id).eq("user_id", userId).single();
+      if (e1) return { ok: false, error: e1.message };
+      const ttl = Math.min(Math.max(Number(args.ttl) || 300, 30), 3600);
+      const { data, error } = await db.storage.from("documents").createSignedUrl(row.storage_path, ttl);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { url: data.signedUrl, name: row.name, ttl } };
+    }
   }
   return { ok: false, error: `unknown server command: ${name}` };
+}
+
+function mimeFromName(name: string): string | null {
+  const ext = name.toLowerCase().split(".").pop() || "";
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    txt: "text/plain",
+    md: "text/markdown",
+    csv: "text/csv",
+    json: "application/json",
+    rtf: "application/rtf",
+    odt: "application/vnd.oasis.opendocument.text",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+  };
+  return map[ext] ?? null;
 }
