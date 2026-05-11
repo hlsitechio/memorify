@@ -9,6 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Trash2, RefreshCcw, Database, Sparkles, X, Archive, ArchiveRestore, History, RotateCcw, Folder, FolderOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const PREDEFINED_CATEGORIES = [
+  "general",
+  "preferences",
+  "personal",
+  "work",
+  "projects",
+  "contacts",
+  "knowledge",
+  "decisions",
+  "billing",
+  "integrations",
+];
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
