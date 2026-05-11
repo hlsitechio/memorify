@@ -164,6 +164,19 @@ export default function Agents() {
     load();
   };
 
+  const rename = async (a: Agent, name: string) => {
+    await supabase.from("agents").update({ name }).eq("id", a.id);
+    toast.success("Agent renamed");
+    load();
+  };
+
+  const renameWorkspace = async (a: Agent, workspaceName: string) => {
+    const meta = { ...(a.metadata || {}), workspace_name: workspaceName } as Record<string, unknown>;
+    await supabase.from("agents").update({ metadata: meta as any }).eq("id", a.id);
+    toast.success("Workspace renamed");
+    load();
+  };
+
 
   const wizardAgent = useMemo(
     () => agents.find((a) => a.id === wizardId) ?? null,
