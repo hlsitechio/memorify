@@ -375,7 +375,7 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
     : connected
       ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
       : "";
-  const workspaceName = ((agent.metadata as any)?.workspace_name as string) || agent.name;
+  const workspaceName = ((agent.metadata as any)?.workspace_name as string) || "";
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
@@ -470,27 +470,29 @@ function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }
   const workspaceId = `agent:${agentId}`;
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
-      <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary"
-        title={workspaceId}
+      <button
+        type="button"
+        onClick={() => { navigator.clipboard.writeText(workspaceId); toast.success("Workspace ID copied"); }}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+        title="Click to copy workspace ID"
       >
         <span className="opacity-70">ws</span>
-        <EditableLabel
-          value={workspaceName}
-          onSave={onRenameWorkspace}
-          className="text-primary"
-          inputClassName="text-[10px] text-primary"
-          placeholder="Workspace name"
-        />
-        <button
-          type="button"
-          onClick={() => { navigator.clipboard.writeText(workspaceId); toast.success("Workspace ID copied"); }}
-          className="opacity-60 hover:opacity-100"
-          title="Copy workspace ID"
-        >
-          <Copy className="h-3 w-3" />
-        </button>
-      </span>
+        <code>{workspaceId}</code>
+        <Copy className="h-3 w-3 opacity-60" />
+      </button>
+      <EditableLabel
+        value={workspaceName}
+        onSave={onRenameWorkspace}
+        className={cn(
+          "px-1.5 py-0.5 rounded border text-[10px]",
+          workspaceName
+            ? "bg-secondary/60 border-border text-foreground"
+            : "border-dashed border-border text-muted-foreground italic"
+        )}
+        inputClassName="text-[10px]"
+        placeholder="+ name (optional)"
+        title="Optional friendly name for this workspace"
+      />
       {stats && (
         <span className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
           {stats.memories}m · {stats.events}e
