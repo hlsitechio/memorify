@@ -123,7 +123,13 @@ export function AgentsStatWidget({ onRemove }: RProps) {
       <div className="space-y-1.5">
         {/* User workspace — always first */}
         <Link
-          to="/dashboard/agents"
+          to="/dashboard"
+          onClick={() => user && setCurrentWorkspace({
+            id: `user:${user.id}`,
+            name: "User Workspace",
+            subtitle: "main",
+            kind: "user",
+          })}
           className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-primary/30 bg-primary/5"
         >
           <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
@@ -152,10 +158,17 @@ export function AgentsStatWidget({ onRemove }: RProps) {
         {agents.map((a) => {
           const wsName = (a.metadata as any)?.workspace_name as string | undefined;
           const connected = a.status === "connected";
+          const displayName = wsName || a.name || a.kind;
           return (
             <Link
               key={a.id}
               to={`/dashboard/agents?open=${a.id}`}
+              onClick={() => setCurrentWorkspace({
+                id: `agent:${a.id}`,
+                name: displayName,
+                subtitle: `agent:${a.id.slice(0, 8)}…`,
+                kind: "agent",
+              })}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
             >
               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${connected ? "bg-emerald-400" : "bg-muted-foreground/40"}`} />
