@@ -70,6 +70,23 @@ export default function Documents() {
     window.open(data.signedUrl, "_blank");
   };
 
+  const view = async (d: Doc) => {
+    setViewerLoading(true);
+    try {
+      const { data, error } = await supabase.storage.from("documents").createSignedUrl(d.storage_path, 600);
+      if (error) throw error;
+      const mime = d.mime || "";
+      const isText = mime.startsWith("text/") || mime === "application/json" || /\.(md|txt|json|csv|log)$/i.test(d.name);
+      let text: string | undefined;
+      if (isText) {
+        const res = await fetch(data.signedUrl);
+        text = await res.text();
+      }
+      setViewer({ doc: d, url: data.signedUrl, text });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setViewerLoading(false); }
+  };
+
   const filtered = rows.filter((r) => !q || r.name.toLowerCase().includes(q.toLowerCase()));
 
   return (
