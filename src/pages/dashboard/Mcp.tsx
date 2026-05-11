@@ -179,9 +179,13 @@ export default function Mcp() {
   const addPreset = async (p: Preset) => {
     if (p.oauth) return startOAuth(p);
     if (p.needsToken && !presetToken) return toast.error(`${p.tokenLabel} required`);
+    const auth: any = {};
+    if (presetToken) {
+      if (p.authHeader) auth.headers = { [p.authHeader]: presetToken };
+      else auth.bearer = presetToken;
+    }
     const srv = await createServer({
-      name: p.name, url: p.url, transport: p.transport,
-      auth: presetToken ? { bearer: presetToken } : {},
+      name: p.name, url: p.url, transport: p.transport, auth,
     });
     if (!srv) return;
     toast.success(`${p.name} added — discovering tools…`);
