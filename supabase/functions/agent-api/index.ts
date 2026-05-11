@@ -216,13 +216,16 @@ const COMMANDS: Cmd[] = [
   },
   {
     name: "events.list",
-    description: "List recent events.",
-    params: { limit: "number? (default 20)" },
-    run: async (sb, userId, p) => {
+    description: "List recent events. Defaults to this agent's own events.",
+    params: { limit: "number? (default 20)", scope: "'agent'|'all'? (default 'agent')" },
+    run: async (sb, userId, p, agent) => {
       const limit = Math.min(Math.max(Number(p?.limit ?? 20), 1), 200);
-      const { data, error } = await sb.from("events")
+      const scope = String(p?.scope ?? "agent");
+      let q = sb.from("events")
         .select("id, kind, payload, source, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+      if (scope === "agent") q = q.eq("source", `agent:${agent.name}`);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
