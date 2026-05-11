@@ -378,12 +378,24 @@ function WorkspaceStats({ agentId, agentName }: { agentId: string; agentName: st
     })();
     return () => { cancelled = true; };
   }, [agentId, agentName]);
-  if (!stats) return null;
+  const workspaceId = `agent:${agentId}`;
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
-      <span className="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">
-        workspace: {stats.memories}m · {stats.events}e
-      </span>
+      <button
+        type="button"
+        onClick={() => { navigator.clipboard.writeText(workspaceId); toast.success("Workspace ID copied"); }}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+        title="Click to copy workspace ID"
+      >
+        <span className="opacity-70">ws</span>
+        <code>{workspaceId}</code>
+        <Copy className="h-3 w-3 opacity-60" />
+      </button>
+      {stats && (
+        <span className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
+          {stats.memories}m · {stats.events}e
+        </span>
+      )}
     </span>
   );
 }
