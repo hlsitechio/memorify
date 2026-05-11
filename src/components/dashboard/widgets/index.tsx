@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { setCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { Link } from "react-router-dom";
 import {
   Database, Plug, Activity, ArrowUpRight, BookOpen, Sparkles, Puzzle,
