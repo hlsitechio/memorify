@@ -78,14 +78,12 @@ serve(async (req) => {
     if (!meta.registration_endpoint) {
       throw new Error(`OAuth server at ${server_url} does not advertise a registration_endpoint. Dynamic Client Registration is required for connection without a pre-registered client. Use an API key instead.`);
     }
-    const regBody = {
+    const regBody: Record<string, unknown> = {
       client_name: "Synapse",
       redirect_uris: [redirect_uri],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none", // public client + PKCE
-      application_type: "web",
-      scope: Array.isArray(meta.scopes_supported) ? meta.scopes_supported.join(" ") : undefined,
     };
     console.log("[mcp-oauth-start] registering client at", meta.registration_endpoint, JSON.stringify(regBody));
     const regRes = await fetch(meta.registration_endpoint, {
