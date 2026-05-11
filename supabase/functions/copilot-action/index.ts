@@ -245,8 +245,11 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       if (error) return { ok: false, error: error.message };
       return { ok: true, data };
     }
+    case "documents.add_from_file":
     case "documents.add_from_base64": {
-      if (!args.name || !args.base64) return { ok: false, error: "name and base64 required" };
+      if (!args.base64) return { ok: false, error: "base64 required" };
+      if (!args.name && args.path) args.name = String(args.path).split(/[\\/]/).pop();
+      if (!args.name) return { ok: false, error: "name (or path) required" };
       const b64 = String(args.base64).replace(/^data:[^;]+;base64,/, "");
       let bytes: Uint8Array;
       try {
