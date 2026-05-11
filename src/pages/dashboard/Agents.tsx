@@ -551,7 +551,7 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
   const agentId = agent?.id ?? "";
-  const workspaceId = agentId ? `agent:${agentId}` : "";
+  const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
   const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
 
   const systemPrompt = `You are connected to Synapse — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
