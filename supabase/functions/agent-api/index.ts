@@ -399,6 +399,100 @@ const COMMANDS: Cmd[] = [
     },
   },
 
+  /* ─────────── MCP: connected Model-Context-Protocol servers ─────────── */
+  {
+    name: "mcp.servers",
+    description: "List the user's connected MCP servers (id, name, url, transport, enabled, last_handshake_at, last_error).",
+    run: async (sb, userId) => {
+      const { data, error } = await sb.from("mcp_servers")
+        .select("id, name, url, transport, enabled, last_handshake_at, last_error, created_at")
+        .eq("user_id", userId).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "mcp.tools",
+    description: "List MCP tools discovered for the user. Optionally filter by server_id.",
+    params: { server_id: "uuid? (filter to one server)", enabled_only: "boolean? (default false)" },
+    run: async (sb, userId, p) => {
+      // Join via server ownership
+      const { data: servers, error: e1 } = await sb.from("mcp_servers")
+        .select("id, name").eq("user_id", userId);
+      if (e1) throw e1;
+      const allowed = new Set(servers.map((s) => s.id));
+      let q = sb.from("mcp_tools")
+        .select("id, mcp_server_id, name, description, input_schema, enabled");
+      if (p?.server_id) q = q.eq("mcp_server_id", String(p.server_id));
+      if (p?.enabled_only) q = q.eq("enabled", true);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []).filter((t) => allowed.has(t.mcp_server_id))
+        .map((t) => ({ ...t, server_name: servers.find((s) => s.id === t.mcp_server_id)?.name }));
+    },
+  },
+  {
+    name: "mcp.sync",
+    description: "Re-run the handshake on an MCP server: re-discovers its tools list. Use after the remote server adds/removes tools, or to clear last_error.",
+    params: { server_id: "uuid (required)" },
+    run: async (sb, userId, p) => {
+      if (!p?.server_id) throw new Error("server_id required");
+      const { data: server, error: e1 } = await sb.from("mcp_servers").select("*")
+        .eq("id", p.server_id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const headers: Record<string, string> = {};
+      if (server.auth?.bearer) headers.Authorization = `Bearer ${server.auth.bearer}`;
+      if (server.auth?.headers) Object.assign(headers, server.auth.headers);
+      try {
+        await mcpRpc(server.url, "initialize", {
+          protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+        }, headers);
+        const list = await mcpRpc(server.url, "tools/list", {}, headers);
+        const tools = (list?.result?.tools ?? list?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
+        await sb.from("mcp_tools").delete().eq("mcp_server_id", server.id);
+        if (tools.length) {
+          await sb.from("mcp_tools").insert(tools.map((t) => ({
+            mcp_server_id: server.id, name: t.name, description: t.description ?? null, input_schema: t.inputSchema ?? {},
+          })));
+        }
+        await sb.from("mcp_servers").update({ last_handshake_at: new Date().toISOString(), last_error: null }).eq("id", server.id);
+        return { ok: true, server_id: server.id, name: server.name, tools_count: tools.length };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "unknown";
+        await sb.from("mcp_servers").update({ last_error: msg, last_handshake_at: new Date().toISOString() }).eq("id", server.id);
+        throw new Error(msg);
+      }
+    },
+  },
+  {
+    name: "mcp.call",
+    description: "Invoke a tool on a connected MCP server. Pass `server` (name or id) and `tool` (tool name) plus `arguments`. Use `mcp.tools` first to discover what's available.",
+    params: { server: "string (name or uuid, required)", tool: "string (required)", arguments: "object? (tool arguments)" },
+    example: `{"action":"mcp.call","params":{"server":"Netlify","tool":"list-sites","arguments":{}}}`,
+    run: async (sb, userId, p) => {
+      if (!p?.server) throw new Error("server (name or id) required");
+      if (!p?.tool) throw new Error("tool required");
+      // Resolve server by id or name
+      const isUuid = /^[0-9a-f-]{36}$/i.test(String(p.server));
+      const sq = sb.from("mcp_servers").select("*").eq("user_id", userId).eq("enabled", true);
+      const { data: srv, error: e1 } = isUuid
+        ? await sq.eq("id", p.server).maybeSingle()
+        : await sq.eq("name", String(p.server)).maybeSingle();
+      if (e1) throw e1;
+      if (!srv) throw new Error(`MCP server not found or disabled: ${p.server}`);
+      const headers: Record<string, string> = {};
+      if (srv.auth?.bearer) headers.Authorization = `Bearer ${srv.auth.bearer}`;
+      if (srv.auth?.headers) Object.assign(headers, srv.auth.headers);
+      try {
+        await mcpRpc(srv.url, "initialize", {
+          protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+        }, headers);
+      } catch { /* stateless servers ok */ }
+      const out = await mcpRpc(srv.url, "tools/call", { name: String(p.tool), arguments: p.arguments ?? {} }, headers);
+      return out?.result ?? out;
+    },
+  },
+
   /* ─────────── Identity: agent self-management ─────────── */
   {
     name: "agents.list",
@@ -522,6 +616,23 @@ const COMMANDS: Cmd[] = [
     },
   },
 ];
+
+const MCP_ACCEPT = "application/json, text/event-stream";
+async function mcpRpc(url: string, method: string, params: any, headers: Record<string, string>) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
+    body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
+  if (text.startsWith("event:") || text.includes("data:")) {
+    const lines = text.split("\n").filter((l) => l.startsWith("data:"));
+    const last = lines[lines.length - 1]?.slice(5).trim();
+    return last ? JSON.parse(last) : {};
+  }
+  return JSON.parse(text);
+}
 
 function mimeFromName(name: string): string | null {
   const ext = name.toLowerCase().split(".").pop() || "";
