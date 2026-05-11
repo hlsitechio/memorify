@@ -117,6 +117,8 @@ export function EventsStatWidget({ onRemove }: RProps) {
 }
 export function AgentsStatWidget({ onRemove }: RProps) {
   const { user } = useAuth();
+  const [ws] = useCurrentWorkspace();
+  const activeId = ws?.id ?? (user ? `user:${user.id}` : "");
   const [agents, setAgents] = useState<Array<{ id: string; name: string; kind: string; status: string; metadata: any }>>([]);
   useEffect(() => {
     if (!user) return;
@@ -138,28 +140,37 @@ export function AgentsStatWidget({ onRemove }: RProps) {
     >
       <div className="space-y-1.5">
         {/* User workspace — always first */}
-        <Link
-          to="/dashboard"
-          onClick={() => user && setCurrentWorkspace({
-            id: `user:${user.id}`,
-            name: "User Workspace",
-            subtitle: "main",
-            kind: "user",
-            short: (user.email ?? "U").charAt(0).toUpperCase(),
-          })}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-primary/30 bg-primary/5"
-        >
-          <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
-            <Sparkles className="h-3 w-3" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium truncate">User Workspace</div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              user:{user?.id?.slice(0, 8)}… · main
-            </div>
-          </div>
-          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-        </Link>
+        {(() => {
+          const userActive = user && activeId === `user:${user.id}`;
+          return (
+            <Link
+              to="/dashboard"
+              onClick={() => user && setCurrentWorkspace({
+                id: `user:${user.id}`,
+                name: "User Workspace",
+                subtitle: "main",
+                kind: "user",
+                short: (user.email ?? "U").charAt(0).toUpperCase(),
+              })}
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+                userActive
+                  ? "border border-primary/30 bg-primary/5"
+                  : "border border-transparent hover:bg-secondary/60 hover:border-border"
+              }`}
+            >
+              <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                <Sparkles className="h-3 w-3" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate">User Workspace</div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  user:{user?.id?.slice(0, 8)}… · main
+                </div>
+              </div>
+              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </Link>
+          );
+        })()}
 
         {/* Divider */}
         <div className="px-2 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
@@ -178,6 +189,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
           const shortName = (meta.short_name as string | undefined) ||
             (a.name || a.kind || "A").slice(0, 2).toUpperCase();
           const connected = a.status === "connected";
+          const isActive = activeId === `agent:${a.id}`;
           return (
             <Link
               key={a.id}
@@ -189,7 +201,11 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                 kind: "agent",
                 short: shortName,
               })}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+                isActive
+                  ? "border border-primary/30 bg-primary/5"
+                  : "border border-transparent hover:bg-secondary/60 hover:border-border"
+              }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${connected ? "bg-emerald-400" : "bg-muted-foreground/40"}`} />
               <div className="flex-1 min-w-0">
