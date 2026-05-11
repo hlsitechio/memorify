@@ -183,6 +183,13 @@ export default function Agents() {
     load();
   };
 
+  const setShortName = async (a: Agent, shortName: string) => {
+    const meta = { ...(a.metadata || {}), short_name: shortName.slice(0, 3) } as Record<string, unknown>;
+    await supabase.from("agents").update({ metadata: meta as any }).eq("id", a.id);
+    toast.success("Short name updated");
+    load();
+  };
+
 
   const wizardAgent = useMemo(
     () => agents.find((a) => a.id === wizardId) ?? null,
