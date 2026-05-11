@@ -154,7 +154,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
               })}
               className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
                 userActive
-                  ? "border border-primary/30 bg-primary/5"
+                  ? "border border-primary bg-primary/15 ring-1 ring-primary/40"
                   : "border border-transparent hover:bg-secondary/60 hover:border-border"
               }`}
             >
