@@ -16,6 +16,7 @@ const Ctx = createContext<{
 
 export function DashboardUIProvider({ children }: { children: ReactNode }) {
   const [cmd, setCmd] = useState<CmdState>({ open: false, initialQuery: "" });
+  const [pageMeta, setPageMeta] = useState<PageMeta>(null);
   const [chatOpen, setChatOpenState] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem("synapse.copilot.open");
@@ -47,8 +48,8 @@ export function DashboardUIProvider({ children }: { children: ReactNode }) {
   }, [openCmd, toggleChat]);
 
   const value = useMemo(
-    () => ({ cmd, openCmd, closeCmd, chatOpen, toggleChat, setChatOpen }),
-    [cmd, openCmd, closeCmd, chatOpen, toggleChat]
+    () => ({ cmd, openCmd, closeCmd, chatOpen, toggleChat, setChatOpen, pageMeta, setPageMeta }),
+    [cmd, openCmd, closeCmd, chatOpen, toggleChat, setChatOpen, pageMeta]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
