@@ -140,6 +140,69 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       if (error) return { ok: false, error: error.message };
       return { ok: true, data: { id: args.id } };
     }
+
+    /* ───────── agents ───────── */
+    case "agents.list": {
+      const { data, error } = await db.from("agents").select("id,name,kind,status,metadata,last_seen_at,created_at")
+        .eq("user_id", userId).order("created_at", { ascending: false })
+        .limit(Math.min(args.limit ?? 100, 200));
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "agents.new": {
+      const kind = (args.kind as string) || "claude_code";
+      const name = (args.name as string) || (kind === "claude_code" ? "Claude Code" : "Custom agent");
+      const { data, error } = await db.from("agents")
+        .insert({ user_id: userId, kind, name, status: "pending" })
+        .select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "agents.rename": {
+      if (!args.id || !args.name) return { ok: false, error: "id and name required" };
+      const { data, error } = await db.from("agents").update({ name: args.name })
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "agents.reset_name": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data: a, error: e1 } = await db.from("agents").select("kind")
+        .eq("id", args.id).eq("user_id", userId).single();
+      if (e1) return { ok: false, error: e1.message };
+      const def = a?.kind === "claude_code" ? "Claude Code" : "Custom agent";
+      const { data, error } = await db.from("agents").update({ name: def })
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+
+    /* ───────── workspace (per-agent) ───────── */
+    case "workspace.set_name":
+    case "workspace.rename": {
+      if (!args.id || !args.name) return { ok: false, error: "id and name required" };
+      const { data: a, error: e1 } = await db.from("agents").select("metadata")
+        .eq("id", args.id).eq("user_id", userId).single();
+      if (e1) return { ok: false, error: e1.message };
+      const meta = { ...((a?.metadata as any) || {}), workspace_name: args.name };
+      const { data, error } = await db.from("agents").update({ metadata: meta })
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "workspace.delete_name":
+    case "workspace.reset": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data: a, error: e1 } = await db.from("agents").select("metadata")
+        .eq("id", args.id).eq("user_id", userId).single();
+      if (e1) return { ok: false, error: e1.message };
+      const meta = { ...((a?.metadata as any) || {}) };
+      delete (meta as any).workspace_name;
+      const { data, error } = await db.from("agents").update({ metadata: meta })
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { ...data, workspace_id: `agent:${args.id}` } };
+    }
   }
   return { ok: false, error: `unknown server command: ${name}` };
 }
