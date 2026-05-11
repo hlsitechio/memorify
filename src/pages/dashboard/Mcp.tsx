@@ -46,6 +46,9 @@ type Preset = {
   tokenHint: string;
   docsUrl: string;
   oauth?: boolean;
+  /** If set, the token is sent as a custom header rather than Authorization: Bearer */
+  authHeader?: string;
+  tokenPlaceholder?: string;
 };
 
 const PRESETS: Preset[] = [
