@@ -174,8 +174,8 @@ export function AgentsStatWidget({ onRemove }: RProps) {
               to="/dashboard"
               onClick={() => setCurrentWorkspace({
                 id: `agent:${a.id}`,
-                name: displayName,
-                subtitle: `agent:${a.id.slice(0, 8)}…`,
+                name: `WS - ${a.name || a.kind}`,
+                subtitle: wsName || `agent:${a.id.slice(0, 8)}…`,
                 kind: "agent",
               })}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
