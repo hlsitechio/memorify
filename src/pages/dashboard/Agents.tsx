@@ -100,6 +100,12 @@ export default function Agents() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Deep-link: ?open=<agent_id> auto-opens that agent's workspace wizard.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+    if (id && agents.some((a) => a.id === id)) setWizardId(id);
+  }, [agents]);
+
   // Realtime — flips status to "connected" the moment the agent pings.
   useEffect(() => {
     if (!user) return;
