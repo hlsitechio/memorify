@@ -89,9 +89,9 @@ const PRESETS: Preset[] = [
     url: "https://mcp.lovable.dev",
     transport: "http",
     needsToken: true,
-    tokenLabel: "Lovable bearer token (Firebase JWT)",
+    tokenLabel: "Lovable project token (JWT)",
     tokenHint:
-      "Open lovable.dev → DevTools (F12) → Network tab → click any request to api.lovable.dev → copy the Authorization: Bearer eyJ… value. Lasts ~1 hour.",
+      "Easiest: open your Lovable preview, copy the __lovable_token=… value from the URL (valid ~7 days). Or grab the Authorization: Bearer eyJ… from a lovable.dev request in DevTools → Network (valid ~1 hour).",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
     tokenPlaceholder: "eyJhbGciOi…",
   },
