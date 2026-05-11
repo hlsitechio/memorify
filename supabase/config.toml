@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.synapse-mcp]
 verify_jwt = false
+
+[functions.mcp-oauth-callback]
+verify_jwt = false
