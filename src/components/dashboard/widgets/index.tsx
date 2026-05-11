@@ -5,8 +5,10 @@ import { Link } from "react-router-dom";
 import {
   Database, Plug, Activity, ArrowUpRight, BookOpen, Sparkles, Puzzle,
   BarChart3, FileText, KeyRound, Zap, TrendingUp, Clock, GripVertical, X,
-  StickyNote, ListTodo, Bookmark, Plus, Trash2,
+  StickyNote, ListTodo, Bookmark, Plus, Trash2, Calendar,
 } from "lucide-react";
+
+type RProps = { onRemove?: () => void };
 
 export function WidgetShell({
   title, icon: Icon, action, children, className = "", onRemove,
@@ -42,10 +44,10 @@ export function WidgetShell({
   );
 }
 
-export function WelcomeWidget() {
+export function WelcomeWidget({ onRemove }: RProps) {
   const { user } = useAuth();
   return (
-    <WidgetShell title="Welcome" icon={Sparkles}>
+    <WidgetShell title="Welcome" icon={Sparkles} onRemove={onRemove}>
       <div className="space-y-2">
         <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
           <Sparkles className="h-3 w-3" /> Synapse
@@ -75,37 +77,40 @@ function StatCard({ label, value, hint, icon: Icon, to }: any) {
   );
 }
 
-export function MemoriesStatWidget() {
+function useCount(table: string) {
   const { user } = useAuth();
   const [n, setN] = useState(0);
   useEffect(() => {
     if (!user) return;
-    supabase.from("memories").select("*", { count: "exact", head: true }).eq("user_id", user.id).then(r => setN(r.count ?? 0));
-  }, [user]);
-  return <WidgetShell title="Memories" icon={Database}><StatCard label="Memories" value={n} hint="Across all namespaces" icon={Database} to="/dashboard/memory" /></WidgetShell>;
-}
-export function ConnectorsStatWidget() {
-  const { user } = useAuth();
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("connectors").select("*", { count: "exact", head: true }).eq("user_id", user.id).then(r => setN(r.count ?? 0));
-  }, [user]);
-  return <WidgetShell title="Connectors" icon={Plug}><StatCard label="Connectors" value={n} hint="Tools & data sources" icon={Plug} to="/dashboard/connectors" /></WidgetShell>;
-}
-export function EventsStatWidget() {
-  const { user } = useAuth();
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("events").select("*", { count: "exact", head: true }).eq("user_id", user.id).then(r => setN(r.count ?? 0));
-  }, [user]);
-  return <WidgetShell title="Events (24h)" icon={Activity}><StatCard label="Events" value={n} hint="Real-time bus" icon={Activity} to="/dashboard/events" /></WidgetShell>;
+    supabase.from(table as any).select("*", { count: "exact", head: true }).eq("user_id", user.id).then((r: any) => setN(r.count ?? 0));
+  }, [user, table]);
+  return n;
 }
 
-export function QuickStartWidget() {
+export function MemoriesStatWidget({ onRemove }: RProps) {
+  const n = useCount("memories");
+  return <WidgetShell title="Memories" icon={Database} onRemove={onRemove}><StatCard label="Memories" value={n} hint="Across all namespaces" icon={Database} to="/dashboard/memory" /></WidgetShell>;
+}
+export function ConnectorsStatWidget({ onRemove }: RProps) {
+  const n = useCount("connectors");
+  return <WidgetShell title="Connectors" icon={Plug} onRemove={onRemove}><StatCard label="Connectors" value={n} hint="Tools & data sources" icon={Plug} to="/dashboard/connectors" /></WidgetShell>;
+}
+export function EventsStatWidget({ onRemove }: RProps) {
+  const n = useCount("events");
+  return <WidgetShell title="Events (24h)" icon={Activity} onRemove={onRemove}><StatCard label="Events" value={n} hint="Real-time bus" icon={Activity} to="/dashboard/events" /></WidgetShell>;
+}
+export function AgentsStatWidget({ onRemove }: RProps) {
+  const n = useCount("agents");
+  return <WidgetShell title="Agents" icon={Sparkles} onRemove={onRemove}><StatCard label="Agents" value={n} hint="Connected workspaces" icon={Sparkles} to="/dashboard/agents" /></WidgetShell>;
+}
+export function SkillsStatWidget({ onRemove }: RProps) {
+  const n = useCount("skills");
+  return <WidgetShell title="Skills" icon={Sparkles} onRemove={onRemove}><StatCard label="Skills" value={n} hint="Reusable prompt bundles" icon={Sparkles} to="/dashboard/skills" /></WidgetShell>;
+}
+
+export function QuickStartWidget({ onRemove }: RProps) {
   return (
-    <WidgetShell title="Quick start" icon={BookOpen}>
+    <WidgetShell title="Quick start" icon={BookOpen} onRemove={onRemove}>
       <ol className="space-y-2 text-sm text-muted-foreground">
         <li>1. Create your first memory in the <Link to="/dashboard/memory" className="text-primary hover:underline">Memory browser</Link></li>
         <li>2. Connect a tool from the <Link to="/dashboard/connectors" className="text-primary hover:underline">Connectors</Link> page</li>
@@ -115,10 +120,10 @@ export function QuickStartWidget() {
   );
 }
 
-export function ProjectInfoWidget() {
+export function ProjectInfoWidget({ onRemove }: RProps) {
   const { user } = useAuth();
   return (
-    <WidgetShell title="Project info" icon={KeyRound}>
+    <WidgetShell title="Project info" icon={KeyRound} onRemove={onRemove}>
       <dl className="text-sm space-y-2">
         <div className="flex justify-between"><dt className="text-muted-foreground">Plan</dt><dd>Free</dd></div>
         <div className="flex justify-between"><dt className="text-muted-foreground">Region</dt><dd>auto</dd></div>
@@ -128,11 +133,11 @@ export function ProjectInfoWidget() {
   );
 }
 
-export function AnalyticsWidget() {
+export function AnalyticsWidget({ onRemove }: RProps) {
   const bars = [12, 28, 18, 42, 30, 56, 38, 64, 50, 72, 60, 84];
   const max = Math.max(...bars);
   return (
-    <WidgetShell title="Analytics" icon={BarChart3} action={<span className="text-[10px] text-muted-foreground">last 12h</span>}>
+    <WidgetShell title="Analytics" icon={BarChart3} action={<span className="text-[10px] text-muted-foreground">last 12h</span>} onRemove={onRemove}>
       <div className="space-y-3">
         <div className="flex items-baseline gap-2">
           <div className="text-2xl font-semibold tabular-nums">2,418</div>
@@ -149,7 +154,7 @@ export function AnalyticsWidget() {
   );
 }
 
-export function SkillsResumeWidget() {
+export function SkillsResumeWidget({ onRemove }: RProps) {
   const skills = [
     { name: "summarize.v3", calls: 1284, status: "live" },
     { name: "classify.intent", calls: 902, status: "live" },
@@ -157,7 +162,7 @@ export function SkillsResumeWidget() {
     { name: "rerank.docs", calls: 318, status: "live" },
   ];
   return (
-    <WidgetShell title="Skills resume" icon={Sparkles} action={<Link to="/dashboard/skills" className="text-[11px] text-primary hover:underline">View all</Link>}>
+    <WidgetShell title="Skills resume" icon={Sparkles} action={<Link to="/dashboard/skills" className="text-[11px] text-primary hover:underline">View all</Link>} onRemove={onRemove}>
       <ul className="space-y-2">
         {skills.map(s => (
           <li key={s.name} className="flex items-center justify-between text-sm">
@@ -173,14 +178,14 @@ export function SkillsResumeWidget() {
   );
 }
 
-export function PluginsSummaryWidget() {
+export function PluginsSummaryWidget({ onRemove }: RProps) {
   const plugins = [
     { name: "Slack relay", v: "1.2.0", state: "active" },
     { name: "Gmail digest", v: "0.8.1", state: "active" },
     { name: "Notion sync", v: "2.0.0", state: "paused" },
   ];
   return (
-    <WidgetShell title="Plugins" icon={Puzzle} action={<Link to="/dashboard/plugins" className="text-[11px] text-primary hover:underline">Manage</Link>}>
+    <WidgetShell title="Plugins" icon={Puzzle} action={<Link to="/dashboard/plugins" className="text-[11px] text-primary hover:underline">Manage</Link>} onRemove={onRemove}>
       <ul className="space-y-2">
         {plugins.map(p => (
           <li key={p.name} className="flex items-center justify-between text-sm">
@@ -197,7 +202,7 @@ export function PluginsSummaryWidget() {
   );
 }
 
-export function RecentActivityWidget() {
+export function RecentActivityWidget({ onRemove }: RProps) {
   const items = [
     { t: "2m", msg: "memory.write · namespace=default" },
     { t: "11m", msg: "connector.slack · channel synced" },
@@ -205,7 +210,7 @@ export function RecentActivityWidget() {
     { t: "1h", msg: "api_key.created · syn_live_3f…" },
   ];
   return (
-    <WidgetShell title="Recent activity" icon={Clock}>
+    <WidgetShell title="Recent activity" icon={Clock} onRemove={onRemove}>
       <ul className="space-y-2">
         {items.map((i, idx) => (
           <li key={idx} className="flex items-center gap-2 text-xs">
@@ -218,14 +223,14 @@ export function RecentActivityWidget() {
   );
 }
 
-export function UsageWidget() {
+export function UsageWidget({ onRemove }: RProps) {
   const rows = [
     { k: "Tokens", v: "184.2K", pct: 36 },
     { k: "Storage", v: "2.1 GB", pct: 21 },
     { k: "Requests", v: "12,840", pct: 64 },
   ];
   return (
-    <WidgetShell title="Usage" icon={Zap}>
+    <WidgetShell title="Usage" icon={Zap} onRemove={onRemove}>
       <div className="space-y-3">
         {rows.map(r => (
           <div key={r.k}>
@@ -243,20 +248,189 @@ export function UsageWidget() {
   );
 }
 
-export function DocsWidget() {
+export function DocsWidget({ onRemove }: RProps) {
+  const n = useCount("documents");
   return (
-    <WidgetShell title="Documents" icon={FileText}>
-      <Link to="/dashboard/documents" className="group h-full flex flex-col justify-between">
-        <div className="flex items-center justify-between">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        </div>
-        <div>
-          <div className="text-3xl font-semibold tabular-nums">0</div>
-          <div className="text-sm font-medium mt-0.5">Documents</div>
-          <div className="text-xs text-muted-foreground">Indexed sources · ready for grounding</div>
-        </div>
-      </Link>
+    <WidgetShell title="Documents" icon={FileText} onRemove={onRemove}>
+      <StatCard label="Documents" value={n} hint="Indexed sources · ready for grounding" icon={FileText} to="/dashboard/documents" />
     </WidgetShell>
   );
 }
+
+// ---------- New widgets ----------
+
+export function ClockWidget({ onRemove }: RProps) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const date = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  return (
+    <WidgetShell title="Clock" icon={Clock} onRemove={onRemove}>
+      <div className="h-full flex flex-col justify-center">
+        <div className="text-4xl font-semibold tabular-nums tracking-tight">{time}</div>
+        <div className="text-xs text-muted-foreground mt-1">{date}</div>
+      </div>
+    </WidgetShell>
+  );
+}
+
+export function NotesWidget({ onRemove }: RProps) {
+  const [text, setText] = useState<string>(() => localStorage.getItem("synapse:notes") || "");
+  useEffect(() => { localStorage.setItem("synapse:notes", text); }, [text]);
+  return (
+    <WidgetShell title="Notes" icon={StickyNote} onRemove={onRemove}>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Jot something down…"
+        className="w-full h-full resize-none bg-transparent outline-none text-sm placeholder:text-muted-foreground scrollbar-thin"
+      />
+    </WidgetShell>
+  );
+}
+
+type Task = { id: string; t: string; done: boolean };
+export function TasksWidget({ onRemove }: RProps) {
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try { return JSON.parse(localStorage.getItem("synapse:tasks") || "[]"); } catch { return []; }
+  });
+  const [input, setInput] = useState("");
+  useEffect(() => { localStorage.setItem("synapse:tasks", JSON.stringify(tasks)); }, [tasks]);
+  const add = () => {
+    const t = input.trim();
+    if (!t) return;
+    setTasks((cur) => [...cur, { id: crypto.randomUUID(), t, done: false }]);
+    setInput("");
+  };
+  return (
+    <WidgetShell title="Tasks" icon={ListTodo} onRemove={onRemove}>
+      <div className="flex flex-col h-full gap-2">
+        <div className="flex gap-1.5">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+            placeholder="New task…"
+            className="flex-1 h-8 px-2 rounded-md bg-secondary/40 border border-border text-sm outline-none focus:border-primary"
+          />
+          <button onClick={add} className="h-8 w-8 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:opacity-90">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <ul className="flex-1 min-h-0 overflow-auto scrollbar-thin space-y-1">
+          {tasks.length === 0 && <li className="text-xs text-muted-foreground py-2">No tasks yet.</li>}
+          {tasks.map((t) => (
+            <li key={t.id} className="group flex items-center gap-2 text-sm py-1">
+              <input
+                type="checkbox"
+                checked={t.done}
+                onChange={() => setTasks((cur) => cur.map(x => x.id === t.id ? { ...x, done: !x.done } : x))}
+                className="accent-primary"
+              />
+              <span className={`flex-1 truncate ${t.done ? "line-through text-muted-foreground" : ""}`}>{t.t}</span>
+              <button
+                onClick={() => setTasks((cur) => cur.filter(x => x.id !== t.id))}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </WidgetShell>
+  );
+}
+
+type BM = { id: string; label: string; url: string };
+export function BookmarksWidget({ onRemove }: RProps) {
+  const [items, setItems] = useState<BM[]>(() => {
+    try {
+      const raw = localStorage.getItem("synapse:bookmarks");
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [
+      { id: "1", label: "Docs", url: "/dashboard/docs" },
+      { id: "2", label: "Lovable", url: "https://lovable.dev" },
+    ];
+  });
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  useEffect(() => { localStorage.setItem("synapse:bookmarks", JSON.stringify(items)); }, [items]);
+  const add = () => {
+    if (!label.trim() || !url.trim()) return;
+    setItems((cur) => [...cur, { id: crypto.randomUUID(), label: label.trim(), url: url.trim() }]);
+    setLabel(""); setUrl("");
+  };
+  return (
+    <WidgetShell title="Bookmarks" icon={Bookmark} onRemove={onRemove}>
+      <div className="flex flex-col h-full gap-2">
+        <ul className="flex-1 min-h-0 overflow-auto scrollbar-thin space-y-1">
+          {items.map((b) => (
+            <li key={b.id} className="group flex items-center gap-2 text-sm py-1">
+              <Bookmark className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <a href={b.url} target={b.url.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="flex-1 truncate hover:text-primary hover:underline">{b.label}</a>
+              <button
+                onClick={() => setItems((cur) => cur.filter(x => x.id !== b.id))}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-1.5">
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" className="flex-1 h-8 px-2 rounded-md bg-secondary/40 border border-border text-xs outline-none focus:border-primary" />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className="flex-[2] h-8 px-2 rounded-md bg-secondary/40 border border-border text-xs outline-none focus:border-primary" />
+          <button onClick={add} className="h-8 w-8 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:opacity-90">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </WidgetShell>
+  );
+}
+
+// ---------- Catalog ----------
+
+import type { ComponentType } from "react";
+
+export type WidgetCatalogItem = {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+  category: "Workspace" | "Stats" | "Analytics" | "Productivity" | "Info";
+  Component: ComponentType<RProps>;
+  default: { x: number; y: number; w: number; h: number; minW?: number; minH?: number };
+};
+
+export const WIDGET_CATALOG: WidgetCatalogItem[] = [
+  { id: "welcome",    name: "Welcome",        description: "Greeting and workspace status.",           icon: Sparkles,  category: "Workspace",   Component: WelcomeWidget,        default: { x: 0, y: 0,  w: 8, h: 6, minW: 4, minH: 5 } },
+  { id: "usage",      name: "Usage",          description: "Tokens, storage, requests.",                icon: Zap,       category: "Stats",       Component: UsageWidget,          default: { x: 8, y: 0,  w: 4, h: 6, minW: 3, minH: 5 } },
+  { id: "memories",   name: "Memories",       description: "Total stored memories.",                    icon: Database,  category: "Stats",       Component: MemoriesStatWidget,   default: { x: 0, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { id: "connectors", name: "Connectors",     description: "Tools and data sources count.",             icon: Plug,      category: "Stats",       Component: ConnectorsStatWidget, default: { x: 3, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { id: "events",     name: "Events",         description: "Recent event-bus activity.",                icon: Activity,  category: "Stats",       Component: EventsStatWidget,     default: { x: 6, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { id: "docs",       name: "Documents",      description: "Indexed sources ready for grounding.",      icon: FileText,  category: "Stats",       Component: DocsWidget,           default: { x: 9, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
+  { id: "agents",     name: "Agents",         description: "Connected agent workspaces.",               icon: Sparkles,  category: "Stats",       Component: AgentsStatWidget,     default: { x: 0, y: 12, w: 3, h: 6, minW: 2, minH: 5 } },
+  { id: "skills_stat",name: "Skills count",   description: "Reusable prompt bundles.",                  icon: Sparkles,  category: "Stats",       Component: SkillsStatWidget,     default: { x: 3, y: 12, w: 3, h: 6, minW: 2, minH: 5 } },
+  { id: "analytics",  name: "Analytics",      description: "Inference calls bar chart.",                icon: BarChart3, category: "Analytics",   Component: AnalyticsWidget,      default: { x: 0, y: 18, w: 6, h: 8, minW: 4, minH: 6 } },
+  { id: "skills",     name: "Skills resume",  description: "Top skills by call volume.",                icon: Sparkles,  category: "Analytics",   Component: SkillsResumeWidget,   default: { x: 6, y: 18, w: 3, h: 8, minW: 3, minH: 5 } },
+  { id: "plugins",    name: "Plugins",        description: "Installed plugins state.",                  icon: Puzzle,    category: "Workspace",   Component: PluginsSummaryWidget, default: { x: 9, y: 18, w: 3, h: 8, minW: 3, minH: 5 } },
+  { id: "activity",   name: "Recent activity",description: "Latest events stream.",                     icon: Clock,     category: "Analytics",   Component: RecentActivityWidget, default: { x: 0, y: 26, w: 6, h: 6, minW: 4, minH: 5 } },
+  { id: "quickstart", name: "Quick start",    description: "Onboarding checklist.",                     icon: BookOpen,  category: "Info",        Component: QuickStartWidget,     default: { x: 6, y: 26, w: 3, h: 6, minW: 3, minH: 5 } },
+  { id: "project",    name: "Project info",   description: "Plan, region, user ID.",                    icon: KeyRound,  category: "Info",        Component: ProjectInfoWidget,    default: { x: 9, y: 26, w: 3, h: 6, minW: 3, minH: 5 } },
+  // Productivity (off by default)
+  { id: "clock",      name: "Clock",          description: "Live time and date.",                       icon: Clock,     category: "Productivity",Component: ClockWidget,          default: { x: 0, y: 32, w: 3, h: 5, minW: 2, minH: 4 } },
+  { id: "notes",      name: "Notes",          description: "Personal scratchpad (saved locally).",      icon: StickyNote,category: "Productivity",Component: NotesWidget,          default: { x: 3, y: 32, w: 4, h: 7, minW: 3, minH: 5 } },
+  { id: "tasks",      name: "Tasks",          description: "Lightweight to-do list (saved locally).",   icon: ListTodo,  category: "Productivity",Component: TasksWidget,          default: { x: 7, y: 32, w: 3, h: 7, minW: 3, minH: 5 } },
+  { id: "bookmarks",  name: "Bookmarks",      description: "Quick links to anywhere.",                  icon: Bookmark,  category: "Productivity",Component: BookmarksWidget,      default: { x: 9, y: 32, w: 3, h: 7, minW: 3, minH: 5 } },
+];
+
+export const DEFAULT_VISIBLE_IDS = [
+  "welcome","usage","memories","connectors","events","docs",
+  "analytics","skills","plugins","activity","quickstart","project",
+];
