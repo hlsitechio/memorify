@@ -56,15 +56,22 @@ export function WelcomeWidget({ onRemove }: RProps) {
     : "Your agent memory layer is live. Add memories, plug in connectors, and watch your event bus.";
   return (
     <WidgetShell title="Welcome" icon={Sparkles} onRemove={onRemove}>
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-          <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Synapse"}
-        </div>
-        <h2 className="text-lg font-semibold tracking-tight truncate">{title}</h2>
-        {wsId && (
-          <div className="text-[11px] font-mono text-muted-foreground truncate">{wsId}</div>
+      <div className="flex items-start gap-3">
+        {ws?.short && (
+          <div className="h-10 w-10 rounded-md bg-gradient-primary text-primary-foreground flex items-center justify-center shrink-0 text-sm font-semibold tracking-tight">
+            {ws.short}
+          </div>
         )}
-        <p className="text-xs text-muted-foreground">{blurb}</p>
+        <div className="space-y-2 min-w-0 flex-1">
+          <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
+            <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Synapse"}
+          </div>
+          <h2 className="text-lg font-semibold tracking-tight truncate">{title}</h2>
+          {wsId && (
+            <div className="text-[11px] font-mono text-muted-foreground truncate">{wsId}</div>
+          )}
+          <p className="text-xs text-muted-foreground">{blurb}</p>
+        </div>
       </div>
     </WidgetShell>
   );
