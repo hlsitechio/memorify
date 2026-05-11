@@ -47,16 +47,24 @@ export function WidgetShell({
 
 export function WelcomeWidget({ onRemove }: RProps) {
   const { user } = useAuth();
+  const [ws] = useCurrentWorkspace();
+  const isAgent = ws?.kind === "agent";
+  const title = ws?.name || user?.email || "Welcome";
+  const wsId = ws?.id || (user ? `user:${user.id}` : "");
+  const blurb = isAgent
+    ? "You're now in this agent's workspace. Memories, events and tools below are scoped to it."
+    : "Your agent memory layer is live. Add memories, plug in connectors, and watch your event bus.";
   return (
     <WidgetShell title="Welcome" icon={Sparkles} onRemove={onRemove}>
       <div className="space-y-2">
         <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-          <Sparkles className="h-3 w-3" /> Synapse
+          <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Synapse"}
         </div>
-        <h2 className="text-lg font-semibold tracking-tight truncate">{user?.email}</h2>
-        <p className="text-xs text-muted-foreground">
-          Your agent memory layer is live. Add memories, plug in connectors, and watch your event bus.
-        </p>
+        <h2 className="text-lg font-semibold tracking-tight truncate">{title}</h2>
+        {wsId && (
+          <div className="text-[11px] font-mono text-muted-foreground truncate">{wsId}</div>
+        )}
+        <p className="text-xs text-muted-foreground">{blurb}</p>
       </div>
     </WidgetShell>
   );
