@@ -140,28 +140,37 @@ export function AgentsStatWidget({ onRemove }: RProps) {
     >
       <div className="space-y-1.5">
         {/* User workspace — always first */}
-        <Link
-          to="/dashboard"
-          onClick={() => user && setCurrentWorkspace({
-            id: `user:${user.id}`,
-            name: "User Workspace",
-            subtitle: "main",
-            kind: "user",
-            short: (user.email ?? "U").charAt(0).toUpperCase(),
-          })}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-primary/30 bg-primary/5"
-        >
-          <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
-            <Sparkles className="h-3 w-3" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium truncate">User Workspace</div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              user:{user?.id?.slice(0, 8)}… · main
-            </div>
-          </div>
-          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-        </Link>
+        {(() => {
+          const userActive = user && activeId === `user:${user.id}`;
+          return (
+            <Link
+              to="/dashboard"
+              onClick={() => user && setCurrentWorkspace({
+                id: `user:${user.id}`,
+                name: "User Workspace",
+                subtitle: "main",
+                kind: "user",
+                short: (user.email ?? "U").charAt(0).toUpperCase(),
+              })}
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+                userActive
+                  ? "border border-primary/30 bg-primary/5"
+                  : "border border-transparent hover:bg-secondary/60 hover:border-border"
+              }`}
+            >
+              <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                <Sparkles className="h-3 w-3" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate">User Workspace</div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  user:{user?.id?.slice(0, 8)}… · main
+                </div>
+              </div>
+              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </Link>
+          );
+        })()}
 
         {/* Divider */}
         <div className="px-2 pt-1.5 pb-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
