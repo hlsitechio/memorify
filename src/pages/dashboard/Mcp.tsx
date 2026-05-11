@@ -78,6 +78,16 @@ const PRESETS: Preset[] = [
     tokenHint: "Create one at linear.app → Settings → API → Personal API keys.",
     docsUrl: "https://linear.app/docs/mcp",
   },
+  {
+    id: "lovable",
+    name: "Lovable",
+    url: "https://mcp.lovable.dev",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Lovable API key",
+    tokenHint: "Pro/Business plan required. Create one at lovable.dev → Account → API keys. Lets agents manage your Lovable projects (create, deploy, inspect, query DB).",
+    docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
+  },
 ];
 
 export default function Mcp() {
