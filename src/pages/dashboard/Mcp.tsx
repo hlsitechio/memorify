@@ -46,6 +46,9 @@ type Preset = {
   tokenHint: string;
   docsUrl: string;
   oauth?: boolean;
+  /** If set, the token is sent as a custom header rather than Authorization: Bearer */
+  authHeader?: string;
+  tokenPlaceholder?: string;
 };
 
 const PRESETS: Preset[] = [
@@ -85,11 +88,12 @@ const PRESETS: Preset[] = [
     name: "Lovable",
     url: "https://mcp.lovable.dev",
     transport: "http",
-    needsToken: false,
-    tokenLabel: "",
-    tokenHint: "One-click OAuth — sign in with your Lovable account (Pro/Business required).",
+    needsToken: true,
+    tokenLabel: "Lovable API key",
+    tokenHint: "Generate from Lovable → Workspace Settings → API keys. Starts with lov_. Pro/Business plan required.",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
-    oauth: true,
+    authHeader: "Lovable-API-Key",
+    tokenPlaceholder: "lov_…",
   },
 ];
 
@@ -175,9 +179,13 @@ export default function Mcp() {
   const addPreset = async (p: Preset) => {
     if (p.oauth) return startOAuth(p);
     if (p.needsToken && !presetToken) return toast.error(`${p.tokenLabel} required`);
+    const auth: any = {};
+    if (presetToken) {
+      if (p.authHeader) auth.headers = { [p.authHeader]: presetToken };
+      else auth.bearer = presetToken;
+    }
     const srv = await createServer({
-      name: p.name, url: p.url, transport: p.transport,
-      auth: presetToken ? { bearer: presetToken } : {},
+      name: p.name, url: p.url, transport: p.transport, auth,
     });
     if (!srv) return;
     toast.success(`${p.name} added — discovering tools…`);
@@ -339,7 +347,7 @@ export default function Mcp() {
             {presetOpen?.needsToken && (
               <div className="space-y-1.5">
                 <Label>{presetOpen.tokenLabel}</Label>
-                <Input type="password" value={presetToken} onChange={(e) => setPresetToken(e.target.value)} placeholder="nf_…" />
+                <Input type="password" value={presetToken} onChange={(e) => setPresetToken(e.target.value)} placeholder={presetOpen.tokenPlaceholder ?? "token…"} />
               </div>
             )}
           </div>
