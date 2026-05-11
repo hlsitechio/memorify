@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle, MoreVertical, Pause, Play, KeyRound } from "lucide-react";
+import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle, MoreVertical, Pause, Play, KeyRound, Pencil, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -164,6 +164,19 @@ export default function Agents() {
     load();
   };
 
+  const rename = async (a: Agent, name: string) => {
+    await supabase.from("agents").update({ name }).eq("id", a.id);
+    toast.success("Agent renamed");
+    load();
+  };
+
+  const renameWorkspace = async (a: Agent, workspaceName: string) => {
+    const meta = { ...(a.metadata || {}), workspace_name: workspaceName } as Record<string, unknown>;
+    await supabase.from("agents").update({ metadata: meta as any }).eq("id", a.id);
+    toast.success("Workspace renamed");
+    load();
+  };
+
 
   const wizardAgent = useMemo(
     () => agents.find((a) => a.id === wizardId) ?? null,
@@ -199,7 +212,7 @@ export default function Agents() {
             ) : agents.length === 0 ? (
               <EmptyHero onConnect={() => connect("claude_code", "Claude Code")} />
             ) : (
-              agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} onPauseToggle={() => pauseToggle(a)} onResync={() => resync(a)} onRevoke={() => revokeToken(a)} />)
+              agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} onPauseToggle={() => pauseToggle(a)} onResync={() => resync(a)} onRevoke={() => revokeToken(a)} onRename={(n) => rename(a, n)} onRenameWorkspace={(n) => renameWorkspace(a, n)} />)
             )}
           </TabsContent>
 
@@ -285,13 +298,72 @@ function Feature({ icon: Icon, title, body }: { icon: any; title: string; body: 
   );
 }
 
-function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }: {
+function EditableLabel({
+  value,
+  onSave,
+  className,
+  inputClassName,
+  placeholder,
+  title,
+}: {
+  value: string;
+  onSave: (next: string) => Promise<void> | void;
+  className?: string;
+  inputClassName?: string;
+  placeholder?: string;
+  title?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setDraft(value); }, [value]);
+  const commit = async () => {
+    const next = draft.trim();
+    if (!next || next === value) { setEditing(false); setDraft(value); return; }
+    setBusy(true);
+    try { await onSave(next); } finally { setBusy(false); setEditing(false); }
+  };
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <input
+          autoFocus
+          value={draft}
+          disabled={busy}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setEditing(false); setDraft(value); }
+          }}
+          onBlur={commit}
+          placeholder={placeholder}
+          className={cn("bg-background border border-primary/40 rounded px-1.5 py-0.5 outline-none focus:border-primary", inputClassName)}
+        />
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+      className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors group/edit", className)}
+      title={title || "Click to rename"}
+    >
+      <span>{value || placeholder}</span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 transition-opacity" />
+    </button>
+  );
+}
+
+function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, onRename, onRenameWorkspace }: {
   agent: Agent;
   onOpen: () => void;
   onDelete: () => void;
   onPauseToggle: () => void;
   onResync: () => void;
   onRevoke: () => void;
+  onRename: (name: string) => Promise<void>;
+  onRenameWorkspace: (name: string) => Promise<void>;
 }) {
   const connected = agent.status === "connected";
   const paused = agent.status === "paused";
@@ -303,6 +375,7 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }
     : connected
       ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
       : "";
+  const workspaceName = ((agent.metadata as any)?.workspace_name as string) || agent.name;
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
@@ -313,7 +386,13 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <div className="text-sm font-semibold truncate">{agent.name}</div>
+          <EditableLabel
+            value={agent.name}
+            onSave={onRename}
+            className="text-sm font-semibold truncate"
+            inputClassName="text-sm font-semibold"
+            placeholder="Agent name"
+          />
           <Badge variant={connected || paused ? "default" : "secondary"} className={cn("text-[10px] gap-1", statusBadgeClass)}>
             <span className={cn("h-1.5 w-1.5 rounded-full", statusDot)} />
             {statusLabel}
@@ -330,10 +409,15 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }
             title="Click to copy full ID"
           >
             <span className="opacity-60">ID</span>
-            <code className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border">{agent.id}</code>
+            <code className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border">{agent.id.slice(0, 8)}…</code>
             <Copy className="h-3 w-3 opacity-50" />
           </button>
-          <WorkspaceStats agentId={agent.id} agentName={agent.name} />
+          <WorkspaceStats
+            agentId={agent.id}
+            agentName={agent.name}
+            workspaceName={workspaceName}
+            onRenameWorkspace={onRenameWorkspace}
+          />
         </div>
       </div>
       <Button size="sm" variant="outline" onClick={onOpen}>
@@ -365,7 +449,12 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke }
   );
 }
 
-function WorkspaceStats({ agentId, agentName }: { agentId: string; agentName: string }) {
+function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }: {
+  agentId: string;
+  agentName: string;
+  workspaceName: string;
+  onRenameWorkspace: (name: string) => Promise<void>;
+}) {
   const [stats, setStats] = useState<{ memories: number; events: number } | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -381,16 +470,27 @@ function WorkspaceStats({ agentId, agentName }: { agentId: string; agentName: st
   const workspaceId = `agent:${agentId}`;
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
-      <button
-        type="button"
-        onClick={() => { navigator.clipboard.writeText(workspaceId); toast.success("Workspace ID copied"); }}
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
-        title="Click to copy workspace ID"
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary"
+        title={workspaceId}
       >
         <span className="opacity-70">ws</span>
-        <code>{workspaceId}</code>
-        <Copy className="h-3 w-3 opacity-60" />
-      </button>
+        <EditableLabel
+          value={workspaceName}
+          onSave={onRenameWorkspace}
+          className="text-primary"
+          inputClassName="text-[10px] text-primary"
+          placeholder="Workspace name"
+        />
+        <button
+          type="button"
+          onClick={() => { navigator.clipboard.writeText(workspaceId); toast.success("Workspace ID copied"); }}
+          className="opacity-60 hover:opacity-100"
+          title="Copy workspace ID"
+        >
+          <Copy className="h-3 w-3" />
+        </button>
+      </span>
       {stats && (
         <span className="px-1.5 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
           {stats.memories}m · {stats.events}e
