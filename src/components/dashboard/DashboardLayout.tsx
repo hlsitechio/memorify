@@ -11,6 +11,7 @@ import { CopilotBusProvider } from "@/copilot/bus";
 import { useRegisterCoreCommands } from "@/copilot/useRegisterCoreCommands";
 import { CopilotChatProvider } from "@/copilot/chat-context";
 import { docsNavGroups } from "@/pages/dashboard/Docs";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useEffect, useState } from "react";
 
 const sections: { label: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
@@ -195,21 +196,23 @@ function DashboardLayoutInner() {
         collapsed ? "w-14" : "w-60"
       )}>
         <div className={cn(
-          "h-14 flex items-center gap-2 border-b border-border",
-          collapsed ? "px-2 justify-center" : "px-4"
+          "h-14 flex items-center border-b border-border",
+          collapsed ? "px-1.5 justify-center" : "px-2"
         )}>
-          <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground">
-            {!inDocs && currentWs?.short ? (
-              <span className="text-[11px] font-semibold tracking-tight">{currentWs.short}</span>
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold tracking-tight truncate">{wsTitle}</div>
-              <div className="text-[11px] text-muted-foreground truncate">{wsSubtitle}</div>
-            </div>
+          {inDocs ? (
+            <>
+              <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground mx-1">
+                <Zap className="h-4 w-4" />
+              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0 ml-2">
+                  <div className="text-sm font-semibold tracking-tight truncate">{wsTitle}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{wsSubtitle}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <WorkspaceSwitcher collapsed={collapsed} />
           )}
         </div>
 
