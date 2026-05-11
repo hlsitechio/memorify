@@ -39,7 +39,7 @@ export const documentCommands: CommandDef[] = [
   {
     name: "documents.add_from_base64",
     description:
-      "Upload a binary document (PDF, DOC, DOCX, etc.) provided as base64. Detects MIME from the extension if not given.",
+      "Upload a local file from the user's computer (PDF, DOC, DOCX, images, etc.). The agent reads the file from disk, base64-encodes the bytes, and sends them here — no URL required. Detects MIME from the extension if not provided.",
     scope: "server",
     routes: ROUTES,
     parameters: {
@@ -50,6 +50,23 @@ export const documentCommands: CommandDef[] = [
         mime: { type: "string", description: "Optional MIME type override." },
       },
       required: ["name", "base64"],
+    },
+  },
+  {
+    name: "documents.add_from_file",
+    description:
+      "Alias of documents.add_from_base64. Use this when uploading a file from the local computer / filesystem: the agent reads the file at the given path, base64-encodes its bytes, and sends them as `base64`. The server stores it under the user's documents.",
+    scope: "server",
+    routes: ROUTES,
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Filename including extension, e.g. 'report.pdf'. If omitted, basename of `path` is used." },
+        path: { type: "string", description: "Local file path the agent read from (informational, for logging)." },
+        base64: { type: "string", description: "Base64-encoded file bytes the agent produced by reading `path`." },
+        mime: { type: "string", description: "Optional MIME type override." },
+      },
+      required: ["base64"],
     },
   },
   {
