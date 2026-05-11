@@ -31,6 +31,21 @@ export default function Documents() {
   };
   useEffect(() => { load(); }, [user]);
 
+  // Realtime: keep list in sync when agents (or other tabs) add/update/delete documents.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`documents:${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "documents", filter: `user_id=eq.${user.id}` },
+        (p) => setRows((prev) => prev.some((r) => r.id === (p.new as any).id) ? prev : [p.new as any, ...prev]))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "documents", filter: `user_id=eq.${user.id}` },
+        (p) => setRows((prev) => prev.map((r) => r.id === (p.new as any).id ? (p.new as any) : r)))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "documents", filter: `user_id=eq.${user.id}` },
+        (p) => setRows((prev) => prev.filter((r) => r.id !== (p.old as any).id)))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   const upload = useCallback(async (files: FileList | File[]) => {
     if (!user) return;
     const list = Array.from(files);
