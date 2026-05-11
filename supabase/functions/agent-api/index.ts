@@ -357,6 +357,8 @@ const COMMANDS: Cmd[] = [
       return { ...base, encoding: "base64", base64: btoa(bin) };
     },
   },
+  {
+    name: "skills.list",
     description: "List skills.",
     run: async (sb, userId) => {
       const { data, error } = await sb.from("skills")
