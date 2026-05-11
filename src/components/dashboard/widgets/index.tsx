@@ -189,6 +189,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
           const shortName = (meta.short_name as string | undefined) ||
             (a.name || a.kind || "A").slice(0, 2).toUpperCase();
           const connected = a.status === "connected";
+          const isActive = activeId === `agent:${a.id}`;
           return (
             <Link
               key={a.id}
@@ -200,7 +201,11 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                 kind: "agent",
                 short: shortName,
               })}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+                isActive
+                  ? "border border-primary/30 bg-primary/5"
+                  : "border border-transparent hover:bg-secondary/60 hover:border-border"
+              }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${connected ? "bg-emerald-400" : "bg-muted-foreground/40"}`} />
               <div className="flex-1 min-w-0">
