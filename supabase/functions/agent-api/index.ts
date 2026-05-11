@@ -76,9 +76,12 @@ curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
 
 Every response has shape: \`{ ok, action, result, agent }\` or \`{ ok:false, error }\`.
 
+## Your workspace
+You have your **own private workspace** inside this user's Synapse — namespace \`agent:<your-id>\`. By default, \`memory.remember\` writes there and \`memory.recall\` reads from there, so other agents' notes won't pollute your context. Pass \`shared: true\` (write) or \`scope: "shared"\` / \`"all"\` (read) when you explicitly want to collaborate with other agents.
+
 ## Etiquette
 - Don't spam memory — dedupe, prefer updating over re-adding.
-- Use namespaces (\`default\`, \`work\`, \`personal\`) to keep contexts separate.
+- Keep private context in your own workspace; promote to \`shared\` only when other agents need it.
 - If unsure what's there, \`memory.recall\` with no query returns the latest 10.
 
 You're all set. Call \`synapse.welcome\` anytime to re-read this. 🧠`;
