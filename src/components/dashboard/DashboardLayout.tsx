@@ -198,8 +198,12 @@ function DashboardLayoutInner() {
           "h-14 flex items-center gap-2 border-b border-border",
           collapsed ? "px-2 justify-center" : "px-4"
         )}>
-          <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0">
-            <Zap className="h-4 w-4 text-primary-foreground" />
+          <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground">
+            {!inDocs && currentWs?.short ? (
+              <span className="text-[11px] font-semibold tracking-tight">{currentWs.short}</span>
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
