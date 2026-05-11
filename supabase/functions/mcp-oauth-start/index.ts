@@ -71,32 +71,37 @@ serve(async (req) => {
     const meta = await discover(server_url);
     if (!meta) throw new Error(`Could not discover OAuth metadata for ${server_url}. The server may not support OAuth — use an API key instead.`);
 
-    // 3. Dynamic Client Registration (best-effort).
+    // 3. Dynamic Client Registration (RFC 7591) — required, no fallback.
+    console.log("[mcp-oauth-start] discovered metadata:", JSON.stringify(meta));
     let client_id: string | null = null;
     let client_secret: string | null = null;
-    if (meta.registration_endpoint) {
-      const regRes = await fetch(meta.registration_endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_name: "Synapse",
-          redirect_uris: [redirect_uri],
-          grant_types: ["authorization_code", "refresh_token"],
-          response_types: ["code"],
-          token_endpoint_auth_method: "none", // public client + PKCE
-          application_type: "web",
-        }),
-      });
-      if (regRes.ok) {
-        const reg = await regRes.json();
-        client_id = reg.client_id;
-        client_secret = reg.client_secret ?? null;
-      }
+    if (!meta.registration_endpoint) {
+      throw new Error(`OAuth server at ${server_url} does not advertise a registration_endpoint. Dynamic Client Registration is required for connection without a pre-registered client. Use an API key instead.`);
     }
-    if (!client_id) {
-      // Fallback — some servers accept any client_id with PKCE
-      client_id = "synapse-mcp-client";
+    const regBody = {
+      client_name: "Synapse",
+      redirect_uris: [redirect_uri],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none", // public client + PKCE
+      application_type: "web",
+      scope: Array.isArray(meta.scopes_supported) ? meta.scopes_supported.join(" ") : undefined,
+    };
+    console.log("[mcp-oauth-start] registering client at", meta.registration_endpoint, JSON.stringify(regBody));
+    const regRes = await fetch(meta.registration_endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(regBody),
+    });
+    const regText = await regRes.text();
+    console.log("[mcp-oauth-start] registration response", regRes.status, regText.slice(0, 500));
+    if (!regRes.ok) {
+      throw new Error(`Dynamic Client Registration failed [${regRes.status}]: ${regText.slice(0, 300)}`);
     }
+    const reg = JSON.parse(regText);
+    client_id = reg.client_id;
+    client_secret = reg.client_secret ?? null;
+    if (!client_id) throw new Error("Registration succeeded but no client_id returned");
 
     // 4. PKCE + state
     const state = randomString(32);
