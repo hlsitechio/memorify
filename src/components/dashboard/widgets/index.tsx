@@ -138,6 +138,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
             name: "User Workspace",
             subtitle: "main",
             kind: "user",
+            short: (user.email ?? "U").charAt(0).toUpperCase(),
           })}
           className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-primary/30 bg-primary/5"
         >
@@ -165,9 +166,11 @@ export function AgentsStatWidget({ onRemove }: RProps) {
         )}
 
         {agents.map((a) => {
-          const wsName = (a.metadata as any)?.workspace_name as string | undefined;
+          const meta = (a.metadata as any) || {};
+          const wsName = meta.workspace_name as string | undefined;
+          const shortName = (meta.short_name as string | undefined) ||
+            (a.name || a.kind || "A").slice(0, 2).toUpperCase();
           const connected = a.status === "connected";
-          const displayName = wsName || a.name || a.kind;
           return (
             <Link
               key={a.id}
@@ -177,6 +180,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                 name: `WS - ${a.name || a.kind}`,
                 subtitle: wsName || `agent:${a.id.slice(0, 8)}…`,
                 kind: "agent",
+                short: shortName,
               })}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
             >
@@ -187,6 +191,9 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                   {wsName || `agent:${a.id.slice(0, 8)}…`}
                 </div>
               </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
+                {shortName}
+              </span>
               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
           );
