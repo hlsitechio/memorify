@@ -55,6 +55,18 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Auth: require a valid agent token (Bearer <token> or x-agent-token).
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  const token = bearer || req.headers.get("x-agent-token") || "";
+  if (!token) return fail("unauthorized: missing agent token", 401);
+  const { data: agent } = await supabase
+    .from("agents")
+    .select("id, user_id")
+    .eq("token", token)
+    .maybeSingle();
+  if (!agent) return fail("unauthorized: invalid agent token", 401);
+
   let body: GatewayRequest;
   try {
     body = await req.json();
@@ -62,8 +74,8 @@ Deno.serve(async (req) => {
     return fail("invalid json body");
   }
 
-  const { agent, action, input = {} } = body ?? {};
-  if (!agent || !action) return fail("missing 'agent' or 'action'");
+  const { agent: agentName, action, input = {} } = body ?? {};
+  if (!agentName || !action) return fail("missing 'agent' or 'action'");
 
   try {
     if (agent === "gateway" && action === "ping") {
