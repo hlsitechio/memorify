@@ -163,7 +163,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
           return (
             <Link
               key={a.id}
-              to={`/dashboard/agents?open=${a.id}`}
+              to="/dashboard"
               onClick={() => setCurrentWorkspace({
                 id: `agent:${a.id}`,
                 name: displayName,
