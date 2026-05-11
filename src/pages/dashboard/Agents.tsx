@@ -368,7 +368,7 @@ function EditableLabel({
   );
 }
 
-function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, onRename, onRenameWorkspace }: {
+function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, onRename, onRenameWorkspace, onSetShortName }: {
   agent: Agent;
   onOpen: () => void;
   onDelete: () => void;
@@ -377,6 +377,7 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
   onRevoke: () => void;
   onRename: (name: string) => Promise<void>;
   onRenameWorkspace: (name: string) => Promise<void>;
+  onSetShortName: (name: string) => Promise<void>;
 }) {
   const connected = agent.status === "connected";
   const paused = agent.status === "paused";
@@ -389,6 +390,7 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
       ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
       : "";
   const workspaceName = ((agent.metadata as any)?.workspace_name as string) || "";
+  const shortName = ((agent.metadata as any)?.short_name as string) || "";
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
