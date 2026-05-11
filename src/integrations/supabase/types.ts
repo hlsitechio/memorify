@@ -196,33 +196,6 @@ export type Database = {
         }
         Relationships: []
       }
-      demo_memories: {
-        Row: {
-          content: string
-          created_at: string
-          id: string
-          metadata: Json | null
-          namespace: string
-          tags: string[] | null
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          namespace?: string
-          tags?: string[] | null
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          namespace?: string
-          tags?: string[] | null
-        }
-        Relationships: []
-      }
       documents: {
         Row: {
           created_at: string
