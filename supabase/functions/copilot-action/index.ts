@@ -215,12 +215,26 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       return { ok: true, data };
     }
     case "documents.add_note": {
-      if (!args.title || typeof args.content !== "string") return { ok: false, error: "title and content required" };
-      const fmt = args.format === "txt" ? "txt" : "md";
-      const mime = fmt === "md" ? "text/markdown" : "text/plain";
+      if (!args.title) return { ok: false, error: "title required" };
+      const fmt = ["md", "txt", "json"].includes(args.format) ? args.format : "md";
+      const mime = fmt === "md" ? "text/markdown" : fmt === "json" ? "application/json" : "text/plain";
+      let textContent: string;
+      if (fmt === "json") {
+        if (typeof args.content === "string") {
+          try { textContent = JSON.stringify(JSON.parse(args.content), null, 2); }
+          catch { return { ok: false, error: "content is not valid JSON" }; }
+        } else if (args.content && typeof args.content === "object") {
+          textContent = JSON.stringify(args.content, null, 2);
+        } else {
+          return { ok: false, error: "content required (string or object)" };
+        }
+      } else {
+        if (typeof args.content !== "string") return { ok: false, error: "content (string) required" };
+        textContent = args.content;
+      }
       const safe = String(args.title).replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "note";
       const filename = `${safe}.${fmt}`;
-      const bytes = new TextEncoder().encode(args.content);
+      const bytes = new TextEncoder().encode(textContent);
       const path = `${userId}/${crypto.randomUUID()}-${filename}`;
       const { error: upErr } = await db.storage.from("documents").upload(path, bytes, { contentType: mime });
       if (upErr) return { ok: false, error: upErr.message };
