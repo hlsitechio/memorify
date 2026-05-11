@@ -30,7 +30,7 @@ async function tryFetch(url: string): Promise<any | null> {
 }
 
 // Discover OAuth AS metadata. Try resource metadata first, then well-known on the server.
-async function discover(serverUrl: string): Promise<{ authorization_endpoint: string; token_endpoint: string; registration_endpoint?: string; scopes_supported?: string[] } | null> {
+async function discover(serverUrl: string): Promise<{ authorization_endpoint: string; token_endpoint: string; registration_endpoint?: string; scopes_supported?: string[]; client_id_metadata_document_supported?: boolean } | null> {
   const u = new URL(serverUrl);
   const origin = `${u.protocol}//${u.host}`;
 
@@ -71,35 +71,43 @@ serve(async (req) => {
     const meta = await discover(server_url);
     if (!meta) throw new Error(`Could not discover OAuth metadata for ${server_url}. The server may not support OAuth — use an API key instead.`);
 
-    // 3. Dynamic Client Registration (RFC 7591) — required, no fallback.
+    // 3. Identify our client.
+    // Prefer Client ID Metadata Document (the client_id is a URL to a JSON doc we host).
+    // Fall back to Dynamic Client Registration (RFC 7591).
     console.log("[mcp-oauth-start] discovered metadata:", JSON.stringify(meta));
     let client_id: string | null = null;
     let client_secret: string | null = null;
-    if (!meta.registration_endpoint) {
-      throw new Error(`OAuth server at ${server_url} does not advertise a registration_endpoint. Dynamic Client Registration is required for connection without a pre-registered client. Use an API key instead.`);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const cimdUrl = `${supabaseUrl}/functions/v1/mcp-client-metadata`;
+
+    if (meta.client_id_metadata_document_supported) {
+      console.log("[mcp-oauth-start] using Client ID Metadata Document:", cimdUrl);
+      client_id = cimdUrl;
+    } else if (meta.registration_endpoint) {
+      const regBody: Record<string, unknown> = {
+        client_name: "Synapse",
+        redirect_uris: [redirect_uri],
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      };
+      console.log("[mcp-oauth-start] DCR at", meta.registration_endpoint, JSON.stringify(regBody));
+      const regRes = await fetch(meta.registration_endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(regBody),
+      });
+      const regText = await regRes.text();
+      console.log("[mcp-oauth-start] DCR response", regRes.status, regText.slice(0, 500));
+      if (!regRes.ok) throw new Error(`Dynamic Client Registration failed [${regRes.status}]: ${regText.slice(0, 300)}`);
+      const reg = JSON.parse(regText);
+      client_id = reg.client_id;
+      client_secret = reg.client_secret ?? null;
+      if (!client_id) throw new Error("Registration succeeded but no client_id returned");
+    } else {
+      throw new Error(`OAuth server at ${server_url} supports neither Client ID Metadata Document nor Dynamic Client Registration. Use an API key instead.`);
     }
-    const regBody: Record<string, unknown> = {
-      client_name: "Synapse",
-      redirect_uris: [redirect_uri],
-      grant_types: ["authorization_code", "refresh_token"],
-      response_types: ["code"],
-      token_endpoint_auth_method: "none", // public client + PKCE
-    };
-    console.log("[mcp-oauth-start] registering client at", meta.registration_endpoint, JSON.stringify(regBody));
-    const regRes = await fetch(meta.registration_endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(regBody),
-    });
-    const regText = await regRes.text();
-    console.log("[mcp-oauth-start] registration response", regRes.status, regText.slice(0, 500));
-    if (!regRes.ok) {
-      throw new Error(`Dynamic Client Registration failed [${regRes.status}]: ${regText.slice(0, 300)}`);
-    }
-    const reg = JSON.parse(regText);
-    client_id = reg.client_id;
-    client_secret = reg.client_secret ?? null;
-    if (!client_id) throw new Error("Registration succeeded but no client_id returned");
 
     // 4. PKCE + state
     const state = randomString(32);
