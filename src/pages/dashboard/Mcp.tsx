@@ -89,9 +89,9 @@ const PRESETS: Preset[] = [
     url: "https://mcp.lovable.dev",
     transport: "http",
     needsToken: true,
-    tokenLabel: "Lovable project token (JWT)",
+    tokenLabel: "Lovable bearer token (JWT)",
     tokenHint:
-      "Easiest: open your Lovable preview, copy the __lovable_token=… value from the URL (valid ~7 days). Or grab the Authorization: Bearer eyJ… from a lovable.dev request in DevTools → Network (valid ~1 hour).",
+      "Two options — either works as a Bearer token: (1) Project token — open your Lovable preview, copy __lovable_token=eyJ… from the URL (valid ~7 days, scoped to this project). (2) User token — in DevTools → Network → filter Fetch/XHR → click any request to api.lovable.dev → Request Headers → copy the value after 'Authorization: Bearer ' (valid ~1 hour, full account access). Paste either eyJ… value below.",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
     tokenPlaceholder: "eyJhbGciOi…",
   },
