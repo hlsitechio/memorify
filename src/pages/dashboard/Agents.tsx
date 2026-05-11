@@ -35,6 +35,15 @@ const CATALOG = [
     tone: "text-amber-400",
     featured: true,
   },
+  {
+    kind: "github_copilot",
+    name: "GitHub Copilot",
+    tagline: "Copilot CLI / agent mode",
+    description: "Connect GitHub Copilot (CLI or agent mode) to this workspace. Uses the same hosted MCP endpoint + token — no tunnel needed.",
+    icon: Bot,
+    tone: "text-violet-400",
+    featured: true,
+  },
   { kind: "openai_codex", name: "OpenAI Codex CLI",  tagline: "Coming soon", description: "OpenAI's terminal coding agent.",          icon: Sparkles, tone: "text-emerald-400", featured: false },
   { kind: "cursor",       name: "Cursor",            tagline: "Coming soon", description: "Cursor MCP integration.",                  icon: Bot,      tone: "text-sky-400",     featured: false },
   { kind: "custom",       name: "Custom agent",      tagline: "Bring your own", description: "Any MCP-capable agent via the hosted URL + token.", icon: Zap, tone: "text-primary",     featured: false },
@@ -123,7 +132,7 @@ export default function Agents() {
 
   const connect = async (kind: string, name: string) => {
     if (!user) return;
-    if (kind !== "claude_code" && kind !== "custom") {
+    if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot") {
       toast.info(`${name} support is coming soon.`);
       return;
     }
@@ -238,7 +247,7 @@ export default function Agents() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {CATALOG.map((c) => {
                 const Icon = c.icon;
-                const available = c.kind === "claude_code" || c.kind === "custom";
+                const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot";
                 return (
                   <div key={c.kind} className={cn(
                     "relative rounded-lg border bg-card p-4 transition-all hover:border-primary/40",
