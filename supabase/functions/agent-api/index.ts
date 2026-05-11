@@ -193,14 +193,122 @@ const COMMANDS: Cmd[] = [
   {
     name: "documents.list",
     description: "List documents.",
-    params: { limit: "number? (default 20)" },
+    params: { limit: "number? (default 20)", q: "string? (name filter)" },
     run: async (sb, userId, p) => {
       const limit = Math.min(Math.max(Number(p?.limit ?? 20), 1), 100);
-      const { data, error } = await sb.from("documents")
+      let q = sb.from("documents")
         .select("id, name, mime, size, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+      if (p?.q) q = q.ilike("name", `%${p.q}%`);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
+    },
+  },
+  {
+    name: "documents.add_note",
+    description: "Create a notepad note (md/txt/json) under the user's documents.",
+    params: { title: "string (required)", content: "string|object (required)", format: "'md'|'txt'|'json'? (default 'md')" },
+    example: `{"action":"documents.add_note","params":{"title":"meeting","content":"# Notes","format":"md"}}`,
+    run: async (sb, userId, p) => {
+      if (!p?.title) throw new Error("title required");
+      const fmt = ["md", "txt", "json"].includes(p?.format) ? p.format : "md";
+      const mime = fmt === "md" ? "text/markdown" : fmt === "json" ? "application/json" : "text/plain";
+      let textContent: string;
+      if (fmt === "json") {
+        if (typeof p.content === "string") {
+          try { textContent = JSON.stringify(JSON.parse(p.content), null, 2); }
+          catch { throw new Error("content is not valid JSON"); }
+        } else if (p.content && typeof p.content === "object") {
+          textContent = JSON.stringify(p.content, null, 2);
+        } else throw new Error("content required (string or object)");
+      } else {
+        if (typeof p?.content !== "string") throw new Error("content (string) required");
+        textContent = p.content;
+      }
+      const safe = String(p.title).replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "note";
+      const filename = `${safe}.${fmt}`;
+      const bytes = new TextEncoder().encode(textContent);
+      const path = `${userId}/${crypto.randomUUID()}-${filename}`;
+      const { error: upErr } = await sb.storage.from("documents").upload(path, bytes, { contentType: mime });
+      if (upErr) throw upErr;
+      const { data, error } = await sb.from("documents").insert({
+        user_id: userId, name: filename, mime, size: bytes.byteLength, storage_path: path, status: "ready",
+        metadata: { kind: "note", format: fmt },
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "documents.add_from_base64",
+    description: "Upload a local file (PDF/DOC/DOCX/etc.) by sending its base64-encoded bytes.",
+    params: { name: "string (required, filename incl. ext)", base64: "string (required)", mime: "string? (auto-detected from extension)" },
+    example: `{"action":"documents.add_from_base64","params":{"name":"report.pdf","base64":"JVBERi0xLjQK..."}}`,
+    run: async (sb, userId, p) => uploadBase64(sb, userId, p),
+  },
+  {
+    name: "documents.add_from_file",
+    description: "Alias of documents.add_from_base64 — agent reads local file, base64-encodes it, sends here. Use `path` (filename inferred) and `base64`.",
+    params: { path: "string? (local path; basename used as name)", name: "string? (overrides path basename)", base64: "string (required)", mime: "string?" },
+    example: `{"action":"documents.add_from_file","params":{"path":"C:/notes/test.txt","base64":"dGhpcyBpcyBhIG5vdGU="}}`,
+    run: async (sb, userId, p) => {
+      const pp = { ...p };
+      if (!pp.name && pp.path) pp.name = String(pp.path).split(/[\\/]/).pop();
+      return uploadBase64(sb, userId, pp);
+    },
+  },
+  {
+    name: "documents.add_from_url",
+    description: "Download a document from a public https URL and store it.",
+    params: { url: "string (required)", name: "string? (inferred from URL)" },
+    run: async (sb, userId, p) => {
+      if (!p?.url) throw new Error("url required");
+      const res = await fetch(p.url);
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
+      const buf = new Uint8Array(await res.arrayBuffer());
+      const urlName = String(p.url).split("?")[0].split("/").pop() || "download";
+      const name = p.name || urlName;
+      const mime = res.headers.get("content-type")?.split(";")[0] || mimeFromName(name) || "application/octet-stream";
+      const path = `${userId}/${crypto.randomUUID()}-${name}`;
+      const { error: upErr } = await sb.storage.from("documents").upload(path, buf, { contentType: mime });
+      if (upErr) throw upErr;
+      const { data, error } = await sb.from("documents").insert({
+        user_id: userId, name, mime, size: buf.byteLength, storage_path: path, status: "ready",
+        metadata: { source_url: p.url },
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "documents.delete",
+    description: "Permanently delete a document (file + db row). Destructive.",
+    params: { id: "uuid (required)" },
+    run: async (sb, userId, p) => {
+      if (!p?.id) throw new Error("id required");
+      const { data: row, error: e1 } = await sb.from("documents").select("storage_path")
+        .eq("id", p.id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      if (row?.storage_path) await sb.storage.from("documents").remove([row.storage_path]);
+      const { error } = await sb.from("documents").delete().eq("id", p.id).eq("user_id", userId);
+      if (error) throw error;
+      return { deleted: p.id };
+    },
+  },
+  {
+    name: "documents.signed_url",
+    description: "Generate a short-lived signed download URL for a document.",
+    params: { id: "uuid (required)", ttl: "number? (seconds, default 300, max 3600)" },
+    run: async (sb, userId, p) => {
+      if (!p?.id) throw new Error("id required");
+      const { data: row, error: e1 } = await sb.from("documents").select("storage_path,name")
+        .eq("id", p.id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const ttl = Math.min(Math.max(Number(p?.ttl) || 300, 30), 3600);
+      const { data, error } = await sb.storage.from("documents").createSignedUrl(row.storage_path, ttl);
+      if (error) throw error;
+      return { url: data.signedUrl, name: row.name, ttl };
     },
   },
   {
