@@ -108,8 +108,19 @@ const COMMANDS: Cmd[] = [
   },
   {
     name: "whoami",
-    description: "Return the connected agent's identity.",
-    run: async (_sb, userId, _p, agent) => ({ agent_id: agent.id, name: agent.name, kind: agent.kind, user_id: userId }),
+    description: "Return the connected agent's identity and its private workspace.",
+    run: async (_sb, userId, _p, agent) => ({
+      agent_id: agent.id,
+      name: agent.name,
+      kind: agent.kind,
+      user_id: userId,
+      workspace: {
+        id: `agent:${agent.id}`,
+        name: (agent.metadata?.workspace_name as string) || agent.name,
+        scope: "agent",
+        shared_namespace: "default",
+      },
+    }),
   },
   {
     name: "memory.remember",
@@ -278,6 +289,12 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       agent: { id: agent.id, name: agent.name, kind: agent.kind, status: "connected" },
+      workspace: {
+        id: `agent:${agent.id}`,
+        name: ((agent as any).metadata?.workspace_name as string) || agent.name,
+        scope: "agent",
+        shared_namespace: "default",
+      },
       server: { name: "synapse", version: "1.0", protocol: "rest" },
       first_connection: firstConnection,
       welcome: firstConnection ? WELCOME_MD : "Call synapse.welcome to re-read the onboarding guide.",
