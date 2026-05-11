@@ -375,7 +375,7 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
     : connected
       ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
       : "";
-  const workspaceName = ((agent.metadata as any)?.workspace_name as string) || agent.name;
+  const workspaceName = ((agent.metadata as any)?.workspace_name as string) || "";
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
