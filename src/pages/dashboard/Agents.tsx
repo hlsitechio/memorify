@@ -132,7 +132,7 @@ export default function Agents() {
 
   const connect = async (kind: string, name: string) => {
     if (!user) return;
-    if (kind !== "claude_code" && kind !== "custom") {
+    if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot") {
       toast.info(`${name} support is coming soon.`);
       return;
     }
