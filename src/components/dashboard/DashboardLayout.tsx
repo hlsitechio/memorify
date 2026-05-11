@@ -1,6 +1,30 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Database, Plug, Activity, ScrollText, KeyRound, Settings, Home, Zap, LogOut, Sparkles, Puzzle, FileText, Image as ImageIcon, Mic, Table2, Lock, Search, Bot, Server, BookOpen, ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import {
+  Database,
+  Plug,
+  Activity,
+  ScrollText,
+  KeyRound,
+  Settings,
+  Home,
+  Zap,
+  LogOut,
+  Sparkles,
+  Puzzle,
+  FileText,
+  Image as ImageIcon,
+  Mic,
+  Table2,
+  Lock,
+  Search,
+  Bot,
+  Server,
+  BookOpen,
+  ArrowLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
 import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
@@ -54,9 +78,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   },
   {
     label: "Project",
-    items: [
-      { to: "/dashboard/api-keys", label: "API", icon: KeyRound },
-    ],
+    items: [{ to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound }],
   },
 ];
 
@@ -123,7 +145,7 @@ function DocsNav({ collapsed }: { collapsed: boolean }) {
           title={collapsed ? "Back to workspace" : undefined}
           className={cn(
             "flex items-center rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors",
-            collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2"
+            collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
           )}
         >
           <ArrowLeft className="h-4 w-4" /> {!collapsed && "Back to workspace"}
@@ -155,7 +177,7 @@ function MainNav({ collapsed }: { collapsed: boolean }) {
                   collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
                   isActive
                     ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
                 )
               }
             >
@@ -176,10 +198,10 @@ function DashboardLayoutInner() {
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
   const inDocs = pathname.startsWith("/dashboard/docs");
   const [currentWs] = useCurrentWorkspace();
-  const wsTitle = inDocs ? "Synapse" : (currentWs?.name || "Synapse");
+  const wsTitle = inDocs ? "Synapse" : currentWs?.name || "Synapse";
   const wsSubtitle = inDocs
     ? "Documentation"
-    : (currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Personal workspace"));
+    : currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Personal workspace");
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("sidebar:collapsed") === "1";
@@ -191,14 +213,15 @@ function DashboardLayoutInner() {
 
   return (
     <div className="h-screen overflow-hidden flex w-full bg-background text-foreground">
-      <aside className={cn(
-        "shrink-0 border-r border-border bg-card flex flex-col transition-[width] duration-300 ease-out",
-        collapsed ? "w-14" : "w-60"
-      )}>
-        <div className={cn(
-          "h-14 flex items-center border-b border-border",
-          collapsed ? "px-1.5 justify-center" : "px-2"
-        )}>
+      <aside
+        className={cn(
+          "shrink-0 border-r border-border bg-card flex flex-col transition-[width] duration-300 ease-out",
+          collapsed ? "w-14" : "w-60",
+        )}
+      >
+        <div
+          className={cn("h-14 flex items-center border-b border-border", collapsed ? "px-1.5 justify-center" : "px-2")}
+        >
           {inDocs ? (
             <>
               <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground mx-1">
@@ -231,7 +254,7 @@ function DashboardLayoutInner() {
                   collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
                   isActive
                     ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
                 )
               }
             >
@@ -248,7 +271,7 @@ function DashboardLayoutInner() {
                 collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
                 isActive
                   ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
               )
             }
           >
@@ -260,17 +283,20 @@ function DashboardLayoutInner() {
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             className={cn(
               "flex items-center rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors w-full",
-              collapsed ? "justify-center h-9" : "gap-2.5 px-2.5 py-2"
+              collapsed ? "justify-center h-9" : "gap-2.5 px-2.5 py-2",
             )}
           >
             {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             {!collapsed && "Collapse"}
           </button>
           <button
-            onClick={async () => { await signOut(); navigate("/"); }}
+            onClick={async () => {
+              await signOut();
+              navigate("/");
+            }}
             className={cn(
               "w-full flex items-center rounded-md hover:bg-secondary/60 transition-colors text-left group",
-              collapsed ? "justify-center py-2" : "gap-2 px-2 py-2"
+              collapsed ? "justify-center py-2" : "gap-2 px-2 py-2",
             )}
             title={collapsed ? `${user?.email ?? ""} — Sign out` : "Sign out"}
           >
@@ -330,12 +356,7 @@ function DashboardTopbar() {
       </button>
       <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
         {pageMeta?.actions}
-        <Button
-          variant={chatOpen ? "secondary" : "outline"}
-          size="sm"
-          onClick={toggleChat}
-          className="gap-2"
-        >
+        <Button variant={chatOpen ? "secondary" : "outline"} size="sm" onClick={toggleChat} className="gap-2">
           <Bot className="h-4 w-4" />
           Copilot
           <span className="text-[11px] font-mono px-1 py-0.5 rounded border border-border bg-background text-muted-foreground">
