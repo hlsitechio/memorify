@@ -414,3 +414,11 @@ export default function Mcp() {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+}
+
