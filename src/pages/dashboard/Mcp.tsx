@@ -88,11 +88,12 @@ const PRESETS: Preset[] = [
     name: "Lovable",
     url: "https://mcp.lovable.dev",
     transport: "http",
-    needsToken: false,
-    tokenLabel: "",
-    tokenHint: "One-click OAuth — sign in with your Lovable account (Pro/Business required).",
+    needsToken: true,
+    tokenLabel: "Lovable API key",
+    tokenHint: "Generate from Lovable → Workspace Settings → API keys. Starts with lov_. Pro/Business plan required.",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
-    oauth: true,
+    authHeader: "Lovable-API-Key",
+    tokenPlaceholder: "lov_…",
   },
 ];
 
