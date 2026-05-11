@@ -5,6 +5,7 @@ import { registerCommands } from "./registry";
 import { navCommands } from "./actions/nav";
 import { pluginCommands } from "./actions/plugins";
 import { widgetCommands } from "./actions/widgets";
+import { agentCommands } from "./actions/agents";
 
 export function useRegisterCoreCommands() {
   useEffect(() => {
@@ -12,6 +13,7 @@ export function useRegisterCoreCommands() {
       ...navCommands,
       ...pluginCommands,
       ...widgetCommands,
+      ...agentCommands,
     ]);
     return unreg;
   }, []);
