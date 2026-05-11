@@ -244,6 +244,129 @@ const COMMANDS: Cmd[] = [
       return data;
     },
   },
+
+  /* ─────────── Identity: agent self-management ─────────── */
+  {
+    name: "agents.list",
+    description: "List all agents owned by the same user.",
+    params: { limit: "number? (default 50)" },
+    run: async (sb, userId, p) => {
+      const limit = Math.min(Math.max(Number(p?.limit ?? 50), 1), 200);
+      const { data, error } = await sb.from("agents")
+        .select("id, name, kind, status, metadata, created_at, last_seen_at")
+        .eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "agents.new",
+    description: "Create a new agent. Defaults: kind='claude_code', name='Claude Code'.",
+    params: { name: "string?", kind: "'claude_code'|'custom'? (default 'claude_code')" },
+    run: async (sb, userId, p) => {
+      const kind = String(p?.kind ?? "claude_code");
+      const name = String(p?.name ?? (kind === "claude_code" ? "Claude Code" : "Custom agent"));
+      const { data, error } = await sb.from("agents")
+        .insert({ user_id: userId, name, kind, status: "pending" })
+        .select("id, name, kind, status, token, created_at").single();
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "agents.rename",
+    description: "Rename an agent. If id omitted, renames the calling agent (self).",
+    params: { id: "uuid? (default: self)", name: "string (required)" },
+    run: async (sb, userId, p, agent) => {
+      if (!p?.name) throw new Error("name required");
+      const id = String(p?.id ?? agent.id);
+      const { data, error } = await sb.from("agents").update({ name: String(p.name) })
+        .eq("id", id).eq("user_id", userId).select("id, name, kind").single();
+      if (error) throw error;
+      return data;
+    },
+  },
+  {
+    name: "agents.reset_name",
+    description: "Reset an agent's name to the default for its kind (e.g. 'Claude Code'). Defaults to self.",
+    params: { id: "uuid? (default: self)" },
+    run: async (sb, userId, p, agent) => {
+      const id = String(p?.id ?? agent.id);
+      const { data: row, error: e1 } = await sb.from("agents").select("kind").eq("id", id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const defaultName = row.kind === "claude_code" ? "Claude Code" : "Custom agent";
+      const { data, error } = await sb.from("agents").update({ name: defaultName })
+        .eq("id", id).eq("user_id", userId).select("id, name, kind").single();
+      if (error) throw error;
+      return data;
+    },
+  },
+
+  /* ─────────── Workspace (per agent; ID is immutable agent:<id>) ─────────── */
+  {
+    name: "workspace.set_name",
+    description: "Set/change the workspace display name for an agent (stored in agent.metadata.workspace_name). ID stays agent:<id>.",
+    params: { id: "uuid? (default: self)", name: "string (required)" },
+    run: async (sb, userId, p, agent) => {
+      if (!p?.name) throw new Error("name required");
+      const id = String(p?.id ?? agent.id);
+      const { data: row, error: e1 } = await sb.from("agents").select("metadata").eq("id", id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const meta = { ...(row.metadata || {}), workspace_name: String(p.name) };
+      const { data, error } = await sb.from("agents").update({ metadata: meta })
+        .eq("id", id).eq("user_id", userId).select("id, name, metadata").single();
+      if (error) throw error;
+      return { id: data.id, workspace: { id: `agent:${data.id}`, name: meta.workspace_name } };
+    },
+  },
+  {
+    name: "workspace.rename",
+    description: "Alias of workspace.set_name.",
+    params: { id: "uuid? (default: self)", name: "string (required)" },
+    run: async (sb, userId, p, agent) => {
+      if (!p?.name) throw new Error("name required");
+      const id = String(p?.id ?? agent.id);
+      const { data: row, error: e1 } = await sb.from("agents").select("metadata").eq("id", id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const meta = { ...(row.metadata || {}), workspace_name: String(p.name) };
+      const { data, error } = await sb.from("agents").update({ metadata: meta })
+        .eq("id", id).eq("user_id", userId).select("id, metadata").single();
+      if (error) throw error;
+      return { id: data.id, workspace: { id: `agent:${data.id}`, name: meta.workspace_name } };
+    },
+  },
+  {
+    name: "workspace.delete_name",
+    description: "Clear the workspace display name. Agent keeps its immutable workspace ID agent:<id>.",
+    params: { id: "uuid? (default: self)" },
+    run: async (sb, userId, p, agent) => {
+      const id = String(p?.id ?? agent.id);
+      const { data: row, error: e1 } = await sb.from("agents").select("metadata").eq("id", id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const meta = { ...(row.metadata || {}) };
+      delete meta.workspace_name;
+      const { data, error } = await sb.from("agents").update({ metadata: meta })
+        .eq("id", id).eq("user_id", userId).select("id, metadata").single();
+      if (error) throw error;
+      return { id: data.id, workspace: { id: `agent:${data.id}`, name: null } };
+    },
+  },
+  {
+    name: "workspace.reset",
+    description: "Reset workspace identity: clears display name → falls back to immutable agent:<id>.",
+    params: { id: "uuid? (default: self)" },
+    run: async (sb, userId, p, agent) => {
+      const id = String(p?.id ?? agent.id);
+      const { data: row, error: e1 } = await sb.from("agents").select("metadata").eq("id", id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const meta = { ...(row.metadata || {}) };
+      delete meta.workspace_name;
+      const { data, error } = await sb.from("agents").update({ metadata: meta })
+        .eq("id", id).eq("user_id", userId).select("id, metadata").single();
+      if (error) throw error;
+      return { id: data.id, workspace: { id: `agent:${data.id}`, name: null, scope: "agent", shared_namespace: "default" } };
+    },
+  },
 ];
 
 const CATALOG = COMMANDS.map(({ run: _r, ...rest }) => rest);
