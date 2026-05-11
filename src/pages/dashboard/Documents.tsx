@@ -150,11 +150,19 @@ export default function Documents() {
               <p className="text-sm font-medium">No documents yet</p>
             </div>
           ) : filtered.map((d) => (
-            <div key={d.id} className="grid grid-cols-[1fr_120px_120px_140px_110px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30">
+            <div key={d.id} className="grid grid-cols-[1fr_150px_120px_100px_130px_110px] items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30">
               <div className="flex items-center gap-2 truncate">
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <button onClick={() => view(d)} className="text-sm truncate text-left hover:underline">{d.name}</button>
               </div>
+              <button
+                onClick={() => { navigator.clipboard.writeText(d.id); toast.success("ID copied"); }}
+                title={d.id}
+                className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground truncate group"
+              >
+                <span className="truncate">{d.id.slice(0, 8)}…{d.id.slice(-4)}</span>
+                <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 shrink-0" />
+              </button>
               <div className="text-xs text-muted-foreground font-mono truncate">{d.mime ?? "—"}</div>
               <div className="text-xs text-muted-foreground tabular-nums">{d.size ? `${(d.size / 1024).toFixed(1)} KB` : "—"}</div>
               <div className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}</div>
