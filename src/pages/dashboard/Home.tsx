@@ -2,42 +2,25 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
-import { RotateCcw } from "lucide-react";
-import {
-  WelcomeWidget, MemoriesStatWidget, ConnectorsStatWidget, EventsStatWidget,
-  QuickStartWidget, ProjectInfoWidget, AnalyticsWidget, SkillsResumeWidget,
-  PluginsSummaryWidget, RecentActivityWidget, UsageWidget, DocsWidget,
-} from "@/components/dashboard/widgets";
+import { RotateCcw, Plus, Check, LayoutGrid } from "lucide-react";
+import { WIDGET_CATALOG, DEFAULT_VISIBLE_IDS } from "@/components/dashboard/widgets";
 import { useDashboardWidgetBridge } from "@/copilot/bus";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
 const RGL = WidthProvider(GridLayout);
 
-type WidgetDef = { i: string; el: React.ReactNode; default: Omit<Layout, "i"> };
-
-const WIDGETS: WidgetDef[] = [
-  { i: "welcome",    el: <WelcomeWidget />,        default: { x: 0, y: 0,  w: 8, h: 6, minW: 4, minH: 5 } },
-  { i: "usage",      el: <UsageWidget />,          default: { x: 8, y: 0,  w: 4, h: 6, minW: 3, minH: 5 } },
-  { i: "memories",   el: <MemoriesStatWidget />,   default: { x: 0, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
-  { i: "connectors", el: <ConnectorsStatWidget />, default: { x: 3, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
-  { i: "events",     el: <EventsStatWidget />,     default: { x: 6, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
-  { i: "docs",       el: <DocsWidget />,           default: { x: 9, y: 6,  w: 3, h: 6, minW: 2, minH: 5 } },
-  { i: "analytics",  el: <AnalyticsWidget />,      default: { x: 0, y: 12, w: 6, h: 8, minW: 4, minH: 6 } },
-  { i: "skills",     el: <SkillsResumeWidget />,   default: { x: 6, y: 12, w: 3, h: 8, minW: 3, minH: 5 } },
-  { i: "plugins",    el: <PluginsSummaryWidget />, default: { x: 9, y: 12, w: 3, h: 8, minW: 3, minH: 5 } },
-  { i: "activity",   el: <RecentActivityWidget />, default: { x: 0, y: 20, w: 6, h: 6, minW: 4, minH: 5 } },
-  { i: "quickstart", el: <QuickStartWidget />,     default: { x: 6, y: 20, w: 3, h: 6, minW: 3, minH: 5 } },
-  { i: "project",    el: <ProjectInfoWidget />,    default: { x: 9, y: 20, w: 3, h: 6, minW: 3, minH: 5 } },
-];
-const WIDGET_BY_ID = Object.fromEntries(WIDGETS.map((w) => [w.i, w]));
-const STORAGE_KEY = "synapse:dashboard:layout:v2";
-const HIDDEN_KEY = "synapse:dashboard:hidden:v1";
+const WIDGET_BY_ID = Object.fromEntries(WIDGET_CATALOG.map((w) => [w.id, w]));
+const STORAGE_KEY = "synapse:dashboard:layout:v3";
+const VISIBLE_KEY = "synapse:dashboard:visible:v1";
 
 export default function DashboardHome() {
   const defaultLayout = useMemo<Layout[]>(
-    () => WIDGETS.map((w) => ({ i: w.i, ...w.default })),
+    () => DEFAULT_VISIBLE_IDS.map((id) => ({ i: id, ...WIDGET_BY_ID[id].default })),
     []
   );
 
@@ -48,41 +31,42 @@ export default function DashboardHome() {
     } catch {}
     return defaultLayout;
   });
-  const [hidden, setHidden] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) || "[]"); } catch { return []; }
+  const [visibleIds, setVisibleIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(VISIBLE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [...DEFAULT_VISIBLE_IDS];
   });
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(layout)); } catch {}
-  }, [layout]);
-  useEffect(() => {
-    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden)); } catch {}
-  }, [hidden]);
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(layout)); } catch {} }, [layout]);
+  useEffect(() => { try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleIds)); } catch {} }, [visibleIds]);
 
   const reset = useCallback(() => {
     setLayout(defaultLayout);
-    setHidden([]);
+    setVisibleIds([...DEFAULT_VISIBLE_IDS]);
   }, [defaultLayout]);
 
-  // Expose mutators to the Copilot bus.
+  const addWidget = useCallback((id: string) => {
+    const def = WIDGET_BY_ID[id];
+    if (!def) return;
+    setVisibleIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+    setLayout((l) => (l.some((x) => x.i === id) ? l : [...l, { i: id, ...def.default }]));
+  }, []);
+  const removeWidget = useCallback((id: string) => {
+    setVisibleIds((cur) => cur.filter((x) => x !== id));
+  }, []);
   const moveWidget = useCallback((id: string, x: number, y: number) => {
     setLayout((l) => l.map((it) => (it.i === id ? { ...it, x, y } : it)));
   }, []);
   const resizeWidget = useCallback((id: string, w: number, h: number) => {
     setLayout((l) => l.map((it) => (it.i === id ? { ...it, w, h } : it)));
   }, []);
-  const addWidget = useCallback((id: string) => {
-    if (!WIDGET_BY_ID[id]) return;
-    setHidden((h) => h.filter((x) => x !== id));
-    setLayout((l) => (l.some((x) => x.i === id) ? l : [...l, { i: id, ...WIDGET_BY_ID[id].default }]));
-  }, []);
-  const removeWidget = useCallback((id: string) => {
-    setHidden((h) => (h.includes(id) ? h : [...h, id]));
-  }, []);
   const listWidgets = useCallback(
-    () => layout.filter((it) => !hidden.includes(it.i))
-      .map(({ i, x, y, w, h }) => ({ i, x, y, w, h })),
-    [layout, hidden]
+    () => layout.filter((it) => visibleIds.includes(it.i)).map(({ i, x, y, w, h }) => ({ i, x, y, w, h })),
+    [layout, visibleIds]
   );
 
   useDashboardWidgetBridge({
@@ -94,8 +78,19 @@ export default function DashboardHome() {
     reset,
   });
 
-  const visible = WIDGETS.filter((w) => !hidden.includes(w.i));
-  const visibleLayout = layout.filter((l) => !hidden.includes(l.i));
+  const visible = WIDGET_CATALOG.filter((w) => visibleIds.includes(w.id));
+  const visibleLayout = layout.filter((l) => visibleIds.includes(l.i));
+
+  const categories = useMemo(() => Array.from(new Set(WIDGET_CATALOG.map((w) => w.category))), []);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return WIDGET_CATALOG;
+    return WIDGET_CATALOG.filter((w) =>
+      w.name.toLowerCase().includes(q) ||
+      w.description.toLowerCase().includes(q) ||
+      w.category.toLowerCase().includes(q)
+    );
+  }, [query]);
 
   return (
     <>
@@ -103,9 +98,79 @@ export default function DashboardHome() {
         title="Home"
         description="Drag widgets by their handle, resize from the corners. Or ask Copilot."
         actions={
-          <Button variant="outline" size="sm" onClick={reset} className="gap-2">
-            <RotateCcw className="h-3.5 w-3.5" /> Reset layout
-          </Button>
+          <>
+            <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default" size="sm" className="gap-2">
+                  <Plus className="h-3.5 w-3.5" /> Add widget
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" /> Widget library</DialogTitle>
+                  <DialogDescription>Add, remove, or replace cards on your dashboard. Changes save instantly.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input
+                    autoFocus
+                    placeholder="Search widgets…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <div className="max-h-[60vh] overflow-auto scrollbar-thin space-y-5 pr-1">
+                    {categories.map((cat) => {
+                      const items = filtered.filter((w) => w.category === cat);
+                      if (!items.length) return null;
+                      return (
+                        <div key={cat}>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{cat}</div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {items.map((w) => {
+                              const installed = visibleIds.includes(w.id);
+                              const Icon = w.icon;
+                              return (
+                                <button
+                                  key={w.id}
+                                  onClick={() => (installed ? removeWidget(w.id) : addWidget(w.id))}
+                                  className={cn(
+                                    "group text-left rounded-lg border bg-card p-3 flex items-start gap-3 transition-colors",
+                                    installed ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-secondary/40"
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "h-8 w-8 shrink-0 rounded-md flex items-center justify-center",
+                                    installed ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"
+                                  )}>
+                                    <Icon className="h-4 w-4" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium flex items-center gap-2">
+                                      {w.name}
+                                      {installed && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 inline-flex items-center gap-0.5"><Check className="h-2.5 w-2.5" />added</span>}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground truncate">{w.description}</div>
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground self-center">
+                                    {installed ? "Remove" : "Add"}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filtered.length === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-8">No widgets match "{query}".</div>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="sm" onClick={reset} className="gap-2">
+              <RotateCcw className="h-3.5 w-3.5" /> Reset layout
+            </Button>
+          </>
         }
       />
       <div className="flex-1 min-h-0 overflow-auto">
@@ -119,9 +184,10 @@ export default function DashboardHome() {
             containerPadding={[0, 0]}
             draggableHandle=".drag-handle"
             onLayoutChange={(l) => setLayout((prev) => {
-              // Keep hidden items in state too so re-add restores their last position.
               const map = new Map(l.map((x) => [x.i, x]));
-              return prev.map((p) => map.get(p.i) ?? p);
+              return prev.map((p) => map.get(p.i) ?? p).concat(
+                l.filter((x) => !prev.some((p) => p.i === x.i))
+              );
             })}
             onDragStart={() => document.body.classList.add("rgl-dragging")}
             onDragStop={() => document.body.classList.remove("rgl-dragging")}
@@ -129,9 +195,14 @@ export default function DashboardHome() {
             onResizeStop={() => document.body.classList.remove("rgl-dragging")}
             compactType="vertical"
           >
-            {visible.map((w) => (
-              <div key={w.i}>{w.el}</div>
-            ))}
+            {visible.map((w) => {
+              const C = w.Component;
+              return (
+                <div key={w.id}>
+                  <C onRemove={() => removeWidget(w.id)} />
+                </div>
+              );
+            })}
           </RGL>
         </div>
       </div>
