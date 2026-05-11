@@ -347,7 +347,7 @@ export default function Mcp() {
             {presetOpen?.needsToken && (
               <div className="space-y-1.5">
                 <Label>{presetOpen.tokenLabel}</Label>
-                <Input type="password" value={presetToken} onChange={(e) => setPresetToken(e.target.value)} placeholder="nf_…" />
+                <Input type="password" value={presetToken} onChange={(e) => setPresetToken(e.target.value)} placeholder={presetOpen.tokenPlaceholder ?? "token…"} />
               </div>
             )}
           </div>
