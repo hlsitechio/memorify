@@ -55,7 +55,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   {
     label: "Project",
     items: [
-      { to: "/dashboard/api-keys", label: "API keys", icon: KeyRound },
+      { to: "/dashboard/api-keys", label: "API", icon: KeyRound },
     ],
   },
 ];
