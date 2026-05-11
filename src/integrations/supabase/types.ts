@@ -383,6 +383,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          mem_id: string | null
           metadata: Json | null
           namespace: string
           tags: string[] | null
@@ -396,6 +397,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          mem_id?: string | null
           metadata?: Json | null
           namespace?: string
           tags?: string[] | null
@@ -409,6 +411,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          mem_id?: string | null
           metadata?: Json | null
           namespace?: string
           tags?: string[] | null
@@ -683,6 +686,10 @@ export type Database = {
           name: string
           status: string
         }[]
+      }
+      memory_slug_for: {
+        Args: { _namespace: string; _user_id: string }
+        Returns: string
       }
     }
     Enums: {
