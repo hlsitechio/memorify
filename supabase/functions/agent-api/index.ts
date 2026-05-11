@@ -477,6 +477,44 @@ const COMMANDS: Cmd[] = [
   },
 ];
 
+function mimeFromName(name: string): string | null {
+  const ext = name.toLowerCase().split(".").pop() || "";
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    txt: "text/plain", md: "text/markdown", csv: "text/csv", json: "application/json",
+    rtf: "application/rtf", odt: "application/vnd.oasis.opendocument.text",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+  };
+  return map[ext] ?? null;
+}
+
+async function uploadBase64(sb: ReturnType<typeof admin>, userId: string, p: any) {
+  if (!p?.base64) throw new Error("base64 required");
+  if (!p?.name) throw new Error("name (or path) required");
+  const b64 = String(p.base64).replace(/^data:[^;]+;base64,/, "");
+  let bytes: Uint8Array;
+  try {
+    const bin = atob(b64);
+    bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  } catch { throw new Error("invalid base64"); }
+  const mime = p.mime || mimeFromName(p.name) || "application/octet-stream";
+  const path = `${userId}/${crypto.randomUUID()}-${p.name}`;
+  const { error: upErr } = await sb.storage.from("documents").upload(path, bytes, { contentType: mime });
+  if (upErr) throw upErr;
+  const { data, error } = await sb.from("documents").insert({
+    user_id: userId, name: p.name, mime, size: bytes.byteLength, storage_path: path, status: "ready",
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
 const CATALOG = COMMANDS.map(({ run: _r, ...rest }) => rest);
 
 Deno.serve(async (req) => {
