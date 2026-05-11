@@ -353,7 +353,6 @@ export default function Mcp() {
       </Dialog>
 
       <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
-        <SynapseMcpCard />
         {servers.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-12 text-center">
             <Server className="h-8 w-8 mx-auto mb-3 text-muted-foreground/60" />
