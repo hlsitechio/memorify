@@ -268,7 +268,16 @@ export default function Memory() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={(o) => {
+              setOpen(o);
+              if (o) {
+                setForm((f) => ({
+                  ...f,
+                  namespace: view.kind === "namespace" ? view.name : (user?.id ?? "default"),
+                  category: view.kind === "category" ? view.name : (f.category || "general"),
+                }));
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> New memory</Button>
               </DialogTrigger>
@@ -278,11 +287,37 @@ export default function Memory() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
                       <Label>Category</Label>
-                      <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="general" />
+                      <Select
+                        value={PREDEFINED_CATEGORIES.includes(form.category) ? form.category : "__custom__"}
+                        onValueChange={(v) => setForm({ ...form, category: v === "__custom__" ? "" : v })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
+                        <SelectContent>
+                          {PREDEFINED_CATEGORIES.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                          <SelectItem value="__custom__">Custom…</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!PREDEFINED_CATEGORIES.includes(form.category) && (
+                        <Input
+                          className="mt-1.5"
+                          value={form.category}
+                          onChange={(e) => setForm({ ...form, category: e.target.value })}
+                          placeholder="Custom category name"
+                        />
+                      )}
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Namespace</Label>
-                      <Input value={form.namespace} onChange={(e) => setForm({ ...form, namespace: e.target.value })} />
+                      <Label className="flex items-center justify-between">
+                        <span>Workspace ID</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">auto</span>
+                      </Label>
+                      <Input
+                        value={form.namespace}
+                        onChange={(e) => setForm({ ...form, namespace: e.target.value })}
+                        className="font-mono text-xs"
+                      />
                     </div>
                   </div>
                   <div className="space-y-1.5">
