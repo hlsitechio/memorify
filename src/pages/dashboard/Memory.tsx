@@ -478,7 +478,14 @@ export default function Memory() {
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <SheetContent className="sm:max-w-2xl overflow-y-auto scrollbar-thin">
           <SheetHeader>
-            <SheetTitle>Edit memory</SheetTitle>
+            <SheetTitle className="flex items-center gap-2">
+              Edit memory
+              {editing?.mem_id && (
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                  {editing.mem_id}
+                </span>
+              )}
+            </SheetTitle>
             {editing && (
               <p className="text-xs text-muted-foreground">
                 Created {format(new Date(editing.created_at), "PP p")} · Last updated {format(new Date(editing.updated_at), "PP p")}
