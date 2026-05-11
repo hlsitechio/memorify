@@ -312,7 +312,51 @@ const COMMANDS: Cmd[] = [
     },
   },
   {
-    name: "skills.list",
+    name: "documents.view",
+    description: "Read a document's contents. Text formats (md/txt/json/csv/code/html/xml/svg) are returned inline as `text`. Binary files (pdf/docx/images/etc.) are returned as base64 in `base64` plus a short-lived `url`. Use this to actually read what's in a file.",
+    params: {
+      id: "uuid (required)",
+      max_bytes: "number? (default 2_000_000, max 10_000_000 — caps payload size)",
+      as: "'auto'|'text'|'base64'? (default 'auto')",
+    },
+    example: `{"action":"documents.view","params":{"id":"<doc-id>"}}`,
+    run: async (sb, userId, p) => {
+      if (!p?.id) throw new Error("id required");
+      const { data: row, error: e1 } = await sb.from("documents").select("id,name,mime,size,storage_path")
+        .eq("id", p.id).eq("user_id", userId).single();
+      if (e1) throw e1;
+      const cap = Math.min(Math.max(Number(p?.max_bytes) || 2_000_000, 1024), 10_000_000);
+      const { data: blob, error: dlErr } = await sb.storage.from("documents").download(row.storage_path);
+      if (dlErr) throw dlErr;
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      const truncated = buf.byteLength > cap;
+      const slice = truncated ? buf.subarray(0, cap) : buf;
+      const mime = row.mime || "";
+      const isText = ["text", "auto"].includes(p?.as ?? "auto") && (
+        mime.startsWith("text/") ||
+        mime === "application/json" || mime === "application/xml" || mime === "image/svg+xml" ||
+        /\.(md|txt|json|csv|log|html?|xml|svg|ya?ml|toml|ini|js|ts|tsx|jsx|py|rb|go|rs|java|c|cpp|h|sql|sh|env)$/i.test(row.name)
+      );
+      const { data: signed } = await sb.storage.from("documents").createSignedUrl(row.storage_path, 600);
+      const base: any = {
+        id: row.id, name: row.name, mime: row.mime, size: row.size,
+        bytes_returned: slice.byteLength, truncated,
+        url: signed?.signedUrl ?? null, url_ttl: 600,
+      };
+      if (p?.as === "base64") {
+        let bin = ""; for (let i = 0; i < slice.length; i++) bin += String.fromCharCode(slice[i]);
+        return { ...base, encoding: "base64", base64: btoa(bin) };
+      }
+      if (isText) {
+        try {
+          const text = new TextDecoder("utf-8", { fatal: false }).decode(slice);
+          return { ...base, encoding: "text", text };
+        } catch { /* fall through to base64 */ }
+      }
+      let bin = ""; for (let i = 0; i < slice.length; i++) bin += String.fromCharCode(slice[i]);
+      return { ...base, encoding: "base64", base64: btoa(bin) };
+    },
+  },
     description: "List skills.",
     run: async (sb, userId) => {
       const { data, error } = await sb.from("skills")
