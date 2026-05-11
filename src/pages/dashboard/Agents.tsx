@@ -183,6 +183,13 @@ export default function Agents() {
     load();
   };
 
+  const setShortName = async (a: Agent, shortName: string) => {
+    const meta = { ...(a.metadata || {}), short_name: shortName.slice(0, 3) } as Record<string, unknown>;
+    await supabase.from("agents").update({ metadata: meta as any }).eq("id", a.id);
+    toast.success("Short name updated");
+    load();
+  };
+
 
   const wizardAgent = useMemo(
     () => agents.find((a) => a.id === wizardId) ?? null,
@@ -218,7 +225,7 @@ export default function Agents() {
             ) : agents.length === 0 ? (
               <EmptyHero onConnect={() => connect("claude_code", "Claude Code")} />
             ) : (
-              agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} onPauseToggle={() => pauseToggle(a)} onResync={() => resync(a)} onRevoke={() => revokeToken(a)} onRename={(n) => rename(a, n)} onRenameWorkspace={(n) => renameWorkspace(a, n)} />)
+              agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} onPauseToggle={() => pauseToggle(a)} onResync={() => resync(a)} onRevoke={() => revokeToken(a)} onRename={(n) => rename(a, n)} onRenameWorkspace={(n) => renameWorkspace(a, n)} onSetShortName={(n) => setShortName(a, n)} />)
             )}
           </TabsContent>
 
@@ -361,7 +368,7 @@ function EditableLabel({
   );
 }
 
-function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, onRename, onRenameWorkspace }: {
+function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, onRename, onRenameWorkspace, onSetShortName }: {
   agent: Agent;
   onOpen: () => void;
   onDelete: () => void;
@@ -370,6 +377,7 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
   onRevoke: () => void;
   onRename: (name: string) => Promise<void>;
   onRenameWorkspace: (name: string) => Promise<void>;
+  onSetShortName: (name: string) => Promise<void>;
 }) {
   const connected = agent.status === "connected";
   const paused = agent.status === "paused";
@@ -382,13 +390,18 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
       ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
       : "";
   const workspaceName = ((agent.metadata as any)?.workspace_name as string) || "";
+  const shortName = ((agent.metadata as any)?.short_name as string) || "";
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4 group hover:border-primary/30 transition-colors">
       <div className={cn(
-        "h-10 w-10 rounded-md flex items-center justify-center shrink-0",
+        "h-10 w-10 rounded-md flex items-center justify-center shrink-0 relative",
         paused ? "bg-amber-500/15 text-amber-400" : connected ? "bg-emerald-500/15 text-emerald-400" : "bg-secondary text-muted-foreground"
       )}>
-        <Terminal className="h-5 w-5" />
+        {shortName ? (
+          <span className="text-sm font-semibold tracking-tight">{shortName}</span>
+        ) : (
+          <Terminal className="h-5 w-5" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -423,6 +436,19 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
             agentName={agent.name}
             workspaceName={workspaceName}
             onRenameWorkspace={onRenameWorkspace}
+          />
+          <EditableLabel
+            value={shortName}
+            onSave={onSetShortName}
+            className={cn(
+              "px-1.5 py-0.5 rounded border text-[10px] font-mono",
+              shortName
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : "border-dashed border-border text-muted-foreground italic"
+            )}
+            inputClassName="text-[10px] w-14"
+            placeholder="+ short"
+            title="Short name (1–3 chars) — used as the logo/avatar placeholder"
           />
         </div>
       </div>

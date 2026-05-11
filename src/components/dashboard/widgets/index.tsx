@@ -56,15 +56,22 @@ export function WelcomeWidget({ onRemove }: RProps) {
     : "Your agent memory layer is live. Add memories, plug in connectors, and watch your event bus.";
   return (
     <WidgetShell title="Welcome" icon={Sparkles} onRemove={onRemove}>
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-          <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Synapse"}
-        </div>
-        <h2 className="text-lg font-semibold tracking-tight truncate">{title}</h2>
-        {wsId && (
-          <div className="text-[11px] font-mono text-muted-foreground truncate">{wsId}</div>
+      <div className="flex items-start gap-3">
+        {ws?.short && (
+          <div className="h-10 w-10 rounded-md bg-gradient-primary text-primary-foreground flex items-center justify-center shrink-0 text-sm font-semibold tracking-tight">
+            {ws.short}
+          </div>
         )}
-        <p className="text-xs text-muted-foreground">{blurb}</p>
+        <div className="space-y-2 min-w-0 flex-1">
+          <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
+            <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Synapse"}
+          </div>
+          <h2 className="text-lg font-semibold tracking-tight truncate">{title}</h2>
+          {wsId && (
+            <div className="text-[11px] font-mono text-muted-foreground truncate">{wsId}</div>
+          )}
+          <p className="text-xs text-muted-foreground">{blurb}</p>
+        </div>
       </div>
     </WidgetShell>
   );
@@ -138,6 +145,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
             name: "User Workspace",
             subtitle: "main",
             kind: "user",
+            short: (user.email ?? "U").charAt(0).toUpperCase(),
           })}
           className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-primary/30 bg-primary/5"
         >
@@ -165,9 +173,11 @@ export function AgentsStatWidget({ onRemove }: RProps) {
         )}
 
         {agents.map((a) => {
-          const wsName = (a.metadata as any)?.workspace_name as string | undefined;
+          const meta = (a.metadata as any) || {};
+          const wsName = meta.workspace_name as string | undefined;
+          const shortName = (meta.short_name as string | undefined) ||
+            (a.name || a.kind || "A").slice(0, 2).toUpperCase();
           const connected = a.status === "connected";
-          const displayName = wsName || a.name || a.kind;
           return (
             <Link
               key={a.id}
@@ -177,6 +187,7 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                 name: `WS - ${a.name || a.kind}`,
                 subtitle: wsName || `agent:${a.id.slice(0, 8)}…`,
                 kind: "agent",
+                short: shortName,
               })}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary/60 transition-colors border border-transparent hover:border-border"
             >
@@ -187,6 +198,9 @@ export function AgentsStatWidget({ onRemove }: RProps) {
                   {wsName || `agent:${a.id.slice(0, 8)}…`}
                 </div>
               </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
+                {shortName}
+              </span>
               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
           );

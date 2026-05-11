@@ -6,6 +6,7 @@ export type CurrentWorkspace = {
   name: string;        // display name
   subtitle?: string;   // e.g. "main" or workspace ID
   kind: "user" | "agent";
+  short?: string;      // 1–3 char placeholder for logo/avatar (e.g. "Sam")
 };
 
 const KEY = "synapse:current_workspace";
