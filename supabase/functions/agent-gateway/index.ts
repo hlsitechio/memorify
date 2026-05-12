@@ -76,6 +76,18 @@ Deno.serve(async (req) => {
 
   const { agent: agentName, action, input = {} } = body ?? {};
   if (!agentName || !action) return fail("missing 'agent' or 'action'");
+  const startedAt = Date.now();
+  const logCall = (status: "ok" | "error", err?: string) => {
+    supabase.from("agent_calls").insert({
+      user_id: agent.user_id,
+      agent_id: agent.id,
+      kind: agentName,
+      name: `${agentName}.${action}`,
+      status,
+      latency_ms: Date.now() - startedAt,
+      metadata: { source: "agent-gateway", ...(err ? { error: err } : {}) },
+    }).then(() => {});
+  };
 
   try {
     if (agentName === "gateway" && action === "ping") {
