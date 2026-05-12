@@ -399,7 +399,86 @@ const COMMANDS: Cmd[] = [
     },
   },
 
+  /* ─────────── Session rehydration ─────────── */
+  {
+    name: "agents.bootstrap",
+    description: "Rehydrate a fresh session: returns identity, role.md (lazy-seeded), agent-scoped memories, skills, docs index, and recent events. Call this once at the start of every new session.",
+    params: { memory_limit: "number? (default 50)", events_limit: "number? (default 20)", docs_limit: "number? (default 30)" },
+    run: async (sb, userId, p, agent) => {
+      const memLimit = Math.min(Math.max(Number(p?.memory_limit ?? 50), 1), 200);
+      const evLimit = Math.min(Math.max(Number(p?.events_limit ?? 20), 1), 100);
+      const docLimit = Math.min(Math.max(Number(p?.docs_limit ?? 30), 1), 100);
+      const ns = `agent:${agent.id}`;
+
+      // Lazy-seed role.md (category=identity) the first time this agent bootstraps.
+      const { data: existingRole } = await sb.from("memories")
+        .select("id, content, updated_at")
+        .eq("user_id", userId).eq("namespace", ns).eq("category", "identity")
+        .eq("archived", false).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+
+      let role = existingRole;
+      if (!role) {
+        const wsName = (agent.metadata?.workspace_name as string) || agent.name;
+        const defaultRole = `# Role: ${agent.name}\n\nYou are **${agent.name}**, an AI agent connected to Synapse.\n\n## Workspace\n- Workspace: ${wsName}\n- Namespace: \`${ns}\`\n- Kind: ${agent.kind}\n\n## How you work\n1. At the start of every session, call \`agents.bootstrap\` to rehydrate (you just did).\n2. Use \`memory.recall\` when you need older context.\n3. Use \`memory.remember\` to persist anything the user states as preference, fact, or decision.\n4. Log meaningful actions with \`events.log\`.\n5. Read this role.md — it tells you who you are. Update it (memory.update) when your role evolves.\n\n## Personality\n_(edit this section to give yourself a personality, tone, expertise area, or constraints)_\n\n## Long-term goals\n_(edit this section to track ongoing objectives across sessions)_\n`;
+        const ins = await sb.from("memories").insert({
+          user_id: userId,
+          namespace: ns,
+          category: "identity",
+          content: defaultRole,
+          tags: ["role", "identity", "self"],
+          metadata: { agent_id: agent.id, agent_name: agent.name, seeded: true },
+        }).select("id, content, updated_at").single();
+        role = ins.data;
+      }
+
+      const [memRes, skillsRes, docsRes, eventsRes] = await Promise.all([
+        sb.from("memories")
+          .select("id, mem_id, content, category, tags, updated_at")
+          .eq("user_id", userId).eq("namespace", ns).eq("archived", false)
+          .neq("category", "identity")
+          .order("updated_at", { ascending: false }).limit(memLimit),
+        sb.from("skills")
+          .select("id, name, slug, description, status, model")
+          .eq("user_id", userId).order("updated_at", { ascending: false }),
+        sb.from("documents")
+          .select("id, name, mime, size, created_at")
+          .eq("user_id", userId).order("created_at", { ascending: false }).limit(docLimit),
+        sb.from("events")
+          .select("id, kind, source, payload, created_at")
+          .eq("user_id", userId).eq("source", `agent:${agent.name}`)
+          .order("created_at", { ascending: false }).limit(evLimit),
+      ]);
+
+      return {
+        identity: {
+          agent_id: agent.id,
+          name: agent.name,
+          kind: agent.kind,
+          workspace: {
+            id: ns,
+            name: (agent.metadata?.workspace_name as string) || null,
+          },
+        },
+        role: role ? {
+          id: role.id,
+          content: role.content,
+          updated_at: role.updated_at,
+        } : null,
+        memories: memRes.data ?? [],
+        skills: skillsRes.data ?? [],
+        documents: docsRes.data ?? [],
+        events: eventsRes.data ?? [],
+        next_steps: [
+          "Read role.md carefully — that's who you are.",
+          "Scan memories[] for ongoing context.",
+          "Use memory.remember to persist anything new the user shares.",
+        ],
+      };
+    },
+  },
+
   /* ─────────── MCP: connected Model-Context-Protocol servers ─────────── */
+
   {
     name: "mcp.servers",
     description: "List the user's connected MCP servers (id, name, url, transport, enabled, last_handshake_at, last_error).",
