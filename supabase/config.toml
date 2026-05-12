@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.mcp-client-metadata]
 verify_jwt = false
+
+[functions.vault]
+verify_jwt = false
