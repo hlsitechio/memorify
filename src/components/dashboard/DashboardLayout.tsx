@@ -85,7 +85,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
 function DocsNav({ collapsed }: { collapsed: boolean }) {
   return (
     <>
-      <nav className="flex-1 p-2 space-y-4 overflow-y-auto">
+      <nav className="flex-1 p-2 space-y-4 overflow-y-auto no-scrollbar">
         {!collapsed && (
           <div className="px-2 pt-2 pb-1 flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-primary" />
@@ -157,7 +157,7 @@ function DocsNav({ collapsed }: { collapsed: boolean }) {
 
 function MainNav({ collapsed }: { collapsed: boolean }) {
   return (
-    <nav className="flex-1 p-2 space-y-3 overflow-y-auto">
+    <nav className="flex-1 p-2 space-y-3 overflow-y-auto no-scrollbar">
       {sections.map((section) => (
         <div key={section.label} className="space-y-0.5">
           {!collapsed && (
