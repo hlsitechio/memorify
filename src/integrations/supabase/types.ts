@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_calls: {
+        Row: {
+          agent_id: string | null
+          cost_cents: number | null
+          created_at: string
+          id: string
+          kind: string
+          latency_ms: number | null
+          metadata: Json
+          name: string
+          status: string
+          tokens_in: number | null
+          tokens_out: number | null
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          id?: string
+          kind: string
+          latency_ms?: number | null
+          metadata?: Json
+          name: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          metadata?: Json
+          name?: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       agents: {
         Row: {
           created_at: string
@@ -635,6 +680,51 @@ export type Database = {
           updated_at?: string
           user_id?: string
           version?: number
+        }
+        Relationships: []
+      }
+      vault_secrets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          iv: string
+          last_used_at: string | null
+          last_used_by_agent_id: string | null
+          metadata: Json
+          name: string
+          scope: string
+          updated_at: string
+          user_id: string
+          value_encrypted: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          iv: string
+          last_used_at?: string | null
+          last_used_by_agent_id?: string | null
+          metadata?: Json
+          name: string
+          scope?: string
+          updated_at?: string
+          user_id: string
+          value_encrypted: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          iv?: string
+          last_used_at?: string | null
+          last_used_by_agent_id?: string | null
+          metadata?: Json
+          name?: string
+          scope?: string
+          updated_at?: string
+          user_id?: string
+          value_encrypted?: string
         }
         Relationships: []
       }

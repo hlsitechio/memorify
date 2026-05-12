@@ -76,10 +76,24 @@ Deno.serve(async (req) => {
 
   const { agent: agentName, action, input = {} } = body ?? {};
   if (!agentName || !action) return fail("missing 'agent' or 'action'");
+  const startedAt = Date.now();
+  const logCall = (status: "ok" | "error", err?: string) => {
+    supabase.from("agent_calls").insert({
+      user_id: agent.user_id,
+      agent_id: agent.id,
+      kind: agentName,
+      name: `${agentName}.${action}`,
+      status,
+      latency_ms: Date.now() - startedAt,
+      metadata: { source: "agent-gateway", ...(err ? { error: err } : {}) },
+    }).then(() => {});
+  };
+  const okLog = (result: unknown, source: string) => { logCall("ok"); return ok(result, source); };
+  const failLog = (msg: string, code = 400) => { logCall("error", msg); return fail(msg, code); };
 
   try {
     if (agentName === "gateway" && action === "ping") {
-      return ok({ pong: true, agent: agent.id }, "gateway");
+      return okLog({ pong: true, agent: agent.id }, "gateway");
     }
 
     if (agentName === "memory") {
@@ -87,7 +101,7 @@ Deno.serve(async (req) => {
 
       if (action === "remember") {
         const content = input.content as string;
-        if (!content || typeof content !== "string") return fail("input.content (string) required");
+        if (!content || typeof content !== "string") return failLog("input.content (string) required");
         const tags = Array.isArray(input.tags) ? (input.tags as string[]) : [];
         const metadata = (input.metadata as Record<string, unknown>) ?? {};
         const { data, error } = await supabase
@@ -95,8 +109,8 @@ Deno.serve(async (req) => {
           .insert({ user_id: agent.user_id, namespace, content, tags, metadata })
           .select()
           .single();
-        if (error) return fail(error.message, 500);
-        return ok(data, "memory");
+        if (error) return failLog(error.message, 500);
+        return okLog(data, "memory");
       }
 
       if (action === "recall") {
@@ -109,14 +123,14 @@ Deno.serve(async (req) => {
           .eq("namespace", namespace)
           .order("created_at", { ascending: false })
           .limit(200);
-        if (error) return fail(error.message, 500);
+        if (error) return failLog(error.message, 500);
         const filtered = query
           ? (data ?? []).filter((m) =>
               m.content.toLowerCase().includes(query) ||
               (m.tags ?? []).some((t: string) => t.toLowerCase().includes(query))
             )
           : data ?? [];
-        return ok(filtered.slice(0, limit), "memory");
+        return okLog(filtered.slice(0, limit), "memory");
       }
 
       if (action === "list") {
@@ -128,13 +142,15 @@ Deno.serve(async (req) => {
           .eq("namespace", namespace)
           .order("created_at", { ascending: false })
           .limit(limit);
-        if (error) return fail(error.message, 500);
-        return ok(data, "memory");
+        if (error) return failLog(error.message, 500);
+        return okLog(data, "memory");
       }
     }
 
+    logCall("error", `unknown action`);
     return fail(`unknown agent.action: ${agentName}.${action}`, 404);
   } catch (e) {
+    logCall("error", (e as Error).message);
     return fail((e as Error).message, 500);
   }
 });

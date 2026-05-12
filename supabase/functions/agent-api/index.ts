@@ -931,8 +931,10 @@ Deno.serve(async (req) => {
   if (!cmd) return json({ ok: false, error: `unknown action "${action}"`, available: COMMANDS.map((c) => c.name) }, 404);
 
   const startedAt = Date.now();
+  const kind = action.split(".")[0]; // memory | documents | skills | mcp | events | ...
   try {
     const result = await cmd.run(admin(), agent.user_id, params, agent);
+    const latency = Date.now() - startedAt;
     // Fire-and-forget activity log (skip noisy reads on every poll)
     admin().from("events").insert({
       user_id: agent.user_id,
@@ -941,17 +943,36 @@ Deno.serve(async (req) => {
       payload: {
         agent_id: agent.id,
         ok: true,
-        duration_ms: Date.now() - startedAt,
+        duration_ms: latency,
         params: action.startsWith("memory.") || action.startsWith("events.log") ? params : undefined,
       },
     }).then(() => {});
+    admin().from("agent_calls").insert({
+      user_id: agent.user_id,
+      agent_id: agent.id,
+      kind,
+      name: action,
+      status: "ok",
+      latency_ms: latency,
+      metadata: { source: "agent-api" },
+    }).then(() => {});
     return json({ ok: true, action, result, agent: { id: agent.id, name: agent.name } });
   } catch (e: any) {
+    const latency = Date.now() - startedAt;
     admin().from("events").insert({
       user_id: agent.user_id,
       kind: `agent.${action}.error`,
       source: `agent:${agent.name}`,
       payload: { agent_id: agent.id, error: e?.message ?? "error" },
+    }).then(() => {});
+    admin().from("agent_calls").insert({
+      user_id: agent.user_id,
+      agent_id: agent.id,
+      kind,
+      name: action,
+      status: "error",
+      latency_ms: latency,
+      metadata: { source: "agent-api", error: e?.message ?? "error" },
     }).then(() => {});
     return json({ ok: false, action, error: e.message ?? "error" }, 400);
   }

@@ -1,251 +1,156 @@
 
-# Copilot Action Layer — MCP-style internal tooling
+# Synapse — Finish-the-Dashboard Plan
 
-Goal: every action a human can do in the dashboard (CRUD, drag, toggle, upload, open) must also be callable by the Copilot. Adding a new feature = adding its commands to ONE registry, in the same commit.
-
-Today the copilot only has `navigate / toast / search`. That's the ceiling we're breaking.
+Goal: zero placeholders, zero hardcoded mock data anywhere in `/dashboard/*`. Every widget, page and tab pulls live data, and every "Coming Soon" page becomes a real feature.
 
 ---
 
-## 1. Architecture (one registry, two runtimes)
+## Phase 1 — Analytics & Activity Pipeline (foundation)
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  src/copilot/registry.ts   ← single source of truth          │
-│  ─ CommandDef[] (name, description, schema, scope, handler)  │
-└──────────────┬───────────────────────────┬──────────────────┘
-               │                           │
-        scope:"client"                scope:"server"
-               │                           │
-   browser handler                   edge fn handler
-   (UI: navigate, drag,              (DB CRUD, MCP invoke,
-    open sheet, fill form…)           skill run, storage ops…)
-               │                           │
-               └──────► agent-chat ◄───────┘
-                       (tools = registry.toManifest())
+This unlocks 4+ widgets at once. Without it, `AnalyticsWidget`, `SkillsResumeWidget`, `UsageWidget`, `RecentActivityWidget` and `PluginsSummaryWidget` stay fake forever.
+
+**1.1 Create `agent_calls` table**
+- Columns: `user_id`, `agent_id` (nullable), `kind` (`memory`/`skill`/`mcp`/`connector`/`api`), `name`, `status` (`ok`/`error`), `latency_ms`, `tokens_in`, `tokens_out`, `cost_cents`, `metadata jsonb`
+- Index on `(user_id, created_at desc)` and `(user_id, kind, created_at desc)`
+- RLS: own-row only
+
+**1.2 Wire every backend touchpoint to log a call**
+- `agent-gateway` — log every `agent.action`
+- `agent-api` — log every action
+- `synapse-mcp` / `agent-ping` MCP tool calls
+- `skill-run` — log + tokens + cost
+- `mcp-call` — log per tool invocation
+
+**1.3 Replace fake widgets with real queries**
+- `AnalyticsWidget` → 12-bucket time-series of `agent_calls` (last 12h)
+- `SkillsResumeWidget` → `select name, count(*) from agent_calls where kind='skill' group by name order by count desc limit 4` + live status from `skills` table
+- `UsageWidget` → real tokens / storage (sum of `documents.size`+`voices.size`+`images.size`) / requests
+- `RecentActivityWidget` → query `events` table directly (already exists, 5-min fix)
+- `PluginsSummaryWidget` → real `plugins` rows + their last activity from `agent_calls`
+- `ProjectInfoWidget` → real plan info or remove until billing
+
+---
+
+## Phase 2 — Vault (real, no longer placeholder)
+
+**2.1 `vault_secrets` table**
+- `user_id`, `name` (unique per user), `value_encrypted` (bytea), `scope` (`dev`/`staging`/`prod`), `last_used_at`, `last_used_by_agent_id`, `metadata`
+- Encrypt at rest using `pgsodium` or app-level AES-GCM with a project key from `LOVABLE_API_KEY`-derived KDF
+- RLS: own-row only
+
+**2.2 Vault edge function**
+- `vault.set` / `vault.get` / `vault.list` / `vault.delete` / `vault.rotate`
+- `vault.get` always logs a read into `events` (audit) and bumps `last_used_at`
+- Never returns plaintext to client list views — only returns plaintext from explicit `vault.reveal` (gated)
+
+**2.3 Vault UI** (`/dashboard/vault`)
+- Drag-drop `.env` file → auto-imports all KEY=VALUE pairs (per Core memory: ultra easy)
+- Single-field "name + value" inline add
+- Per-row scope toggle, copy-reference button (`{{vault.MY_KEY}}`)
+- Reveal requires re-confirm
+- Audit log panel: who/when read each secret
+
+**2.4 Wire vault references**
+- `skills.prompt` and `connectors.config` resolve `{{vault.NAME}}` server-side at run time
+- Never expose plaintext to the frontend during resolution
+
+---
+
+## Phase 3 — VPS Agent Runtime
+
+The "no more Docker / no more GitHub Actions" solution.
+
+**3.1 Agent runtime package**
+- New folder `runtime/` (separate from web app) containing a tiny Deno/Node script: `synapse-agent.ts`
+- Behavior: on start → `agent-api/bootstrap` → loop polling `agent-api/tasks` (long-poll 25s)
+- Local tool execution sandbox (shell + whitelisted commands from agent's `skills`)
+- Heartbeats every 30s → updates `agents.last_seen_at`
+
+**3.2 One-line installer** served from edge function `install-agent`
+```bash
+curl -fsSL https://<project>.supabase.co/functions/v1/install-agent | SYNAPSE_TOKEN=xxx bash
 ```
+- Drops `/etc/systemd/system/synapse-agent.service`
+- Writes token to `/etc/synapse/agent.env` (chmod 600)
+- `systemctl enable --now synapse-agent`
 
-- **`src/copilot/registry.ts`** — `CommandDef[]` with zod schemas. Server reads names/schemas only.
-- **`CopilotActionsProvider`** — exposes `runCommand(name, args)`; client commands run in browser, server commands hit `copilot-action` edge fn.
-- **`agent-chat` v2** — multi-turn loop (model → tool → model), streams final answer.
-- **`copilot-action` edge fn** — JWT-aware dispatcher, RLS-safe, logs each call to `events`.
-- **Audit** — every command writes an `events` row (`kind = cmd.<name>`).
+**3.3 Agents UI additions**
+- New "VPS / Server" tab in agent connect wizard
+- Shows the one-liner with token baked in
+- Status pill turns green when first heartbeat arrives
 
----
-
-## 2. Concrete command list (v1)
-
-Naming: `<domain>.<verb>`. `c` = client scope, `s` = server scope.
-
-### nav (client)
-- `nav.navigate` — `{ path }` jump to a route
-- `nav.back`, `nav.forward`
-- `nav.open_command_palette` — `{ query? }`
-- `nav.open_copilot`, `nav.close_copilot`
-- `nav.toast` — `{ message, variant? }`
-
-### dashboard / widgets (client)
-- `widgets.list` — what's currently on the home grid
-- `widgets.add` — `{ widget_id, x?, y?, w?, h? }`
-- `widgets.remove` — `{ widget_id }`
-- `widgets.move` — `{ widget_id, x, y }`
-- `widgets.resize` — `{ widget_id, w, h }`
-- `widgets.reset_layout`
-
-### memory
-- `memory.list` (s) — `{ namespace?, category?, archived?, q?, limit? }`
-- `memory.get` (s) — `{ id }`
-- `memory.create` (s) — `{ content, namespace?, category?, tags?, metadata? }`
-- `memory.update` (s) — `{ id, patch }`
-- `memory.delete` (s) — `{ id }`
-- `memory.archive` (s) / `memory.restore` (s) — `{ ids }`
-- `memory.bulk_move_category` (s) — `{ ids, category }`
-- `memory.bulk_tag` (s) — `{ ids, tags }`
-- `memory.search` (s) — `{ q, limit? }`
-- `memory.versions` (s) — `{ id }`
-- `memory.load_version` (s) — `{ id, version }` (restore content)
-- `memory.suggest_from_text` (s) — wraps `memory-suggest`
-- `memory.open_editor` (c) — `{ id? }` opens the side sheet
-
-### plugins (the reference example)
-- `plugins.list` (s)
-- `plugins.add` (s) — `{ name, kind, ref_id?, config? }`
-- `plugins.add_from_skill` (s) — `{ skill_id }`
-- `plugins.add_from_connector` (s) — `{ connector_id }`
-- `plugins.add_from_mcp_tool` (s) — `{ mcp_tool_id }`
-- `plugins.add_http` (s) — `{ name, url, headers? }`
-- `plugins.update_config` (s) — `{ id, config }`
-- `plugins.toggle` (s) — `{ id, enabled }`
-- `plugins.reorder` (s) — `{ ids }` (positions = array index)
-- `plugins.delete` (s) — `{ id }`
-- `plugins.flash` (c) — `{ id }` brief UI pulse so user sees the change
-
-### skills
-- `skills.list` (s), `skills.get` (s)
-- `skills.create` (s) — `{ name, slug?, prompt, schema?, model? }`
-- `skills.update` (s) — `{ id, patch }`
-- `skills.publish` (s) / `skills.unpublish` (s) — `{ id }`
-- `skills.delete` (s) — `{ id }`
-- `skills.run` (s) — `{ id, input }` wraps `skill-run`
-- `skills.open_editor` (c) — `{ id? }`
-
-### connectors
-- `connectors.list` (s)
-- `connectors.add` (s) — `{ name, kind, config? }`
-- `connectors.update` (s) — `{ id, patch }`
-- `connectors.test` (s) — `{ id }` wraps `connector-test`
-- `connectors.toggle` (s) — `{ id, status }`
-- `connectors.delete` (s) — `{ id }`
-
-### mcp
-- `mcp.list_servers` (s)
-- `mcp.add_server` (s) — `{ name, url, transport?, auth? }`
-- `mcp.update_server` (s) — `{ id, patch }`
-- `mcp.toggle_server` (s) — `{ id, enabled }`
-- `mcp.delete_server` (s) — `{ id }`
-- `mcp.handshake` (s) — `{ id }` refresh tools list
-- `mcp.list_tools` (s) — `{ server_id }`
-- `mcp.toggle_tool` (s) — `{ tool_id, enabled }`
-- `mcp.invoke_tool` (s) — `{ tool_id, input }`
-
-### documents
-- `documents.list` (s) — `{ q?, limit? }`
-- `documents.request_upload` (s) — `{ name, mime, size }` returns signed PUT URL
-- `documents.register` (s) — `{ name, mime, size, storage_path }` after browser upload
-- `documents.delete` (s) — `{ id }`
-- `documents.signed_url` (s) — `{ id, ttl? }`
-- `documents.upload_picker` (c) opens the OS file dialog
-
-### images
-- `images.list` (s)
-- `images.generate` (s) — `{ prompt, model? }` wraps `image-generate`
-- `images.upload_register` (s) — `{ url, prompt? }`
-- `images.delete` (s) — `{ id }`
-
-### voices
-- `voices.list` (s)
-- `voices.create` (s) — `{ name, kind, params? }`
-- `voices.delete` (s) — `{ id }`
-- `voices.synthesize` (s) — `{ voice_id, text }` (stub until ElevenLabs)
-
-### database (read-only)
-- `db.list_tables` (s)
-- `db.describe_table` (s) — `{ table }`
-- `db.select` (s) — `{ table, columns?, where?, order?, limit? }` (≤100 rows, SELECT only)
-
-### vault / secrets
-- `vault.list_names` (s) — names only, never values
-- `vault.add_request` (c) — emits the agent flow to add a secret (user types value)
-- `vault.delete_request` (c) — `{ name }`
-
-### events / logs
-- `events.tail` (s) — `{ kind?, source?, since? }`
-- `events.get` (s) — `{ id }`
-- `logs.export_csv` (c) — current page
-
-### api keys
-- `api_keys.list` (s)
-- `api_keys.create` (s) — `{ name }` returns reveal-once token
-- `api_keys.revoke` (s) — `{ id }` (confirm gate)
-
-### settings / profile / auth
-- `profile.get` (s)
-- `profile.update` (s) — `{ display_name?, avatar_url? }`
-- `auth.sign_out` (c) (confirm gate)
-- `auth.delete_account` (s) (double confirm)
-
-### theme / ui
-- `ui.set_theme` (c) — `{ theme: "light"|"dark"|"system" }`
-- `ui.set_density` (c) — `{ density: "compact"|"comfortable" }`
-
-### copilot meta
-- `meta.list_commands` — what can you do
-- `meta.list_commands_here` — filtered by current route
-- `meta.confirm` — pseudo-tool returned to user for yes/no on destructive ops
-- `meta.undo` — for reversible commands (uses event log)
-
-**Total: ~95 commands at v1.**
+**3.4 Task queue table `agent_tasks`**
+- `agent_id`, `kind`, `payload`, `status` (`pending`/`running`/`done`/`error`), `result`, `claimed_at`
+- RLS by user_id
 
 ---
 
-## 3. Multi-turn agent loop
+## Phase 4 — Connector Handshakes (no more "create row, hope for the best")
 
-`agent-chat` becomes:
+For each connector kind, real auth + health check + tool discovery:
 
-1. POST `{messages}` from frontend.
-2. Call Lovable AI with `tools = manifest`.
-3. If response has tool_calls and any are **server-scope** → execute via `copilot-action`, append `tool` messages, loop (max 5 turns).
-4. If **client-scope** tool calls → return them to the sidebar; sidebar runs them, then re-posts with results.
-5. Stream final assistant text (SSE) once no more tool calls.
+- **http** — ping URL, store latency, mark `active`/`error`
+- **slack** — OAuth start/callback (already have OAuth infra from MCP), list channels
+- **github** — PAT validation via `/user`, list repos
+- **postgres** — connection string test, list tables
+- **stripe** — key test via `/v1/account`
+- **notion** — OAuth, list databases
+- **gmail** — Google OAuth, scopes preview
 
----
-
-## 4. UX layer
-
-- **Action chips** in chat — each tool call as a card with name + status + "Undo" when reversible.
-- **Inline confirmations** for destructive commands (`plugins.delete`, `api_keys.revoke`, `auth.*`) via `meta.confirm`.
-- **Live highlight** — `plugins.flash` pulses the row so the user sees the move.
-- **"What can you do here?"** in the sidebar lists commands filtered by current route.
-- **Per-command permission toggles** in Settings ("allow copilot to delete", "allow copilot to revoke keys").
+Each connector kind gets a small drawer UI (per memory: one-click, drag-drop, AI-assisted) that:
+- Auto-detects kind from pasted URL/token
+- Shows live test result before saving
+- Pulls the secret from Vault by reference (no raw secrets in `connectors.config`)
 
 ---
 
-## 5. Wave plan
+## Phase 5 — Per-Agent Analytics
 
-**Wave A — Foundation:**
-- `src/copilot/registry.ts`, `actions.manifest.ts`, `CopilotActionsProvider`, `useCopilotCommand` hook.
-- `copilot-action` edge fn + audit logging to `events`.
-- Rewrite `agent-chat` (multi-turn + manifest + SSE).
-- Sidebar renders action chips and runs client commands.
-
-**Wave B — Plugins (proof):** all `plugins.*` + `widgets.*` commands. DnD via `@dnd-kit/core`. Demo prompts: "add a Slack plugin", "move Notion to top", "disable Gmail".
-
-**Wave C** — `memory.*` + `skills.*` + `mcp.*`.
-
-**Wave D** — `documents.*` + `images.*` + `voices.*` + `api_keys.*`.
-
-**Wave E** — `db.*` + `vault.*` + `events.*` + `profile.*` + `ui.*`.
+- New widget `AgentLeaderboardWidget` (top agents by call volume / latency / errors)
+- Agent detail drawer in `/dashboard/agents` showing:
+  - 7-day call chart from `agent_calls`
+  - Tools used breakdown
+  - Memory growth over time
+  - Recent errors
 
 ---
 
-## 6. Technical details
+## Phase 6 — Skills & Plugins polish
 
-```text
-File map:
-  src/copilot/
-    registry.ts            (CommandDef[] with zod)
-    types.ts               (Scope, Result, ToolCall)
-    bus.tsx                (Provider, useCopilotCommand)
-    actions/
-      nav.ts plugins.ts memory.ts skills.ts mcp.ts
-      connectors.ts documents.ts images.ts voices.ts
-      db.ts vault.ts events.ts api_keys.ts settings.ts
-      widgets.ts ui.ts meta.ts
-    manifest.ts            (server-safe export: name+desc+schema only)
-
-  supabase/functions/
-    copilot-action/index.ts  (dispatcher; JWT; events log)
-    agent-chat/index.ts      (multi-turn loop, SSE)
-
-CommandDef shape:
-  {
-    name: "plugins.reorder",
-    description: "Reorder plugins by id list. Position = index.",
-    scope: "server",
-    destructive: false,
-    schema: z.object({ ids: z.array(z.string().uuid()) }),
-    handler: async (input, ctx) => { /* update positions */ }
-  }
-
-Security:
-  - Server commands run with the user's JWT.
-  - Destructive: true → require meta.confirm before exec.
-  - Per-user allow-list in settings.
-  - Audit: events.kind = "cmd.<name>", payload = { args, result, ms }.
-
-Out of scope (v1): voice control, admin/cross-user, real-time agent cursor.
-```
+- Skills page: real "calls" + "p95 latency" columns from `agent_calls`
+- Plugin activity feed (per plugin) from `agent_calls`
+- Skill cost preview before run (uses model pricing table)
 
 ---
 
-Approve and I'll ship **Wave A + Wave B** in one shot — you'll watch the copilot add, reorder, toggle and delete plugins live.
+## Phase 7 — Cleanup pass
+
+- Delete `ComingSoon` component
+- Delete all hardcoded arrays in `widgets/index.tsx`
+- Add `data-testid` to widgets so QA can verify "no fake data left"
+- Update README
+
+---
+
+## Suggested execution order
+
+1. **Phase 1** (analytics pipeline) — biggest unlock
+2. **Phase 2** (Vault) — needed before Phase 4
+3. **Phase 3** (VPS agent) — your immediate pain point, standalone
+4. **Phase 4** (connector handshakes) — depends on Vault
+5. **Phase 5 + 6** (per-agent + skills polish) — depends on Phase 1
+6. **Phase 7** (cleanup)
+
+Phases 1, 2, 3 can be tackled in parallel sessions — they don't share files.
+
+---
+
+## Technical notes
+
+- All new tables: RLS `auth.uid() = user_id`, `created_at`/`updated_at` defaults, `set_updated_at` trigger
+- All new edge functions: `verify_jwt = false` + in-code JWT/agent-token validation (matches existing pattern)
+- Vault encryption: app-level AES-GCM with key derived from `SUPABASE_SERVICE_ROLE_KEY` via HKDF — keeps secrets unreadable even from raw DB dump
+- VPS runtime: Deno single-file binary, no Docker, no Node dep — `curl | bash` installs in <10s
+- Analytics writes: fire-and-forget (`waitUntil` style) so they never block user-facing latency
+
+Tell me which phase to start with and I'll build it out.
