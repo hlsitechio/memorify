@@ -157,7 +157,6 @@ export default function Vault() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={Lock}
         title="Vault"
         description="Encrypted secrets — API keys, tokens, credentials. AES-GCM at rest, never logged."
         actions={
