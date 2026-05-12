@@ -681,9 +681,12 @@ You're ready. Begin by running the GET request above to confirm the connection.`
             </div>
 
             <Tabs defaultValue="prompt">
-              <TabsList className="w-full grid grid-cols-3">
+              <TabsList className="w-full grid grid-cols-4">
                 <TabsTrigger value="prompt">
-                  <Zap className="h-3.5 w-3.5 mr-1.5" /> System Prompt
+                  <Zap className="h-3.5 w-3.5 mr-1.5" /> First connect
+                </TabsTrigger>
+                <TabsTrigger value="reconnect">
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Reconnect
                 </TabsTrigger>
                 <TabsTrigger value="api">Direct API</TabsTrigger>
                 <TabsTrigger value="mcp">MCP</TabsTrigger>
@@ -691,13 +694,24 @@ You're ready. Begin by running the GET request above to confirm the connection.`
 
               <TabsContent value="prompt" className="space-y-3 mt-4">
                 <p className="text-xs text-muted-foreground">
-                  Paste this into Claude Code (e.g. in your <code className="text-foreground">CLAUDE.md</code>) or any agent's system prompt. Token is already baked in — the agent will self-onboard and start using Synapse on its next message.
+                  <span className="text-foreground font-medium">First-time setup.</span> Paste this once into the agent's system prompt — token is baked in so it self-onboards. For day-to-day re-pastes, use the <span className="text-foreground font-medium">Reconnect</span> tab (no secrets).
                 </p>
                 <CopyField value={systemPrompt} label="Agent system prompt" multiline />
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
                   <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Synapse data.
                 </div>
               </TabsContent>
+
+              <TabsContent value="reconnect" className="space-y-3 mt-4">
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-foreground font-medium">For every new session.</span> Safe to commit to <code className="text-foreground">CLAUDE.md</code> — contains zero secrets. The agent rehydrates its role, memory, skills, docs and events with a single <code className="text-foreground">agents.bootstrap</code> call. Token lives in <code className="text-foreground">$SYNAPSE_TOKEN</code>.
+                </p>
+                <CopyField value={reconnectPrompt} label="Reconnect prompt" multiline />
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-emerald-400 font-medium">No secrets in this prompt.</span> Set <code className="text-foreground">SYNAPSE_TOKEN</code> once in your shell (or Claude Code MCP env) and forget it.
+                </div>
+              </TabsContent>
+
 
               <TabsContent value="api" className="space-y-4 mt-4">
                 <div className="space-y-1.5">
