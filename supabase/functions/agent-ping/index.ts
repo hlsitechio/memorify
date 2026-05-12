@@ -250,10 +250,29 @@ Deno.serve(async (req) => {
         const name = params?.name;
         const args = params?.arguments ?? {};
         if (!name) return rpcErr(id, -32602, "missing tool name");
+        const startedAt = Date.now();
         try {
           const result = await callTool(name, args, userId, agentName);
+          admin().from("agent_calls").insert({
+            user_id: userId,
+            agent_id: r.agent.id,
+            kind: "mcp",
+            name,
+            status: "ok",
+            latency_ms: Date.now() - startedAt,
+            metadata: { source: "synapse-mcp" },
+          }).then(() => {});
           return rpcOk(id, result);
         } catch (e: any) {
+          admin().from("agent_calls").insert({
+            user_id: userId,
+            agent_id: r.agent.id,
+            kind: "mcp",
+            name,
+            status: "error",
+            latency_ms: Date.now() - startedAt,
+            metadata: { source: "synapse-mcp", error: e?.message },
+          }).then(() => {});
           return rpcOk(id, { ...text(`Error: ${e.message}`), isError: true });
         }
       }
