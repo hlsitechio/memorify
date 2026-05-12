@@ -559,6 +559,10 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
+  const agentId = agent?.id ?? "";
+  const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
+  const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
+
   const reconnectPrompt = `You are ${agent?.name ?? "this agent"} — a Synapse agent.
 
 ## Your identity
@@ -592,9 +596,6 @@ This single call returns:
 
 This prompt has no secrets — safe to commit to CLAUDE.md or any repo. The token lives in \`$SYNAPSE_TOKEN\` (shell env, or Claude Code's MCP env config).`;
 
-  const agentId = agent?.id ?? "";
-  const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
-  const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
 
   const systemPrompt = `You are connected to Synapse — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
 
