@@ -3,7 +3,8 @@ import { Loader2, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const GATEWAY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-gateway`;
-const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Public demo agent token — intentionally exposed; only allows memory ops in the demo namespace.
+const DEMO_TOKEN = "public_demo_token_synapse_landing";
 
 type Memory = { id: string; content: string; tags: string[]; created_at: string };
 
