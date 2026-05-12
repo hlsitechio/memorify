@@ -21,7 +21,7 @@ export const LiveDemo = () => {
     try {
       const res = await fetch(GATEWAY_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEMO_TOKEN}` },
         body: JSON.stringify({ agent: "memory", action: "list", input: { limit: 8 } }),
       });
       const json = await res.json();
@@ -57,7 +57,7 @@ export const LiveDemo = () => {
 
       const res = await fetch(GATEWAY_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEMO_TOKEN}` },
         body: JSON.stringify(body),
       });
       const json = await res.json();
