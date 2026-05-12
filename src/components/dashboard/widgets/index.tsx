@@ -259,11 +259,23 @@ export function QuickStartWidget({ onRemove }: RProps) {
 
 export function ProjectInfoWidget({ onRemove }: RProps) {
   const { user } = useAuth();
+  const [counts, setCounts] = useState({ agents: 0, skills: 0, connectors: 0 });
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const tables = ["agents", "skills", "connectors"] as const;
+      const results = await Promise.all(
+        tables.map((t) => supabase.from(t as any).select("*", { count: "exact", head: true }).eq("user_id", user.id))
+      );
+      setCounts({ agents: results[0].count ?? 0, skills: results[1].count ?? 0, connectors: results[2].count ?? 0 });
+    })();
+  }, [user]);
   return (
     <WidgetShell title="Project info" icon={KeyRound} onRemove={onRemove}>
       <dl className="text-sm space-y-2">
-        <div className="flex justify-between"><dt className="text-muted-foreground">Plan</dt><dd>Free</dd></div>
-        <div className="flex justify-between"><dt className="text-muted-foreground">Region</dt><dd>auto</dd></div>
+        <div className="flex justify-between"><dt className="text-muted-foreground">Agents</dt><dd className="tabular-nums">{counts.agents}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted-foreground">Skills</dt><dd className="tabular-nums">{counts.skills}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted-foreground">Connectors</dt><dd className="tabular-nums">{counts.connectors}</dd></div>
         <div className="flex justify-between"><dt className="text-muted-foreground">User ID</dt><dd className="font-mono text-xs truncate max-w-[180px]">{user?.id}</dd></div>
       </dl>
     </WidgetShell>
@@ -271,103 +283,204 @@ export function ProjectInfoWidget({ onRemove }: RProps) {
 }
 
 export function AnalyticsWidget({ onRemove }: RProps) {
-  const bars = [12, 28, 18, 42, 30, 56, 38, 64, 50, 72, 60, 84];
-  const max = Math.max(...bars);
+  const { user } = useAuth();
+  const [bars, setBars] = useState<number[]>(Array(12).fill(0));
+  const [total, setTotal] = useState(0);
+  const [delta, setDelta] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+      const prev = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data } = await supabase
+        .from("agent_calls" as any)
+        .select("created_at")
+        .eq("user_id", user.id)
+        .gte("created_at", prev)
+        .limit(5000);
+      const rows = (data as any[]) ?? [];
+      const now = Date.now();
+      const buckets = Array(12).fill(0);
+      let cur = 0, last = 0;
+      for (const r of rows) {
+        const ts = new Date(r.created_at).getTime();
+        const ageH = (now - ts) / 3600000;
+        if (ageH < 12) {
+          cur++;
+          const idx = Math.min(11, Math.max(0, 11 - Math.floor(ageH)));
+          buckets[idx]++;
+        } else {
+          last++;
+        }
+      }
+      setBars(buckets);
+      setTotal(cur);
+      setDelta(last > 0 ? ((cur - last) / last) * 100 : null);
+    })();
+  }, [user]);
+
+  const max = Math.max(...bars, 1);
   return (
     <WidgetShell title="Analytics" icon={BarChart3} action={<span className="text-[10px] text-muted-foreground">last 12h</span>} onRemove={onRemove}>
       <div className="space-y-3">
         <div className="flex items-baseline gap-2">
-          <div className="text-2xl font-semibold tabular-nums">2,418</div>
-          <div className="flex items-center text-[11px] text-emerald-400"><TrendingUp className="h-3 w-3 mr-0.5" />+12.4%</div>
+          <div className="text-2xl font-semibold tabular-nums">{total.toLocaleString()}</div>
+          {delta !== null && (
+            <div className={`flex items-center text-[11px] ${delta >= 0 ? "text-emerald-400" : "text-destructive"}`}>
+              <TrendingUp className={`h-3 w-3 mr-0.5 ${delta < 0 ? "rotate-180" : ""}`} />
+              {delta >= 0 ? "+" : ""}{delta.toFixed(1)}%
+            </div>
+          )}
         </div>
         <div className="flex items-end gap-1 h-16">
           {bars.map((b, i) => (
-            <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary/50 to-primary" style={{ height: `${(b / max) * 100}%` }} />
+            <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary/50 to-primary" style={{ height: `${(b / max) * 100}%`, minHeight: 2 }} />
           ))}
         </div>
-        <div className="text-[11px] text-muted-foreground">Inference calls across all skills</div>
+        <div className="text-[11px] text-muted-foreground">
+          {total === 0 ? "No calls yet — connect an agent to see activity." : "Inference calls across all agents"}
+        </div>
       </div>
     </WidgetShell>
   );
 }
 
 export function SkillsResumeWidget({ onRemove }: RProps) {
-  const skills = [
-    { name: "summarize.v3", calls: 1284, status: "live" },
-    { name: "classify.intent", calls: 902, status: "live" },
-    { name: "extract.entities", calls: 547, status: "draft" },
-    { name: "rerank.docs", calls: 318, status: "live" },
-  ];
+  const { user } = useAuth();
+  const [rows, setRows] = useState<Array<{ name: string; calls: number; status: string }>>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const [{ data: skills }, { data: calls }] = await Promise.all([
+        supabase.from("skills").select("name,status").eq("user_id", user.id),
+        supabase.from("agent_calls" as any).select("name").eq("user_id", user.id).eq("kind", "skill").limit(2000),
+      ]);
+      const counts = new Map<string, number>();
+      for (const c of (calls as any[]) ?? []) counts.set(c.name, (counts.get(c.name) ?? 0) + 1);
+      const merged = ((skills as any[]) ?? []).map((s) => ({ name: s.name, status: s.status, calls: counts.get(s.name) ?? 0 }));
+      merged.sort((a, b) => b.calls - a.calls);
+      setRows(merged.slice(0, 4));
+    })();
+  }, [user]);
+
   return (
     <WidgetShell title="Skills resume" icon={Sparkles} action={<Link to="/dashboard/skills" className="text-[11px] text-primary hover:underline">View all</Link>} onRemove={onRemove}>
-      <ul className="space-y-2">
-        {skills.map(s => (
-          <li key={s.name} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className={`h-1.5 w-1.5 rounded-full ${s.status === "live" ? "bg-emerald-400" : "bg-amber-400"}`} />
-              <span className="font-mono text-xs truncate">{s.name}</span>
-            </div>
-            <span className="text-xs text-muted-foreground tabular-nums">{s.calls.toLocaleString()}</span>
-          </li>
-        ))}
-      </ul>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No skills yet. <Link to="/dashboard/skills" className="text-primary hover:underline">Create one →</Link></p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map(s => (
+            <li key={s.name} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`h-1.5 w-1.5 rounded-full ${s.status === "live" || s.status === "published" ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <span className="font-mono text-xs truncate">{s.name}</span>
+              </div>
+              <span className="text-xs text-muted-foreground tabular-nums">{s.calls.toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </WidgetShell>
   );
 }
 
 export function PluginsSummaryWidget({ onRemove }: RProps) {
-  const plugins = [
-    { name: "Slack relay", v: "1.2.0", state: "active" },
-    { name: "Gmail digest", v: "0.8.1", state: "active" },
-    { name: "Notion sync", v: "2.0.0", state: "paused" },
-  ];
+  const { user } = useAuth();
+  const [plugins, setPlugins] = useState<Array<{ id: string; name: string; enabled: boolean; kind: string }>>([]);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("plugins").select("id,name,enabled,kind").eq("user_id", user.id).order("position", { ascending: true }).limit(6)
+      .then((r: any) => setPlugins(r.data ?? []));
+  }, [user]);
   return (
     <WidgetShell title="Plugins" icon={Puzzle} action={<Link to="/dashboard/plugins" className="text-[11px] text-primary hover:underline">Manage</Link>} onRemove={onRemove}>
-      <ul className="space-y-2">
-        {plugins.map(p => (
-          <li key={p.name} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Puzzle className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="truncate">{p.name}</span>
-              <span className="text-[10px] font-mono text-muted-foreground">{p.v}</span>
-            </div>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${p.state === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>{p.state}</span>
-          </li>
-        ))}
-      </ul>
+      {plugins.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No plugins installed. <Link to="/dashboard/plugins" className="text-primary hover:underline">Browse →</Link></p>
+      ) : (
+        <ul className="space-y-2">
+          {plugins.map(p => (
+            <li key={p.id} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <Puzzle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate">{p.name}</span>
+                <span className="text-[10px] font-mono text-muted-foreground">{p.kind}</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${p.enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{p.enabled ? "active" : "paused"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </WidgetShell>
   );
 }
 
 export function RecentActivityWidget({ onRemove }: RProps) {
-  const items = [
-    { t: "2m", msg: "memory.write · namespace=default" },
-    { t: "11m", msg: "connector.slack · channel synced" },
-    { t: "34m", msg: "skill.summarize.v3 · 42 calls" },
-    { t: "1h", msg: "api_key.created · syn_live_3f…" },
-  ];
+  const { user } = useAuth();
+  const [items, setItems] = useState<Array<{ id: string; created_at: string; kind: string; source: string | null }>>([]);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("events").select("id,created_at,kind,source").eq("user_id", user.id).order("created_at", { ascending: false }).limit(6)
+      .then((r: any) => setItems(r.data ?? []));
+  }, [user]);
+  const ago = (iso: string) => {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h`;
+    return `${Math.floor(s / 86400)}d`;
+  };
   return (
     <WidgetShell title="Recent activity" icon={Clock} onRemove={onRemove}>
-      <ul className="space-y-2">
-        {items.map((i, idx) => (
-          <li key={idx} className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground tabular-nums w-8">{i.t}</span>
-            <span className="font-mono truncate">{i.msg}</span>
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No events yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((i) => (
+            <li key={i.id} className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground tabular-nums w-10 shrink-0">{ago(i.created_at)}</span>
+              <span className="font-mono truncate">{i.kind}{i.source ? ` · ${i.source}` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </WidgetShell>
   );
 }
 
 export function UsageWidget({ onRemove }: RProps) {
-  const rows = [
-    { k: "Tokens", v: "184.2K", pct: 36 },
-    { k: "Storage", v: "2.1 GB", pct: 21 },
-    { k: "Requests", v: "12,840", pct: 64 },
-  ];
+  const { user } = useAuth();
+  const [rows, setRows] = useState<Array<{ k: string; v: string; pct: number }>>([
+    { k: "Tokens", v: "—", pct: 0 },
+    { k: "Storage", v: "—", pct: 0 },
+    { k: "Requests", v: "—", pct: 0 },
+  ]);
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+      const [{ data: calls }, { data: docs }, { data: voi }, { data: img }] = await Promise.all([
+        supabase.from("agent_calls" as any).select("tokens_in,tokens_out").eq("user_id", user.id).gte("created_at", since).limit(5000),
+        supabase.from("documents").select("size").eq("user_id", user.id),
+        supabase.from("voices").select("size").eq("user_id", user.id),
+        supabase.from("images").select("id").eq("user_id", user.id),
+      ]);
+      const toks = ((calls as any[]) ?? []).reduce((a, c) => a + (c.tokens_in ?? 0) + (c.tokens_out ?? 0), 0);
+      const bytes = (((docs as any[]) ?? []).reduce((a, d) => a + (d.size ?? 0), 0))
+                  + (((voi as any[]) ?? []).reduce((a, v) => a + (v.size ?? 0), 0));
+      const reqs = ((calls as any[]) ?? []).length;
+      const fmtBytes = (b: number) => b > 1e9 ? `${(b/1e9).toFixed(1)} GB` : b > 1e6 ? `${(b/1e6).toFixed(1)} MB` : `${(b/1e3).toFixed(1)} KB`;
+      const fmtNum = (n: number) => n > 1000 ? `${(n/1000).toFixed(1)}K` : `${n}`;
+      setRows([
+        { k: "Tokens", v: fmtNum(toks), pct: Math.min(100, (toks / 500_000) * 100) },
+        { k: "Storage", v: fmtBytes(bytes), pct: Math.min(100, (bytes / 10e9) * 100) },
+        { k: "Requests", v: reqs.toLocaleString(), pct: Math.min(100, (reqs / 20_000) * 100) },
+      ]);
+    })();
+  }, [user]);
   return (
-    <WidgetShell title="Usage" icon={Zap} onRemove={onRemove}>
+    <WidgetShell title="Usage (30d)" icon={Zap} onRemove={onRemove}>
       <div className="space-y-3">
         {rows.map(r => (
           <div key={r.k}>
