@@ -683,6 +683,51 @@ export type Database = {
         }
         Relationships: []
       }
+      vault_secrets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          iv: string
+          last_used_at: string | null
+          last_used_by_agent_id: string | null
+          metadata: Json
+          name: string
+          scope: string
+          updated_at: string
+          user_id: string
+          value_encrypted: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          iv: string
+          last_used_at?: string | null
+          last_used_by_agent_id?: string | null
+          metadata?: Json
+          name: string
+          scope?: string
+          updated_at?: string
+          user_id: string
+          value_encrypted: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          iv?: string
+          last_used_at?: string | null
+          last_used_by_agent_id?: string | null
+          metadata?: Json
+          name?: string
+          scope?: string
+          updated_at?: string
+          user_id?: string
+          value_encrypted?: string
+        }
+        Relationships: []
+      }
       voices: {
         Row: {
           action_items: Json
