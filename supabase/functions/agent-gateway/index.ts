@@ -145,8 +145,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    logCall("error", `unknown action`);
     return fail(`unknown agent.action: ${agentName}.${action}`, 404);
   } catch (e) {
+    logCall("error", (e as Error).message);
     return fail((e as Error).message, 500);
   }
 });
