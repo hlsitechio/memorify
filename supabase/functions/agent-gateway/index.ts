@@ -88,6 +88,8 @@ Deno.serve(async (req) => {
       metadata: { source: "agent-gateway", ...(err ? { error: err } : {}) },
     }).then(() => {});
   };
+  const okLog = (result: unknown, source: string) => { logCall("ok"); return ok(result, source); };
+  const failLog = (msg: string, code = 400) => { logCall("error", msg); return fail(msg, code); };
 
   try {
     if (agentName === "gateway" && action === "ping") {
