@@ -559,6 +559,39 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
 
+  const reconnectPrompt = `You are ${agent?.name ?? "this agent"} — a Synapse agent.
+
+## Your identity
+- Agent ID:    ${agentId}
+- Workspace:   ${workspaceId}${workspaceName ? `  ("${workspaceName}")` : ""}
+- Endpoint:    ${apiUrl}
+- Auth:        Authorization: Bearer $SYNAPSE_TOKEN  ← set this env var once; do NOT paste the token in this file
+
+## First thing on EVERY new session (REQUIRED)
+Run this in a bash tool to rehydrate yourself:
+
+\`\`\`bash
+curl -s -X POST ${apiUrl} \\
+  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"agents.bootstrap"}'
+\`\`\`
+
+This single call returns:
+- \`role\` — your role.md (read it carefully — that's who you are)
+- \`memories\` — your persisted memories
+- \`skills\` — what you can do
+- \`documents\` — the user's files (index)
+- \`events\` — your recent activity
+
+## After bootstrap
+- Use \`memory.remember\` to persist preferences, facts, decisions.
+- Use \`memory.recall\` for older context.
+- Use \`events.log\` to record meaningful actions.
+- Your role.md is just a memory — call \`memory.update\` with its id to evolve who you are over time.
+
+This prompt has no secrets — safe to commit to CLAUDE.md or any repo. The token lives in \`$SYNAPSE_TOKEN\` (shell env, or Claude Code's MCP env config).`;
+
   const agentId = agent?.id ?? "";
   const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
   const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
