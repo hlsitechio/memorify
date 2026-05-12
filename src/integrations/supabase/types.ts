@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_calls: {
+        Row: {
+          agent_id: string | null
+          cost_cents: number | null
+          created_at: string
+          id: string
+          kind: string
+          latency_ms: number | null
+          metadata: Json
+          name: string
+          status: string
+          tokens_in: number | null
+          tokens_out: number | null
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          id?: string
+          kind: string
+          latency_ms?: number | null
+          metadata?: Json
+          name: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          metadata?: Json
+          name?: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       agents: {
         Row: {
           created_at: string
