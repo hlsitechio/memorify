@@ -243,6 +243,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          agent_id: string | null
           created_at: string
           id: string
           metadata: Json
@@ -255,6 +256,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -267,6 +269,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json

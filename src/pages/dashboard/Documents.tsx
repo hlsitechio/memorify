@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Upload, FileText, Trash2, Download, RefreshCcw, Search, Eye, ExternalLink, Copy } from "lucide-react";
+import { Upload, FileText, Trash2, Download, RefreshCcw, Search, Eye, ExternalLink, Copy, Bot, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
-type Doc = { id: string; name: string; mime: string | null; size: number | null; storage_path: string; status: string; created_at: string };
+type Doc = { id: string; name: string; mime: string | null; size: number | null; storage_path: string; status: string; created_at: string; agent_id: string | null };
+type AgentLite = { id: string; name: string };
+// "all" = everything user owns; "personal" = no agent attribution; UUID = that agent.
+type Scope = "all" | "personal" | string;
 
 export default function Documents() {
   const { user } = useAuth();
@@ -20,6 +24,8 @@ export default function Documents() {
   const [uploading, setUploading] = useState(0);
   const [viewer, setViewer] = useState<{ doc: Doc; url: string; text?: string } | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
+  const [agents, setAgents] = useState<AgentLite[]>([]);
+  const [scope, setScope] = useState<Scope>("all");
 
   const load = async () => {
     if (!user) return;
@@ -30,6 +36,13 @@ export default function Documents() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [user]);
+
+  // Load agents for the attribution chips.
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("agents").select("id,name").eq("user_id", user.id).order("created_at", { ascending: true })
+      .then(({ data }) => setAgents((data as AgentLite[]) ?? []));
+  }, [user]);
 
   // Realtime: keep list in sync when agents (or other tabs) add/update/delete documents.
   useEffect(() => {
@@ -50,13 +63,18 @@ export default function Documents() {
     if (!user) return;
     const list = Array.from(files);
     setUploading(list.length);
+    // The active scope decides who owns the upload:
+    //   "all" or "personal" → no agent attribution (visible only to user UI)
+    //   <agentId>           → that agent owns it
+    const agentForUpload = scope === "all" || scope === "personal" ? null : scope;
     for (const f of list) {
       try {
         const path = `${user.id}/${crypto.randomUUID()}-${f.name}`;
         const { error: upErr } = await supabase.storage.from("documents").upload(path, f, { contentType: f.type });
         if (upErr) throw upErr;
         const { error: insErr } = await supabase.from("documents").insert({
-          user_id: user.id, name: f.name, mime: f.type, size: f.size, storage_path: path, status: "ready",
+          user_id: user.id, agent_id: agentForUpload,
+          name: f.name, mime: f.type, size: f.size, storage_path: path, status: "ready",
         });
         if (insErr) throw insErr;
       } catch (e: any) { toast.error(`${f.name}: ${e.message}`); }
@@ -64,7 +82,7 @@ export default function Documents() {
     }
     toast.success(`Uploaded ${list.length} file${list.length > 1 ? "s" : ""}`);
     load();
-  }, [user]);
+  }, [user, scope]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDrag(false);
@@ -102,7 +120,20 @@ export default function Documents() {
     finally { setViewerLoading(false); }
   };
 
-  const filtered = rows.filter((r) => !q || r.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (q && !r.name.toLowerCase().includes(q.toLowerCase())) return false;
+    if (scope === "all") return true;
+    if (scope === "personal") return r.agent_id === null;
+    return r.agent_id === scope;
+  }), [rows, q, scope]);
+
+  const agentName = (id: string | null) => id ? (agents.find((a) => a.id === id)?.name ?? "Agent") : null;
+
+  const chips: { id: Scope; label: string; icon: typeof Bot }[] = [
+    { id: "all", label: "All", icon: FileText },
+    { id: "personal", label: "Personal", icon: UserIcon },
+    ...agents.map((a) => ({ id: a.id, label: a.name, icon: Bot as typeof Bot })),
+  ];
 
   return (
     <>
@@ -120,16 +151,47 @@ export default function Documents() {
         }
       />
       <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        {/* Per-agent attribution chips. Selecting one filters the list AND
+            decides who owns the next upload. */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {chips.map((c) => {
+            const active = scope === c.id;
+            const Icon = c.icon;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setScope(c.id)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs border transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
           onDrop={onDrop}
           onClick={() => (document.querySelector<HTMLInputElement>('input[type=file]'))?.click()}
-          className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${drag ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-card"}`}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors",
+            drag ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-card"
+          )}
         >
           <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
           <p className="text-sm font-medium">Drop files here or click to upload</p>
-          <p className="text-xs text-muted-foreground mt-1">PDF, Markdown, text, images — anything up to 50MB.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {scope === "all" || scope === "personal"
+              ? "Uploads will be personal — no agent will see them."
+              : `Uploads will be attributed to ${agentName(scope as string) ?? "this agent"} — only it can see them.`}
+          </p>
           {uploading > 0 && <p className="text-xs text-primary mt-2">Uploading {uploading}…</p>}
         </div>
 
@@ -154,6 +216,15 @@ export default function Documents() {
               <div className="flex items-center gap-2 truncate">
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <button onClick={() => view(d)} className="text-sm truncate text-left hover:underline">{d.name}</button>
+                {d.agent_id ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                    <Bot className="h-2.5 w-2.5" />{agentName(d.agent_id)}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+                    <UserIcon className="h-2.5 w-2.5" />Personal
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => { navigator.clipboard.writeText(d.id); toast.success("ID copied"); }}

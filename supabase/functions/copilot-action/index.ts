@@ -206,10 +206,17 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
 
     /* ───────── documents ───────── */
     case "documents.list": {
-      let qb = db.from("documents").select("id,name,mime,size,storage_path,status,created_at")
+      let qb = db.from("documents").select("id,name,mime,size,storage_path,status,created_at,agent_id")
         .eq("user_id", userId).order("created_at", { ascending: false })
         .limit(Math.min(args.limit ?? 100, 200));
       if (args.q) qb = qb.ilike("name", `%${args.q}%`);
+      // Per-agent attribution: agents only see their own docs (or the
+      // explicitly shared "personal" pool if scope='personal'). User UI
+      // can pass scope='all' to bypass and see everything they own.
+      if (args.scope !== "all") {
+        if (args.agent_id) qb = qb.eq("agent_id", args.agent_id);
+        else if (args.scope === "personal") qb = qb.is("agent_id", null);
+      }
       const { data, error } = await qb;
       if (error) return { ok: false, error: error.message };
       return { ok: true, data };
@@ -239,7 +246,8 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       const { error: upErr } = await db.storage.from("documents").upload(path, bytes, { contentType: mime });
       if (upErr) return { ok: false, error: upErr.message };
       const { data, error } = await db.from("documents").insert({
-        user_id: userId, name: filename, mime, size: bytes.byteLength, storage_path: path, status: "ready",
+        user_id: userId, agent_id: args.agent_id ?? null,
+        name: filename, mime, size: bytes.byteLength, storage_path: path, status: "ready",
         metadata: { kind: "note", format: fmt },
       }).select().single();
       if (error) return { ok: false, error: error.message };
@@ -262,7 +270,8 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       const { error: upErr } = await db.storage.from("documents").upload(path, bytes, { contentType: mime });
       if (upErr) return { ok: false, error: upErr.message };
       const { data, error } = await db.from("documents").insert({
-        user_id: userId, name: args.name, mime, size: bytes.byteLength, storage_path: path, status: "ready",
+        user_id: userId, agent_id: args.agent_id ?? null,
+        name: args.name, mime, size: bytes.byteLength, storage_path: path, status: "ready",
       }).select().single();
       if (error) return { ok: false, error: error.message };
       return { ok: true, data };
@@ -280,13 +289,13 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       const { error: upErr } = await db.storage.from("documents").upload(path, buf, { contentType: mime });
       if (upErr) return { ok: false, error: upErr.message };
       const { data, error } = await db.from("documents").insert({
-        user_id: userId, name, mime, size: buf.byteLength, storage_path: path, status: "ready",
+        user_id: userId, agent_id: args.agent_id ?? null,
+        name, mime, size: buf.byteLength, storage_path: path, status: "ready",
         metadata: { source_url: args.url },
       }).select().single();
       if (error) return { ok: false, error: error.message };
       return { ok: true, data };
     }
-    case "documents.delete": {
       if (!args.id) return { ok: false, error: "id required" };
       const { data: row, error: e1 } = await db.from("documents").select("storage_path")
         .eq("id", args.id).eq("user_id", userId).single();

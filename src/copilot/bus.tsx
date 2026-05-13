@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCommand } from "./registry";
 import type { ClientCtx, CommandResult } from "./types";
 import { useDashboardUI } from "@/components/dashboard/DashboardUIContext";
+import { readCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 
 type WidgetBridge = ClientCtx["widgets"];
 const noopBridge: WidgetBridge = {
@@ -91,9 +92,15 @@ export function CopilotBusProvider({ children }: { children: ReactNode }) {
           const out = await def.handler(args, ctx);
           return out ?? { ok: true };
         }
-        // server scope
+        // server scope — auto-inject the active agent_id so server commands
+        // (documents.*, etc.) are scoped to the workspace the user picked.
+        const ws = readCurrentWorkspace();
+        const finalArgs =
+          ws?.kind === "agent" && ws.agentId && args && args.agent_id === undefined
+            ? { ...args, agent_id: ws.agentId }
+            : args;
         const { data, error } = await supabase.functions.invoke("copilot-action", {
-          body: { name, args },
+          body: { name, args: finalArgs },
         });
         if (error) return { ok: false, error: error.message };
         if (data && (data as any).ok === false) return data as CommandResult;
