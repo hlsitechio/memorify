@@ -151,16 +151,47 @@ export default function Documents() {
         }
       />
       <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        {/* Per-agent attribution chips. Selecting one filters the list AND
+            decides who owns the next upload. */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {chips.map((c) => {
+            const active = scope === c.id;
+            const Icon = c.icon;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setScope(c.id)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs border transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
           onDrop={onDrop}
           onClick={() => (document.querySelector<HTMLInputElement>('input[type=file]'))?.click()}
-          className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${drag ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-card"}`}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors",
+            drag ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-card"
+          )}
         >
           <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
           <p className="text-sm font-medium">Drop files here or click to upload</p>
-          <p className="text-xs text-muted-foreground mt-1">PDF, Markdown, text, images — anything up to 50MB.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {scope === "all" || scope === "personal"
+              ? "Uploads will be personal — no agent will see them."
+              : `Uploads will be attributed to ${agentName(scope as string) ?? "this agent"} — only it can see them.`}
+          </p>
           {uploading > 0 && <p className="text-xs text-primary mt-2">Uploading {uploading}…</p>}
         </div>
 
