@@ -35,6 +35,24 @@ function admin() {
   );
 }
 
+async function listAgentEvents(
+  sb: ReturnType<typeof admin>,
+  userId: string,
+  agentId: string,
+  limit: number,
+) {
+  const fetchLimit = Math.min(Math.max(limit * 5, 100), 500);
+  const { data, error } = await sb.from("events")
+    .select("id, kind, payload, source, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(fetchLimit);
+  if (error) throw error;
+  return (data ?? [])
+    .filter((row) => row?.payload?.agent_id === agentId || row?.source === `agent:${agentId}`)
+    .slice(0, limit);
+}
+
 async function resolveAgent(token: string) {
   const sb = admin();
   const { data: agent } = await sb
@@ -372,11 +390,16 @@ const COMMANDS: Cmd[] = [
     name: "events.log",
     description: "Append an event to the timeline.",
     params: { kind: "string (required)", payload: "object?", source: "string?" },
-    run: async (sb, userId, p) => {
+    run: async (sb, userId, p, agent) => {
       if (!p?.kind) throw new Error("kind required");
       const { data, error } = await sb.from("events").insert({
         user_id: userId, kind: String(p.kind),
-        payload: p.payload ?? {}, source: p.source ?? "agent-api",
+        payload: {
+          ...(p.payload && typeof p.payload === "object" ? p.payload : {}),
+          agent_id: agent.id,
+          agent_name: agent.name,
+        },
+        source: p.source ?? `agent:${agent.id}`,
       }).select().single();
       if (error) throw error;
       return data;
@@ -389,11 +412,10 @@ const COMMANDS: Cmd[] = [
     run: async (sb, userId, p, agent) => {
       const limit = Math.min(Math.max(Number(p?.limit ?? 20), 1), 200);
       const scope = String(p?.scope ?? "agent");
-      let q = sb.from("events")
+      if (scope === "agent") return await listAgentEvents(sb, userId, agent.id, limit);
+      const { data, error } = await sb.from("events")
         .select("id, kind, payload, source, created_at")
         .eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
-      if (scope === "agent") q = q.eq("source", `agent:${agent.name}`);
-      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -443,10 +465,7 @@ const COMMANDS: Cmd[] = [
         sb.from("documents")
           .select("id, name, mime, size, created_at")
           .eq("user_id", userId).order("created_at", { ascending: false }).limit(docLimit),
-        sb.from("events")
-          .select("id, kind, source, payload, created_at")
-          .eq("user_id", userId).eq("source", `agent:${agent.name}`)
-          .order("created_at", { ascending: false }).limit(evLimit),
+        listAgentEvents(sb, userId, agent.id, evLimit),
       ]);
 
       return {
@@ -939,9 +958,10 @@ Deno.serve(async (req) => {
     admin().from("events").insert({
       user_id: agent.user_id,
       kind: `agent.${action}`,
-      source: `agent:${agent.name}`,
+      source: `agent:${agent.id}`,
       payload: {
         agent_id: agent.id,
+        agent_name: agent.name,
         ok: true,
         duration_ms: latency,
         params: action.startsWith("memory.") || action.startsWith("events.log") ? params : undefined,
@@ -962,8 +982,8 @@ Deno.serve(async (req) => {
     admin().from("events").insert({
       user_id: agent.user_id,
       kind: `agent.${action}.error`,
-      source: `agent:${agent.name}`,
-      payload: { agent_id: agent.id, error: e?.message ?? "error" },
+      source: `agent:${agent.id}`,
+      payload: { agent_id: agent.id, agent_name: agent.name, error: e?.message ?? "error" },
     }).then(() => {});
     admin().from("agent_calls").insert({
       user_id: agent.user_id,
