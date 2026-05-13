@@ -443,7 +443,6 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
           </button>
           <WorkspaceStats
             agentId={agent.id}
-            agentName={agent.name}
             workspaceName={workspaceName}
             onRenameWorkspace={onRenameWorkspace}
           />
@@ -491,9 +490,8 @@ function AgentRow({ agent, onOpen, onDelete, onPauseToggle, onResync, onRevoke, 
   );
 }
 
-function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }: {
+function WorkspaceStats({ agentId, workspaceName, onRenameWorkspace }: {
   agentId: string;
-  agentName: string;
   workspaceName: string;
   onRenameWorkspace: (name: string) => Promise<void>;
 }) {
@@ -501,14 +499,14 @@ function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [{ count: memories }, { count: events }] = await Promise.all([
+      const [{ count: memories }, { data: eventRows }] = await Promise.all([
         supabase.from("memories").select("id", { count: "exact", head: true }).eq("namespace", `agent:${agentId}`),
-        supabase.from("events").select("id", { count: "exact", head: true }).eq("source", `agent:${agentName}`),
+        supabase.from("events").select("id, payload").eq("payload->>agent_id", agentId),
       ]);
-      if (!cancelled) setStats({ memories: memories ?? 0, events: events ?? 0 });
+      if (!cancelled) setStats({ memories: memories ?? 0, events: eventRows?.length ?? 0 });
     })();
     return () => { cancelled = true; };
-  }, [agentId, agentName]);
+  }, [agentId]);
   const workspaceId = workspaceIdForAgent(agentId);
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
