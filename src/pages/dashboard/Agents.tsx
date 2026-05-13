@@ -702,13 +702,31 @@ You're ready. Begin by running the GET request above to confirm the connection.`
                 </div>
               </TabsContent>
 
-              <TabsContent value="reconnect" className="space-y-3 mt-4">
+              <TabsContent value="reconnect" className="space-y-4 mt-4">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground font-medium">For every new session.</span> Safe to commit to <code className="text-foreground">CLAUDE.md</code> — contains zero secrets. The agent rehydrates its role, memory, skills, docs and events with a single <code className="text-foreground">agents.bootstrap</code> call. Token lives in <code className="text-foreground">$SYNAPSE_TOKEN</code>.
+                  <span className="text-foreground font-medium">For every new session.</span> Two pieces: (1) set <code className="text-foreground">SYNAPSE_TOKEN</code> once in your shell, then (2) paste the prompt into <code className="text-foreground">CLAUDE.md</code>. The prompt itself is secret-free and safe to commit.
                 </p>
-                <CopyField value={reconnectPrompt} label="Reconnect prompt" multiline />
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (macOS / Linux, bash/zsh)</label>
+                  <CopyField value={`export SYNAPSE_TOKEN="${token}"`} label="bash export" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (Windows PowerShell, persistent)</label>
+                  <CopyField value={`setx SYNAPSE_TOKEN "${token}"`} label="powershell setx" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Restart your terminal after <code className="text-foreground">setx</code>. For the current session only:{" "}
+                    <code className="text-foreground">$env:SYNAPSE_TOKEN = "{token.slice(0, 6)}…"</code>
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Step 2 — paste this prompt into <code className="text-foreground">CLAUDE.md</code>
+                  </label>
+                  <CopyField value={reconnectPrompt} label="Reconnect prompt" multiline />
+                </div>
                 <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-[11px] text-muted-foreground">
-                  <span className="text-emerald-400 font-medium">No secrets in this prompt.</span> Set <code className="text-foreground">SYNAPSE_TOKEN</code> once in your shell (or Claude Code MCP env) and forget it.
+                  <span className="text-emerald-400 font-medium">Token shown above is secret.</span> The prompt in Step 2 has zero secrets — only Step 1 carries the token, and it stays on your machine in the env var.
                 </div>
               </TabsContent>
 
