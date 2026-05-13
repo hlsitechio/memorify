@@ -606,6 +606,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          current_workspace_agent_id: string | null
           current_workspace_id: string | null
           current_workspace_kind: string | null
           current_workspace_name: string | null
@@ -618,6 +619,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          current_workspace_agent_id?: string | null
           current_workspace_id?: string | null
           current_workspace_kind?: string | null
           current_workspace_name?: string | null
@@ -630,6 +632,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          current_workspace_agent_id?: string | null
           current_workspace_id?: string | null
           current_workspace_kind?: string | null
           current_workspace_name?: string | null
