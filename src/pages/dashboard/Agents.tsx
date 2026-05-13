@@ -501,14 +501,14 @@ function WorkspaceStats({ agentId, agentName, workspaceName, onRenameWorkspace }
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [{ count: memories }, { count: events }] = await Promise.all([
+      const [{ count: memories }, { data: eventRows }] = await Promise.all([
         supabase.from("memories").select("id", { count: "exact", head: true }).eq("namespace", `agent:${agentId}`),
-        supabase.from("events").select("id", { count: "exact", head: true }).eq("source", `agent:${agentName}`),
+        supabase.from("events").select("id, source, payload").or(`source.eq.agent:${agentId},payload->>agent_id.eq.${agentId}`),
       ]);
-      if (!cancelled) setStats({ memories: memories ?? 0, events: events ?? 0 });
+      if (!cancelled) setStats({ memories: memories ?? 0, events: eventRows?.length ?? 0 });
     })();
     return () => { cancelled = true; };
-  }, [agentId, agentName]);
+  }, [agentId]);
   const workspaceId = workspaceIdForAgent(agentId);
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono">
