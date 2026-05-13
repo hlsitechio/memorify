@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Upload, FileText, Trash2, Download, RefreshCcw, Search, Eye, ExternalLink, Copy } from "lucide-react";
+import { Upload, FileText, Trash2, Download, RefreshCcw, Search, Eye, ExternalLink, Copy, Bot, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
-type Doc = { id: string; name: string; mime: string | null; size: number | null; storage_path: string; status: string; created_at: string };
+type Doc = { id: string; name: string; mime: string | null; size: number | null; storage_path: string; status: string; created_at: string; agent_id: string | null };
+type AgentLite = { id: string; name: string };
+// "all" = everything user owns; "personal" = no agent attribution; UUID = that agent.
+type Scope = "all" | "personal" | string;
 
 export default function Documents() {
   const { user } = useAuth();
