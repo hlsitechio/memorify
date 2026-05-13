@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCommand } from "./registry";
 import type { ClientCtx, CommandResult } from "./types";
 import { useDashboardUI } from "@/components/dashboard/DashboardUIContext";
+import { readCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 
 type WidgetBridge = ClientCtx["widgets"];
 const noopBridge: WidgetBridge = {
