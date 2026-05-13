@@ -216,6 +216,15 @@ export default function Documents() {
               <div className="flex items-center gap-2 truncate">
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <button onClick={() => view(d)} className="text-sm truncate text-left hover:underline">{d.name}</button>
+                {d.agent_id ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                    <Bot className="h-2.5 w-2.5" />{agentName(d.agent_id)}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+                    <UserIcon className="h-2.5 w-2.5" />Personal
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => { navigator.clipboard.writeText(d.id); toast.success("ID copied"); }}
