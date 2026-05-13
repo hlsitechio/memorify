@@ -85,6 +85,8 @@ export function getStoredAccent(): HSL | null {
 export function setStoredAccent(hsl: HSL) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(hsl));
   applyAccent(hsl);
+  // Persist per workspace too — lazy-import to avoid circular deps.
+  void persistWorkspaceAccent(hsl);
   window.dispatchEvent(new CustomEvent("accent-change", { detail: hsl }));
 }
 
@@ -92,10 +94,28 @@ export function resetAccent() {
   localStorage.removeItem(STORAGE_KEY);
   const r = document.documentElement.style;
   ["--primary", "--primary-glow", "--ring", "--accent", "--accent-foreground", "--gradient-primary", "--gradient-radial", "--shadow-glow"].forEach((p) => r.removeProperty(p));
+  void persistWorkspaceAccent(null);
   window.dispatchEvent(new CustomEvent("accent-change"));
 }
 
 export function initAccent() {
   const stored = getStoredAccent();
   if (stored) applyAccent(stored);
+}
+
+// Save the accent into workspace_prefs for the active workspace so it follows
+// the agent across devices. Lazy-imported to keep theme.ts framework-free.
+async function persistWorkspaceAccent(hsl: HSL | null) {
+  try {
+    const [{ readCurrentWorkspace }, { savePrefs }, { supabase }] = await Promise.all([
+      import("@/hooks/useCurrentWorkspace"),
+      import("@/lib/workspace-prefs"),
+      import("@/integrations/supabase/client"),
+    ]);
+    const ws = readCurrentWorkspace();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const wsKey = ws?.id ?? `user:${user.id}`;
+    savePrefs(wsKey, { accent: hsl });
+  } catch { /* ignore — local storage still has it */ }
 }

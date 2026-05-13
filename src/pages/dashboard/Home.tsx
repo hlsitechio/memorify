@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,9 @@ import { useDashboardWidgetBridge } from "@/copilot/bus";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
+import { useAuth } from "@/hooks/useAuth";
+import { loadPrefs, readPrefsCache, savePrefs } from "@/lib/workspace-prefs";
 
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -15,34 +18,62 @@ import "react-resizable/css/styles.css";
 const RGL = WidthProvider(GridLayout);
 
 const WIDGET_BY_ID = Object.fromEntries(WIDGET_CATALOG.map((w) => [w.id, w]));
-const STORAGE_KEY = "synapse:dashboard:layout:v3";
-const VISIBLE_KEY = "synapse:dashboard:visible:v1";
 
 export default function DashboardHome() {
+  const { user } = useAuth();
+  const [ws] = useCurrentWorkspace();
+  // Workspace key — falls back to "user:<uid>" when no agent picked.
+  const wsKey = ws?.id ?? (user ? `user:${user.id}` : "user:anon");
+
   const defaultLayout = useMemo<Layout[]>(
     () => DEFAULT_VISIBLE_IDS.map((id) => ({ i: id, ...WIDGET_BY_ID[id].default })),
     []
   );
 
-  const [layout, setLayout] = useState<Layout[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return defaultLayout;
-  });
-  const [visibleIds, setVisibleIds] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem(VISIBLE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return [...DEFAULT_VISIBLE_IDS];
-  });
+  // Prime from cache so the dashboard paints instantly on workspace switch.
+  const cached = readPrefsCache(wsKey);
+  const [layout, setLayout] = useState<Layout[]>(
+    cached?.layout?.length ? (cached.layout as Layout[]) : defaultLayout
+  );
+  const [visibleIds, setVisibleIds] = useState<string[]>(
+    cached?.visible_ids?.length ? cached.visible_ids : [...DEFAULT_VISIBLE_IDS]
+  );
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // Skip the first save right after a workspace swap (we just loaded those values).
+  const skipNextSave = useRef(false);
 
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(layout)); } catch {} }, [layout]);
-  useEffect(() => { try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleIds)); } catch {} }, [visibleIds]);
+  // Workspace changed → load that workspace's prefs from backend.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    skipNextSave.current = true;
+    (async () => {
+      const remote = await loadPrefs(wsKey);
+      if (cancelled) return;
+      if (remote) {
+        setLayout(remote.layout?.length ? (remote.layout as Layout[]) : defaultLayout);
+        setVisibleIds(remote.visible_ids?.length ? remote.visible_ids : [...DEFAULT_VISIBLE_IDS]);
+      } else {
+        // No prefs yet for this workspace — start from defaults.
+        setLayout(defaultLayout);
+        setVisibleIds([...DEFAULT_VISIBLE_IDS]);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsKey, user?.id]);
+
+  // Persist (debounced) on every layout / visibility change.
+  useEffect(() => {
+    if (!user) return;
+    if (skipNextSave.current) { skipNextSave.current = false; return; }
+    savePrefs(wsKey, { layout: layout.map(({ i, x, y, w, h }) => ({ i, x, y, w, h })) });
+  }, [layout, wsKey, user]);
+  useEffect(() => {
+    if (!user) return;
+    savePrefs(wsKey, { visible_ids: visibleIds });
+  }, [visibleIds, wsKey, user]);
 
   const reset = useCallback(() => {
     setLayout(defaultLayout);

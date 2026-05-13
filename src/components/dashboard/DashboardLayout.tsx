@@ -211,6 +211,22 @@ function DashboardLayoutInner() {
   }, [collapsed]);
   useRegisterCoreCommands();
 
+  // Per-workspace theme: when the user switches agent/workspace, load that
+  // workspace's accent color from the backend and apply it. Falls back to
+  // the user's global default (or no accent) when none is saved.
+  useEffect(() => {
+    if (!user) return;
+    const wsKey = currentWs?.id ?? `user:${user.id}`;
+    let cancelled = false;
+    (async () => {
+      const { loadPrefs, applyWorkspaceAccent } = await import("@/lib/workspace-prefs");
+      const prefs = await loadPrefs(wsKey);
+      if (cancelled) return;
+      applyWorkspaceAccent(prefs?.accent ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [currentWs?.id, user?.id]);
+
   return (
     <div className="h-screen overflow-hidden flex w-full bg-background text-foreground">
       <aside

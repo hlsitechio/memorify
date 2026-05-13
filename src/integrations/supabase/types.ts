@@ -815,6 +815,39 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_prefs: {
+        Row: {
+          accent: Json | null
+          created_at: string
+          id: string
+          layout: Json
+          updated_at: string
+          user_id: string
+          visible_ids: Json
+          workspace_id: string
+        }
+        Insert: {
+          accent?: Json | null
+          created_at?: string
+          id?: string
+          layout?: Json
+          updated_at?: string
+          user_id: string
+          visible_ids?: Json
+          workspace_id: string
+        }
+        Update: {
+          accent?: Json | null
+          created_at?: string
+          id?: string
+          layout?: Json
+          updated_at?: string
+          user_id?: string
+          visible_ids?: Json
+          workspace_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
