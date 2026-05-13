@@ -120,7 +120,20 @@ export default function Documents() {
     finally { setViewerLoading(false); }
   };
 
-  const filtered = rows.filter((r) => !q || r.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (q && !r.name.toLowerCase().includes(q.toLowerCase())) return false;
+    if (scope === "all") return true;
+    if (scope === "personal") return r.agent_id === null;
+    return r.agent_id === scope;
+  }), [rows, q, scope]);
+
+  const agentName = (id: string | null) => id ? (agents.find((a) => a.id === id)?.name ?? "Agent") : null;
+
+  const chips: { id: Scope; label: string; icon: typeof Bot }[] = [
+    { id: "all", label: "All", icon: FileText },
+    { id: "personal", label: "Personal", icon: UserIcon },
+    ...agents.map((a) => ({ id: a.id, label: a.name, icon: Bot as typeof Bot })),
+  ];
 
   return (
     <>
