@@ -101,9 +101,23 @@ export default function Memory() {
   // Scope rows by current workspace: agent workspaces see only their own
   // namespace; user workspace sees everything that isn't an agent namespace.
   const scoped = useMemo(() => {
-    if (ws?.kind === "agent" && ws.agentId) {
-      const ns = `agent:${ws.agentId}`;
-      return rows.filter((r) => r.namespace === ns);
+    if (ws?.kind === "agent") {
+      if (ws.agentId) {
+        const ns = `agent:${ws.agentId}`;
+        return rows.filter((r) => r.namespace === ns);
+      }
+      // Fallback: cached workspace without agentId — match by ws_<last12> suffix
+      // of the agent UUID embedded in the namespace.
+      const suffix = (ws.id || "").replace(/^ws_/, "");
+      if (suffix) {
+        return rows.filter((r) => {
+          if (!r.namespace.startsWith("agent:")) return false;
+          const compact = r.namespace.slice("agent:".length).replace(/-/g, "");
+          return compact.endsWith(suffix);
+        });
+      }
+      // Unknown agent → show nothing rather than leaking other agents' memories.
+      return [];
     }
     if (ws?.kind === "user") {
       return rows.filter((r) => !r.namespace.startsWith("agent:"));

@@ -51,7 +51,8 @@ async function persistRemote(ws: CurrentWorkspace | null) {
         current_workspace_name: ws?.name ?? null,
         current_workspace_kind: ws?.kind ?? null,
         current_workspace_subtitle: ws?.subtitle ?? null,
-      })
+        current_workspace_agent_id: ws?.agentId ?? null,
+      } as any)
       .eq("user_id", user.id);
   } catch {
     /* ignore — local copy still works */
@@ -85,7 +86,7 @@ export function useCurrentWorkspace() {
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("current_workspace_id, current_workspace_name, current_workspace_kind, current_workspace_subtitle")
+        .select("current_workspace_id, current_workspace_name, current_workspace_kind, current_workspace_subtitle, current_workspace_agent_id")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled || !data?.current_workspace_id) return;
@@ -94,11 +95,13 @@ export function useCurrentWorkspace() {
         name: data.current_workspace_name ?? "Workspace",
         kind: (data.current_workspace_kind as "user" | "agent") ?? "user",
         subtitle: data.current_workspace_subtitle ?? undefined,
+        agentId: (data as any).current_workspace_agent_id ?? undefined,
       };
-      // Only override local if it differs (avoid clobbering an in-flight choice).
+      // Override local if id differs OR we now have an agentId that local lacks
+      // (older cached entries didn't store agentId, which broke per-agent scoping).
       const local = readCurrentWorkspace();
-      if (!local || local.id !== remote.id) {
-        writeLocal(remote);
+      if (!local || local.id !== remote.id || (remote.agentId && !local.agentId)) {
+        writeLocal({ ...local, ...remote });
       }
     })();
     return () => { cancelled = true; };
