@@ -24,6 +24,8 @@ export default function Documents() {
   const [uploading, setUploading] = useState(0);
   const [viewer, setViewer] = useState<{ doc: Doc; url: string; text?: string } | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
+  const [agents, setAgents] = useState<AgentLite[]>([]);
+  const [scope, setScope] = useState<Scope>("all");
 
   const load = async () => {
     if (!user) return;
@@ -34,6 +36,13 @@ export default function Documents() {
     setLoading(false);
   };
   useEffect(() => { load(); }, [user]);
+
+  // Load agents for the attribution chips.
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("agents").select("id,name").eq("user_id", user.id).order("created_at", { ascending: true })
+      .then(({ data }) => setAgents((data as AgentLite[]) ?? []));
+  }, [user]);
 
   // Realtime: keep list in sync when agents (or other tabs) add/update/delete documents.
   useEffect(() => {
@@ -54,13 +63,18 @@ export default function Documents() {
     if (!user) return;
     const list = Array.from(files);
     setUploading(list.length);
+    // The active scope decides who owns the upload:
+    //   "all" or "personal" → no agent attribution (visible only to user UI)
+    //   <agentId>           → that agent owns it
+    const agentForUpload = scope === "all" || scope === "personal" ? null : scope;
     for (const f of list) {
       try {
         const path = `${user.id}/${crypto.randomUUID()}-${f.name}`;
         const { error: upErr } = await supabase.storage.from("documents").upload(path, f, { contentType: f.type });
         if (upErr) throw upErr;
         const { error: insErr } = await supabase.from("documents").insert({
-          user_id: user.id, name: f.name, mime: f.type, size: f.size, storage_path: path, status: "ready",
+          user_id: user.id, agent_id: agentForUpload,
+          name: f.name, mime: f.type, size: f.size, storage_path: path, status: "ready",
         });
         if (insErr) throw insErr;
       } catch (e: any) { toast.error(`${f.name}: ${e.message}`); }
@@ -68,7 +82,7 @@ export default function Documents() {
     }
     toast.success(`Uploaded ${list.length} file${list.length > 1 ? "s" : ""}`);
     load();
-  }, [user]);
+  }, [user, scope]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDrag(false);
