@@ -296,6 +296,7 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       if (error) return { ok: false, error: error.message };
       return { ok: true, data };
     }
+    case "documents.delete": {
       if (!args.id) return { ok: false, error: "id required" };
       const { data: row, error: e1 } = await db.from("documents").select("storage_path")
         .eq("id", args.id).eq("user_id", userId).single();
@@ -314,6 +315,116 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       const { data, error } = await db.storage.from("documents").createSignedUrl(row.storage_path, ttl);
       if (error) return { ok: false, error: error.message };
       return { ok: true, data: { url: data.signedUrl, name: row.name, ttl } };
+    }
+
+    /* ───────── memory ───────── */
+    case "memory.add": {
+      if (!args.content) return { ok: false, error: "content required" };
+      const { data, error } = await db.from("memories").insert({
+        user_id: userId,
+        namespace: args.namespace || "default",
+        category: args.category || "general",
+        content: String(args.content),
+        tags: Array.isArray(args.tags) ? args.tags : null,
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "memory.list": {
+      let qb = db.from("memories").select("id,mem_id,namespace,category,content,tags,archived,created_at,updated_at")
+        .eq("user_id", userId).order("updated_at", { ascending: false })
+        .limit(Math.min(args.limit ?? 100, 500));
+      if (!args.include_archived) qb = qb.eq("archived", false);
+      if (args.namespace) qb = qb.eq("namespace", args.namespace);
+      if (args.category) qb = qb.eq("category", args.category);
+      if (args.q) qb = qb.ilike("content", `%${args.q}%`);
+      const { data, error } = await qb;
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "memory.delete": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { error } = await db.from("memories").delete().eq("id", args.id).eq("user_id", userId);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { id: args.id } };
+    }
+    case "memory.session.create": {
+      const today = new Date().toISOString().slice(0, 10);
+      let slug: string;
+      if (args.name) {
+        slug = String(args.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || today;
+      } else if (args.date) {
+        slug = String(args.date).replace(/[^0-9-]/g, "");
+      } else if (typeof args.number === "number") {
+        slug = `s${args.number}`;
+      } else {
+        slug = today;
+      }
+      const namespace = `session:${slug}`;
+      // Idempotent: if marker exists, return it.
+      const { data: existing } = await db.from("memories").select("*")
+        .eq("user_id", userId).eq("namespace", namespace).eq("category", "session").maybeSingle();
+      if (existing) return { ok: true, data: { ...existing, slug, namespace, existed: true } };
+      const title = args.name || args.date || (typeof args.number === "number" ? `Session ${args.number}` : `Session ${today}`);
+      const content = args.description ? `${title}\n\n${args.description}` : title;
+      const { data, error } = await db.from("memories").insert({
+        user_id: userId, namespace, category: "session",
+        content, tags: Array.isArray(args.tags) ? args.tags : null,
+        metadata: { kind: "session", slug, title },
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { ...data, slug, namespace } };
+    }
+    case "memory.session.list": {
+      const { data: markers, error } = await db.from("memories")
+        .select("id,namespace,content,metadata,tags,created_at,updated_at")
+        .eq("user_id", userId).eq("category", "session").eq("archived", false)
+        .order("created_at", { ascending: false }).limit(200);
+      if (error) return { ok: false, error: error.message };
+      const out: any[] = [];
+      for (const m of markers ?? []) {
+        const { count } = await db.from("memories").select("id", { count: "exact", head: true })
+          .eq("user_id", userId).eq("namespace", m.namespace).neq("category", "session");
+        const slug = m.namespace.startsWith("session:") ? m.namespace.slice("session:".length) : m.namespace;
+        out.push({ id: m.id, slug, namespace: m.namespace, title: (m.metadata as any)?.title ?? m.content, item_count: count ?? 0, created_at: m.created_at, updated_at: m.updated_at });
+      }
+      return { ok: true, data: out };
+    }
+    case "memory.session.add": {
+      if (!args.content) return { ok: false, error: "content required" };
+      let namespace: string | null = null;
+      if (args.namespace) namespace = String(args.namespace);
+      else if (args.slug) namespace = `session:${args.slug}`;
+      else if (args.name) {
+        // Find a session marker whose title matches.
+        const { data: m } = await db.from("memories").select("namespace,metadata,content")
+          .eq("user_id", userId).eq("category", "session");
+        const hit = (m ?? []).find((r: any) => (r.metadata?.title ?? r.content) === args.name);
+        if (hit) namespace = hit.namespace;
+      }
+      if (!namespace) return { ok: false, error: "session not found (provide slug, namespace, or name)" };
+      const { data, error } = await db.from("memories").insert({
+        user_id: userId, namespace,
+        category: args.category || "general",
+        content: String(args.content),
+        tags: Array.isArray(args.tags) ? args.tags : null,
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "memory.session.delete": {
+      const namespace: string | null = args.namespace || (args.slug ? `session:${args.slug}` : null);
+      if (!namespace) return { ok: false, error: "slug or namespace required" };
+      if (args.cascade) {
+        const { error } = await db.from("memories").delete()
+          .eq("user_id", userId).eq("namespace", namespace);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, data: { namespace, cascade: true } };
+      }
+      const { error } = await db.from("memories").delete()
+        .eq("user_id", userId).eq("namespace", namespace).eq("category", "session");
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { namespace } };
     }
   }
   return { ok: false, error: `unknown server command: ${name}` };

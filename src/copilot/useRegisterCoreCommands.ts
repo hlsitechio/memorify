@@ -7,6 +7,7 @@ import { pluginCommands } from "./actions/plugins";
 import { widgetCommands } from "./actions/widgets";
 import { agentCommands } from "./actions/agents";
 import { documentCommands } from "./actions/documents";
+import { memoryCommands } from "./actions/memory";
 
 export function useRegisterCoreCommands() {
   useEffect(() => {
@@ -16,6 +17,7 @@ export function useRegisterCoreCommands() {
       ...widgetCommands,
       ...agentCommands,
       ...documentCommands,
+      ...memoryCommands,
     ]);
     return unreg;
   }, []);
