@@ -73,7 +73,7 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="Settings" description="Manage your profile, workspace, and appearance" />
-      <div className="p-6 max-w-3xl">
+      <div className="p-6 max-w-5xl">
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="profile" className="gap-1.5"><User className="h-3.5 w-3.5" />Profile</TabsTrigger>
