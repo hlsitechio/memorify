@@ -193,56 +193,6 @@ export default function Memory() {
     }
   };
 
-  const openEdit = async (r: MemoryRow) => {
-    setEditing(r);
-    setEditForm({
-      namespace: r.namespace,
-      category: r.category || "general",
-      content: r.content,
-      tags: (r.tags ?? []).join(", "),
-      metadata: JSON.stringify(r.metadata ?? {}, null, 2),
-    });
-    setVersions([]);
-    const { data } = await supabase
-      .from("memory_versions" as any)
-      .select("*")
-      .eq("memory_id", r.id)
-      .order("version", { ascending: false });
-    setVersions((data as any) ?? []);
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    let metadata: any = {};
-    try { metadata = JSON.parse(editForm.metadata || "{}"); } catch { return toast.error("Invalid JSON metadata"); }
-    const tags = editForm.tags.split(",").map((t) => t.trim()).filter(Boolean);
-    const { error } = await supabase.from("memories")
-      .update({
-        namespace: editForm.namespace,
-        category: editForm.category || "general",
-        content: editForm.content,
-        tags,
-        metadata,
-        updated_at: new Date().toISOString(),
-      } as any)
-      .eq("id", editing.id);
-    if (error) return toast.error(error.message);
-    toast.success("Saved — version recorded");
-    setEditing(null);
-  };
-
-  const restoreVersion = async (v: VersionRow) => {
-    if (!editing) return;
-    setEditForm({
-      namespace: v.namespace,
-      category: v.category || "general",
-      content: v.content,
-      tags: (v.tags ?? []).join(", "),
-      metadata: JSON.stringify(v.metadata ?? {}, null, 2),
-    });
-    toast.info(`Loaded version ${v.version} — click Save to restore`);
-  };
-
   const archive = async (ids: string[], value: boolean) => {
     const { error } = await supabase.from("memories")
       .update({ archived: value, archived_at: value ? new Date().toISOString() : null } as any)
