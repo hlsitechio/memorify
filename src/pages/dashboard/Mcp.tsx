@@ -548,21 +548,7 @@ export default function Mcp() {
       </Dialog>
 
       <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
-        {servers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-12 text-center">
-            <Server className="h-8 w-8 mx-auto mb-3 text-muted-foreground/60" />
-            <p className="text-sm font-medium">No MCP servers</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Add a Streamable HTTP or SSE MCP server to expose its tools to your agents.</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {PRESETS.map((p) => (
-                <Button key={p.id} variant="outline" size="sm" onClick={() => setPresetOpen(p)}>
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Connect {p.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          servers.map((s) => {
+        {servers.map((s) => {
             const stools = tools.filter((t) => t.mcp_server_id === s.id);
             return (
               <Collapsible key={s.id} className="rounded-lg border border-border bg-card overflow-hidden group/srv">
@@ -620,8 +606,39 @@ export default function Mcp() {
                 </CollapsibleContent>
               </Collapsible>
             );
-          })
-        )}
+          })}
+
+        {/* Available presets — not yet connected */}
+        {(() => {
+          const connectedUrls = new Set(servers.map((s) => s.url));
+          const available = PRESETS.filter((p) => !connectedUrls.has(p.url));
+          if (available.length === 0) return null;
+          return (
+            <>
+              <div className="pt-4 pb-1 text-xs uppercase tracking-wide text-muted-foreground">Available to connect</div>
+              {available.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card/40">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Server className="h-4 w-4 text-muted-foreground" />
+                      <div className="text-sm font-semibold truncate">{p.name}</div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-secondary text-muted-foreground">
+                        {p.oauth ? "oauth" : p.needsToken ? "token" : "public"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{p.url}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{p.tokenHint}</div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button size="sm" onClick={() => setPresetOpen(p)}>
+                      <Plus className="h-3.5 w-3.5 mr-1.5" /> Connect
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </>
+          );
+        })()}
       </div>
     </>
   );
