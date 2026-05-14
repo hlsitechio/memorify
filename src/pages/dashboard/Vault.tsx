@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Lock, Plus, Trash2, Eye, EyeOff, Copy, Upload, KeyRound, Search, Clock,
+  Lock, Plus, Trash2, Eye, EyeOff, Copy, Upload, KeyRound, Search, Clock, Unlock, ShieldCheck, Settings as SettingsIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
