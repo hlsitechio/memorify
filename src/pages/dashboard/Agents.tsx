@@ -92,6 +92,20 @@ function CopyField({ value, label, mono = true, multiline = false }: { value: st
 
 
 export default function Agents() {
+  return (
+    <>
+      <PageHeader
+        title="Agents"
+        description="Connect AI agents to this workspace. No ngrok, no local tunnel — just a hosted URL and a token."
+      />
+      <div className="p-6 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        <AgentsManager />
+      </div>
+    </>
+  );
+}
+
+export function AgentsManager({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
