@@ -210,7 +210,18 @@ export default function Settings() {
             </section>
           </TabsContent>
 
-          <TabsContent value="workspace">
+          <TabsContent value="agents">
+            <section className="rounded-lg border border-border bg-card p-6">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold">AI Agents</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Connect, pause, rotate tokens, and inspect every AI agent attached to your workspace.
+                </p>
+              </div>
+              <AgentsManager embedded />
+            </section>
+          </TabsContent>
+
             <section className="rounded-lg border border-border bg-card p-6">
               <h2 className="text-sm font-semibold mb-4">Workspace</h2>
               <dl className="text-sm space-y-2">
