@@ -490,7 +490,7 @@ export default function Memory() {
       </div>
 
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <SheetContent className="sm:max-w-2xl overflow-y-auto scrollbar-thin">
+        <SheetContent className="sm:max-w-3xl overflow-y-auto scrollbar-thin">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               Edit memory
