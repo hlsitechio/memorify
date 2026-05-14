@@ -25,7 +25,7 @@ const PREDEFINED_CATEGORIES = [
   "billing",
   "integrations",
 ];
-import { Sheet } from "@/components/ui/sheet";
+
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
