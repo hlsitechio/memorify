@@ -53,6 +53,7 @@ const App = () => (
               <Route index element={<DashboardHome />} />
               <Route path="agents" element={<Agents />} />
               <Route path="memory" element={<Memory />} />
+              <Route path="memory/:memId" element={<MemoryDetail />} />
               <Route path="skills" element={<Skills />} />
               <Route path="plugins" element={<Plugins />} />
               <Route path="documents" element={<Documents />} />
