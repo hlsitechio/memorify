@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Lock, Plus, Trash2, Eye, EyeOff, Copy, Upload, KeyRound, Search, Clock,
+  Lock, Plus, Trash2, Eye, EyeOff, Copy, Upload, KeyRound, Search, Clock, Unlock, ShieldCheck, Settings as SettingsIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -33,6 +33,7 @@ async function vault(action: string, body: Record<string, any> = {}) {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
   if (!token) throw new Error("Not signed in");
+  const unlock = sessionStorage.getItem("vault_unlock") || "";
   const r = await fetch(
     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault`,
     {
@@ -41,12 +42,19 @@ async function vault(action: string, body: Record<string, any> = {}) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        ...(unlock ? { "x-vault-unlock": unlock } : {}),
       },
       body: JSON.stringify({ action, ...body }),
     },
   );
   const j = await r.json();
-  if (!j.ok) throw new Error(j.error || "Vault error");
+  if (!j.ok) {
+    if (j.locked) {
+      sessionStorage.removeItem("vault_unlock");
+      window.dispatchEvent(new Event("vault:locked"));
+    }
+    throw new Error(j.error || "Vault error");
+  }
   return j;
 }
 
@@ -64,16 +72,91 @@ export default function Vault() {
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Password gate state
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [unlocked, setUnlocked] = useState<boolean>(!!sessionStorage.getItem("vault_unlock"));
+  const [unlockPwd, setUnlockPwd] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwdCurrent, setPwdCurrent] = useState("");
+  const [pwdNew, setPwdNew] = useState("");
+  const [pwdNew2, setPwdNew2] = useState("");
+  const [pwdBusy, setPwdBusy] = useState(false);
+
   const refresh = useCallback(async () => {
     try {
       const { items } = await vault("list");
       setItems(items);
     } catch (e: any) {
-      toast.error(e.message);
+      if (!/locked/i.test(e.message)) toast.error(e.message);
     }
   }, []);
 
-  useEffect(() => { if (user) refresh(); }, [user, refresh]);
+  useEffect(() => {
+    if (!user) return;
+    vault("password_status").then((r) => {
+      setHasPassword(!!r.has_password);
+      if (!r.has_password) setUnlocked(true);
+    }).catch(() => {});
+    const onLock = () => setUnlocked(false);
+    window.addEventListener("vault:locked", onLock);
+    return () => window.removeEventListener("vault:locked", onLock);
+  }, [user]);
+
+  useEffect(() => { if (user && unlocked) refresh(); }, [user, unlocked, refresh]);
+
+  const doUnlock = async () => {
+    if (!unlockPwd) return;
+    setUnlocking(true);
+    try {
+      const r = await vault("unlock", { password: unlockPwd });
+      sessionStorage.setItem("vault_unlock", r.token);
+      setUnlocked(true);
+      setUnlockPwd("");
+      toast.success("Vault unlocked");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setUnlocking(false); }
+  };
+
+  const lock = () => {
+    sessionStorage.removeItem("vault_unlock");
+    setUnlocked(false);
+    setRevealed({});
+    toast.success("Vault locked");
+  };
+
+  const savePassword = async () => {
+    if (pwdNew.length < 8) return toast.error("Password must be at least 8 characters");
+    if (pwdNew !== pwdNew2) return toast.error("Passwords do not match");
+    setPwdBusy(true);
+    try {
+      const r = await vault("password_set", {
+        new_password: pwdNew,
+        current_password: hasPassword ? pwdCurrent : undefined,
+      });
+      sessionStorage.setItem("vault_unlock", r.token);
+      setHasPassword(true);
+      setUnlocked(true);
+      setPwdOpen(false);
+      setPwdCurrent(""); setPwdNew(""); setPwdNew2("");
+      toast.success("Vault password updated");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPwdBusy(false); }
+  };
+
+  const removePassword = async () => {
+    if (!pwdCurrent) return toast.error("Current password required");
+    if (!confirm("Remove vault password protection?")) return;
+    setPwdBusy(true);
+    try {
+      await vault("password_remove", { current_password: pwdCurrent });
+      setHasPassword(false);
+      setPwdOpen(false);
+      setPwdCurrent(""); setPwdNew(""); setPwdNew2("");
+      toast.success("Password removed");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPwdBusy(false); }
+  };
 
   const addSecret = async () => {
     if (!newName.trim() || !newValue) return toast.error("Name and value required");
@@ -154,12 +237,95 @@ export default function Vault() {
     !q || s.name.toLowerCase().includes(q.toLowerCase()) || (s.description ?? "").toLowerCase().includes(q.toLowerCase())
   );
 
+  // Lock screen
+  if (hasPassword && !unlocked) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Vault" description="Encrypted secrets — locked." />
+        <div className="max-w-md mx-auto rounded-lg border border-border bg-card p-8 text-center space-y-4">
+          <div className="h-12 w-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <div className="font-semibold">Vault locked</div>
+            <div className="text-sm text-muted-foreground mt-1">Enter your vault password to access secrets.</div>
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); doUnlock(); }} className="space-y-3 text-left">
+            <Input
+              type="password"
+              autoFocus
+              placeholder="Vault password"
+              value={unlockPwd}
+              onChange={(e) => setUnlockPwd(e.target.value)}
+            />
+            <Button type="submit" className="w-full" disabled={unlocking || !unlockPwd}>
+              <Unlock className="h-3.5 w-3.5 mr-1.5" />
+              {unlocking ? "Unlocking…" : "Unlock vault"}
+            </Button>
+          </form>
+          <p className="text-[11px] text-muted-foreground">
+            Unlock lasts 30 minutes per browser session. Lock anytime from the header.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Vault"
         description="Encrypted secrets — API keys, tokens, credentials. AES-GCM at rest, never logged."
         actions={
+          <div className="flex items-center gap-2">
+            <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  {hasPassword ? <ShieldCheck className="h-3.5 w-3.5 mr-1.5 text-primary" /> : <Lock className="h-3.5 w-3.5 mr-1.5" />}
+                  {hasPassword ? "Password" : "Set password"}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{hasPassword ? "Change vault password" : "Set vault password"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  {hasPassword && (
+                    <div>
+                      <Label>Current password</Label>
+                      <Input type="password" value={pwdCurrent} onChange={(e) => setPwdCurrent(e.target.value)} />
+                    </div>
+                  )}
+                  <div>
+                    <Label>New password</Label>
+                    <Input type="password" value={pwdNew} onChange={(e) => setPwdNew(e.target.value)} placeholder="At least 8 characters" />
+                  </div>
+                  <div>
+                    <Label>Confirm new password</Label>
+                    <Input type="password" value={pwdNew2} onChange={(e) => setPwdNew2(e.target.value)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The password gates access to your encrypted secrets. If you forget it, an account admin must reset it — there is no recovery.
+                  </p>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  {hasPassword && (
+                    <Button variant="ghost" className="text-destructive hover:text-destructive sm:mr-auto" disabled={pwdBusy} onClick={removePassword}>
+                      Remove password
+                    </Button>
+                  )}
+                  <Button variant="ghost" onClick={() => setPwdOpen(false)}>Cancel</Button>
+                  <Button onClick={savePassword} disabled={pwdBusy}>
+                    {hasPassword ? "Update password" : "Set password"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            {hasPassword && (
+              <Button size="sm" variant="ghost" onClick={lock} title="Lock vault">
+                <Lock className="h-3.5 w-3.5 mr-1.5" />Lock
+              </Button>
+            )}
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />New secret</Button>
@@ -197,6 +363,7 @@ export default function Vault() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 

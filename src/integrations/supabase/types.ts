@@ -615,6 +615,8 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          vault_password_hash: string | null
+          vault_password_salt: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -628,6 +630,8 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          vault_password_hash?: string | null
+          vault_password_salt?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -641,6 +645,8 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          vault_password_hash?: string | null
+          vault_password_salt?: string | null
         }
         Relationships: []
       }

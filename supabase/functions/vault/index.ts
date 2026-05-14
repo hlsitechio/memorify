@@ -58,6 +58,67 @@ async function decrypt(value: string, iv: string): Promise<string> {
   return dec.decode(pt);
 }
 
+// --- Password hashing (PBKDF2-SHA256) ---
+async function hashPassword(pwd: string, saltB64?: string): Promise<{ hash: string; salt: string }> {
+  const salt = saltB64 ? fromB64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const baseKey = await crypto.subtle.importKey("raw", enc.encode(pwd), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: 200_000 },
+    baseKey,
+    256,
+  );
+  return { hash: b64(bits), salt: b64(salt) };
+}
+
+// --- Unlock token (HMAC-signed) ---
+let hmacKeyPromise: Promise<CryptoKey> | null = null;
+async function getHmacKey(): Promise<CryptoKey> {
+  if (!hmacKeyPromise) {
+    hmacKeyPromise = crypto.subtle.importKey(
+      "raw",
+      enc.encode(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! + ":vault-unlock"),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"],
+    );
+  }
+  return hmacKeyPromise;
+}
+async function issueUnlockToken(user_id: string, ttlSec = 60 * 30): Promise<{ token: string; exp: number }> {
+  const exp = Math.floor(Date.now() / 1000) + ttlSec;
+  const payload = `${user_id}.${exp}`;
+  const sig = await crypto.subtle.sign("HMAC", await getHmacKey(), enc.encode(payload));
+  return { token: `${payload}.${b64(sig)}`, exp };
+}
+async function verifyUnlockToken(token: string, user_id: string): Promise<boolean> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  const [uid, expStr, sigB64] = parts;
+  if (uid !== user_id) return false;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
+  try {
+    return await crypto.subtle.verify(
+      "HMAC", await getHmacKey(), fromB64(sigB64), enc.encode(`${uid}.${expStr}`),
+    );
+  } catch { return false; }
+}
+
+async function vaultPasswordRow(sb: any, user_id: string) {
+  const { data } = await sb.from("profiles")
+    .select("vault_password_hash, vault_password_salt")
+    .eq("user_id", user_id).maybeSingle();
+  return data;
+}
+async function ensureUnlocked(req: Request, sb: any, user_id: string): Promise<string | null> {
+  const row = await vaultPasswordRow(sb, user_id);
+  if (!row?.vault_password_hash) return null; // no password set => open
+  const tok = req.headers.get("x-vault-unlock") || "";
+  if (!tok) return "vault locked";
+  const ok = await verifyUnlockToken(tok, user_id);
+  return ok ? null : "vault locked";
+}
+
 // --- Auth helpers ---
 async function userFromJWT(req: Request): Promise<{ user_id: string } | null> {
   const auth = req.headers.get("authorization") || "";
@@ -108,6 +169,65 @@ Deno.serve(async (req) => {
   if (!u) return json({ ok: false, error: "unauthorized" }, 401);
 
   try {
+    // --- Password management actions (never gated) ---
+    if (action === "password_status") {
+      const row = await vaultPasswordRow(sb, u.user_id);
+      return json({ ok: true, has_password: !!row?.vault_password_hash });
+    }
+    if (action === "password_set") {
+      const next = String(body?.new_password ?? "");
+      const current = body?.current_password ? String(body.current_password) : "";
+      if (next.length < 8) return json({ ok: false, error: "Password must be at least 8 characters" }, 400);
+      const row = await vaultPasswordRow(sb, u.user_id);
+      if (row?.vault_password_hash) {
+        if (!current) return json({ ok: false, error: "Current password required" }, 400);
+        const check = await hashPassword(current, row.vault_password_salt!);
+        if (check.hash !== row.vault_password_hash) return json({ ok: false, error: "Current password incorrect" }, 401);
+      }
+      const h = await hashPassword(next);
+      const { error } = await sb.from("profiles").upsert(
+        { user_id: u.user_id, vault_password_hash: h.hash, vault_password_salt: h.salt },
+        { onConflict: "user_id" },
+      );
+      if (error) return json({ ok: false, error: error.message }, 500);
+      const tok = await issueUnlockToken(u.user_id);
+      sb.from("events").insert({ user_id: u.user_id, kind: "vault.password_set", source: "ui", payload: {} }).then(() => {});
+      return json({ ok: true, token: tok.token, exp: tok.exp });
+    }
+    if (action === "password_remove") {
+      const current = String(body?.current_password ?? "");
+      const row = await vaultPasswordRow(sb, u.user_id);
+      if (!row?.vault_password_hash) return json({ ok: true });
+      const check = await hashPassword(current, row.vault_password_salt!);
+      if (check.hash !== row.vault_password_hash) return json({ ok: false, error: "Password incorrect" }, 401);
+      await sb.from("profiles").update({ vault_password_hash: null, vault_password_salt: null }).eq("user_id", u.user_id);
+      sb.from("events").insert({ user_id: u.user_id, kind: "vault.password_remove", source: "ui", payload: {} }).then(() => {});
+      return json({ ok: true });
+    }
+    if (action === "unlock") {
+      const pwd = String(body?.password ?? "");
+      const row = await vaultPasswordRow(sb, u.user_id);
+      if (!row?.vault_password_hash) {
+        const tok = await issueUnlockToken(u.user_id);
+        return json({ ok: true, token: tok.token, exp: tok.exp });
+      }
+      const check = await hashPassword(pwd, row.vault_password_salt!);
+      if (check.hash !== row.vault_password_hash) {
+        sb.from("events").insert({ user_id: u.user_id, kind: "vault.unlock_failed", source: "ui", payload: {} }).then(() => {});
+        return json({ ok: false, error: "Incorrect password" }, 401);
+      }
+      const tok = await issueUnlockToken(u.user_id);
+      sb.from("events").insert({ user_id: u.user_id, kind: "vault.unlock", source: "ui", payload: {} }).then(() => {});
+      return json({ ok: true, token: tok.token, exp: tok.exp });
+    }
+
+    // --- Gated actions (require unlock when password set) ---
+    const gatedActions = new Set(["list", "set", "delete", "reveal", "import_env"]);
+    if (gatedActions.has(action)) {
+      const lockErr = await ensureUnlocked(req, sb, u.user_id);
+      if (lockErr) return json({ ok: false, error: lockErr, locked: true }, 423);
+    }
+
     switch (action) {
       case "list": {
         const { data } = await sb.from("vault_secrets")
