@@ -6,8 +6,9 @@ import { Link } from "react-router-dom";
 import {
   Database, Plug, Activity, ArrowUpRight, BookOpen, Sparkles, Puzzle,
   BarChart3, FileText, KeyRound, Zap, TrendingUp, Clock, GripVertical, X,
-  StickyNote, ListTodo, Bookmark, Plus, Trash2, Calendar,
+  StickyNote, ListTodo, Bookmark, Plus, Trash2, Calendar, Copy, Check,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type RProps = { onRemove?: () => void };
 
