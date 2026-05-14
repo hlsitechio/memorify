@@ -44,16 +44,6 @@ type MemoryRow = {
   updated_at: string;
 };
 
-type VersionRow = {
-  id: string;
-  version: number;
-  namespace: string;
-  category: string;
-  content: string;
-  tags: string[] | null;
-  metadata: any;
-  created_at: string;
-};
 
 export default function Memory() {
   const { user } = useAuth();
