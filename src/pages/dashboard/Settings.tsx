@@ -222,6 +222,7 @@ export default function Settings() {
             </section>
           </TabsContent>
 
+          <TabsContent value="workspace">
             <section className="rounded-lg border border-border bg-card p-6">
               <h2 className="text-sm font-semibold mb-4">Workspace</h2>
               <dl className="text-sm space-y-2">
