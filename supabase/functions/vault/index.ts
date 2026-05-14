@@ -169,6 +169,65 @@ Deno.serve(async (req) => {
   if (!u) return json({ ok: false, error: "unauthorized" }, 401);
 
   try {
+    // --- Password management actions (never gated) ---
+    if (action === "password_status") {
+      const row = await vaultPasswordRow(sb, u.user_id);
+      return json({ ok: true, has_password: !!row?.vault_password_hash });
+    }
+    if (action === "password_set") {
+      const next = String(body?.new_password ?? "");
+      const current = body?.current_password ? String(body.current_password) : "";
+      if (next.length < 8) return json({ ok: false, error: "Password must be at least 8 characters" }, 400);
+      const row = await vaultPasswordRow(sb, u.user_id);
+      if (row?.vault_password_hash) {
+        if (!current) return json({ ok: false, error: "Current password required" }, 400);
+        const check = await hashPassword(current, row.vault_password_salt!);
+        if (check.hash !== row.vault_password_hash) return json({ ok: false, error: "Current password incorrect" }, 401);
+      }
+      const h = await hashPassword(next);
+      const { error } = await sb.from("profiles").upsert(
+        { user_id: u.user_id, vault_password_hash: h.hash, vault_password_salt: h.salt },
+        { onConflict: "user_id" },
+      );
+      if (error) return json({ ok: false, error: error.message }, 500);
+      const tok = await issueUnlockToken(u.user_id);
+      sb.from("events").insert({ user_id: u.user_id, kind: "vault.password_set", source: "ui", payload: {} }).then(() => {});
+      return json({ ok: true, token: tok.token, exp: tok.exp });
+    }
+    if (action === "password_remove") {
+      const current = String(body?.current_password ?? "");
+      const row = await vaultPasswordRow(sb, u.user_id);
+      if (!row?.vault_password_hash) return json({ ok: true });
+      const check = await hashPassword(current, row.vault_password_salt!);
+      if (check.hash !== row.vault_password_hash) return json({ ok: false, error: "Password incorrect" }, 401);
+      await sb.from("profiles").update({ vault_password_hash: null, vault_password_salt: null }).eq("user_id", u.user_id);
+      sb.from("events").insert({ user_id: u.user_id, kind: "vault.password_remove", source: "ui", payload: {} }).then(() => {});
+      return json({ ok: true });
+    }
+    if (action === "unlock") {
+      const pwd = String(body?.password ?? "");
+      const row = await vaultPasswordRow(sb, u.user_id);
+      if (!row?.vault_password_hash) {
+        const tok = await issueUnlockToken(u.user_id);
+        return json({ ok: true, token: tok.token, exp: tok.exp });
+      }
+      const check = await hashPassword(pwd, row.vault_password_salt!);
+      if (check.hash !== row.vault_password_hash) {
+        sb.from("events").insert({ user_id: u.user_id, kind: "vault.unlock_failed", source: "ui", payload: {} }).then(() => {});
+        return json({ ok: false, error: "Incorrect password" }, 401);
+      }
+      const tok = await issueUnlockToken(u.user_id);
+      sb.from("events").insert({ user_id: u.user_id, kind: "vault.unlock", source: "ui", payload: {} }).then(() => {});
+      return json({ ok: true, token: tok.token, exp: tok.exp });
+    }
+
+    // --- Gated actions (require unlock when password set) ---
+    const gatedActions = new Set(["list", "set", "delete", "reveal", "import_env"]);
+    if (gatedActions.has(action)) {
+      const lockErr = await ensureUnlocked(req, sb, u.user_id);
+      if (lockErr) return json({ ok: false, error: lockErr, locked: true }, 423);
+    }
+
     switch (action) {
       case "list": {
         const { data } = await sb.from("vault_secrets")
