@@ -18,7 +18,8 @@ import {
   resetAccent,
   setStoredAccent,
 } from "@/lib/theme";
-import { Check, RotateCcw, Palette, User, Briefcase, ShieldAlert } from "lucide-react";
+import { Check, RotateCcw, Palette, User, Briefcase, ShieldAlert, Bot } from "lucide-react";
+import { AgentsManager } from "./Agents";
 import { cn } from "@/lib/utils";
 
 export default function Settings() {
@@ -72,11 +73,12 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="Settings" description="Manage your profile, workspace, and appearance" />
-      <div className="p-6 max-w-3xl">
+      <div className="p-6 max-w-5xl">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-xl">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="profile" className="gap-1.5"><User className="h-3.5 w-3.5" />Profile</TabsTrigger>
             <TabsTrigger value="design" className="gap-1.5"><Palette className="h-3.5 w-3.5" />Design</TabsTrigger>
+            <TabsTrigger value="agents" className="gap-1.5"><Bot className="h-3.5 w-3.5" />Agents</TabsTrigger>
             <TabsTrigger value="workspace" className="gap-1.5"><Briefcase className="h-3.5 w-3.5" />Workspace</TabsTrigger>
             <TabsTrigger value="danger" className="gap-1.5"><ShieldAlert className="h-3.5 w-3.5" />Danger</TabsTrigger>
           </TabsList>
@@ -205,6 +207,18 @@ export default function Settings() {
                   <RotateCcw className="h-3.5 w-3.5 mr-1.5" />Reset to default
                 </Button>
               </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="agents">
+            <section className="rounded-lg border border-border bg-card p-6">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold">AI Agents</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Connect, pause, rotate tokens, and inspect every AI agent attached to your workspace.
+                </p>
+              </div>
+              <AgentsManager embedded />
             </section>
           </TabsContent>
 

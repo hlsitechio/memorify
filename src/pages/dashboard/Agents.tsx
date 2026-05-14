@@ -92,6 +92,20 @@ function CopyField({ value, label, mono = true, multiline = false }: { value: st
 
 
 export default function Agents() {
+  return (
+    <>
+      <PageHeader
+        title="Agents"
+        description="Connect AI agents to this workspace. No ngrok, no local tunnel — just a hosted URL and a token."
+      />
+      <div className="p-6 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        <AgentsManager />
+      </div>
+    </>
+  );
+}
+
+export function AgentsManager({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -208,76 +222,72 @@ export default function Agents() {
 
   return (
     <>
-      <PageHeader
-        title="Agents"
-        description="Connect AI agents to this workspace. No ngrok, no local tunnel — just a hosted URL and a token."
-        actions={
+      {!embedded && (
+        <div className="flex justify-end mb-3">
           <Button size="sm" variant="outline" onClick={load}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
           </Button>
-        }
-      />
-      <div className="p-6 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
-        <Tabs defaultValue={agents.length ? "connected" : "library"} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="connected">
-              Connected <Badge variant="secondary" className="ml-2">{agents.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="activity">
-              <Activity className="h-3.5 w-3.5 mr-1.5" /> Activity
-            </TabsTrigger>
-            <TabsTrigger value="library">Library</TabsTrigger>
-          </TabsList>
+        </div>
+      )}
+      <Tabs defaultValue={agents.length ? "connected" : "library"} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="connected">
+            Connected <Badge variant="secondary" className="ml-2">{agents.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <Activity className="h-3.5 w-3.5 mr-1.5" /> Activity
+          </TabsTrigger>
+          <TabsTrigger value="library">Library</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="connected" className="mt-0 space-y-3">
-            {loading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
-            ) : agents.length === 0 ? (
-              <EmptyHero onConnect={() => connect("claude_code", "Claude Code")} />
-            ) : (
-              agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} onPauseToggle={() => pauseToggle(a)} onResync={() => resync(a)} onRevoke={() => revokeToken(a)} onRename={(n) => rename(a, n)} onRenameWorkspace={(n) => renameWorkspace(a, n)} onSetShortName={(n) => setShortName(a, n)} />)
-            )}
-          </TabsContent>
+        <TabsContent value="connected" className="mt-0 space-y-3">
+          {loading ? (
+            <div className="text-sm text-muted-foreground">Loading…</div>
+          ) : agents.length === 0 ? (
+            <EmptyHero onConnect={() => connect("claude_code", "Claude Code")} />
+          ) : (
+            agents.map((a) => <AgentRow key={a.id} agent={a} onOpen={() => setWizardId(a.id)} onDelete={() => remove(a.id)} onPauseToggle={() => pauseToggle(a)} onResync={() => resync(a)} onRevoke={() => revokeToken(a)} onRename={(n) => rename(a, n)} onRenameWorkspace={(n) => renameWorkspace(a, n)} onSetShortName={(n) => setShortName(a, n)} />)
+          )}
+        </TabsContent>
 
-          <TabsContent value="activity" className="mt-0">
-            <ActivityFeed userId={user?.id} agents={agents} />
-          </TabsContent>
+        <TabsContent value="activity" className="mt-0">
+          <ActivityFeed userId={user?.id} agents={agents} />
+        </TabsContent>
 
-          <TabsContent value="library" className="mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {CATALOG.map((c) => {
-                const Icon = c.icon;
-                const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot";
-                return (
-                  <div key={c.kind} className={cn(
-                    "relative rounded-lg border bg-card p-4 transition-all hover:border-primary/40",
-                    c.featured ? "border-primary/40 shadow-sm" : "border-border"
-                  )}>
-                    {c.featured && (
-                      <Badge className="absolute top-3 right-3 text-[10px]" variant="default">Featured</Badge>
-                    )}
-                    <div className={cn("h-10 w-10 rounded-md bg-secondary/60 flex items-center justify-center mb-3", c.tone)}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="text-sm font-semibold">{c.name}</div>
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">{c.tagline}</div>
-                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{c.description}</p>
-                    <Button
-                      size="sm"
-                      className="w-full h-8 mt-4"
-                      variant={available ? "default" : "outline"}
-                      disabled={!available}
-                      onClick={() => connect(c.kind, c.name)}
-                    >
-                      {available ? <><Plus className="h-3.5 w-3.5 mr-1.5" /> Connect</> : "Coming soon"}
-                    </Button>
+        <TabsContent value="library" className="mt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {CATALOG.map((c) => {
+              const Icon = c.icon;
+              const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot";
+              return (
+                <div key={c.kind} className={cn(
+                  "relative rounded-lg border bg-card p-4 transition-all hover:border-primary/40",
+                  c.featured ? "border-primary/40 shadow-sm" : "border-border"
+                )}>
+                  {c.featured && (
+                    <Badge className="absolute top-3 right-3 text-[10px]" variant="default">Featured</Badge>
+                  )}
+                  <div className={cn("h-10 w-10 rounded-md bg-secondary/60 flex items-center justify-center mb-3", c.tone)}>
+                    <Icon className="h-5 w-5" />
                   </div>
-                );
-              })}
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+                  <div className="text-sm font-semibold">{c.name}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">{c.tagline}</div>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{c.description}</p>
+                  <Button
+                    size="sm"
+                    className="w-full h-8 mt-4"
+                    variant={available ? "default" : "outline"}
+                    disabled={!available}
+                    onClick={() => connect(c.kind, c.name)}
+                  >
+                    {available ? <><Plus className="h-3.5 w-3.5 mr-1.5" /> Connect</> : "Coming soon"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <ConnectWizard
         agent={wizardAgent}
