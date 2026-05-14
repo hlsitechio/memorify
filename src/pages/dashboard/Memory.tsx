@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Trash2, RefreshCcw, Database, Sparkles, X, Archive, ArchiveRestore, History, RotateCcw, Folder, FolderOpen } from "lucide-react";
+import { Plus, Search, Trash2, RefreshCcw, Database, Sparkles, X, Archive, ArchiveRestore, Folder, FolderOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -24,9 +25,9 @@ const PREDEFINED_CATEGORIES = [
   "billing",
   "integrations",
 ];
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type MemoryRow = {
@@ -43,19 +44,10 @@ type MemoryRow = {
   updated_at: string;
 };
 
-type VersionRow = {
-  id: string;
-  version: number;
-  namespace: string;
-  category: string;
-  content: string;
-  tags: string[] | null;
-  metadata: any;
-  created_at: string;
-};
 
 export default function Memory() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [ws] = useCurrentWorkspace();
   const [rows, setRows] = useState<MemoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,9 +60,6 @@ export default function Memory() {
   const defaultNs = ws?.kind === "agent" && ws.agentId ? `agent:${ws.agentId}` : "default";
   const [form, setForm] = useState({ namespace: defaultNs, category: "general", content: "", tags: "" });
   useEffect(() => { setForm((f) => ({ ...f, namespace: defaultNs })); }, [defaultNs]);
-  const [editing, setEditing] = useState<MemoryRow | null>(null);
-  const [editForm, setEditForm] = useState({ namespace: "", category: "general", content: "", tags: "", metadata: "{}" });
-  const [versions, setVersions] = useState<VersionRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = async () => {
@@ -192,56 +181,6 @@ export default function Memory() {
     } finally {
       setAiBusy(false);
     }
-  };
-
-  const openEdit = async (r: MemoryRow) => {
-    setEditing(r);
-    setEditForm({
-      namespace: r.namespace,
-      category: r.category || "general",
-      content: r.content,
-      tags: (r.tags ?? []).join(", "),
-      metadata: JSON.stringify(r.metadata ?? {}, null, 2),
-    });
-    setVersions([]);
-    const { data } = await supabase
-      .from("memory_versions" as any)
-      .select("*")
-      .eq("memory_id", r.id)
-      .order("version", { ascending: false });
-    setVersions((data as any) ?? []);
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    let metadata: any = {};
-    try { metadata = JSON.parse(editForm.metadata || "{}"); } catch { return toast.error("Invalid JSON metadata"); }
-    const tags = editForm.tags.split(",").map((t) => t.trim()).filter(Boolean);
-    const { error } = await supabase.from("memories")
-      .update({
-        namespace: editForm.namespace,
-        category: editForm.category || "general",
-        content: editForm.content,
-        tags,
-        metadata,
-        updated_at: new Date().toISOString(),
-      } as any)
-      .eq("id", editing.id);
-    if (error) return toast.error(error.message);
-    toast.success("Saved — version recorded");
-    setEditing(null);
-  };
-
-  const restoreVersion = async (v: VersionRow) => {
-    if (!editing) return;
-    setEditForm({
-      namespace: v.namespace,
-      category: v.category || "general",
-      content: v.content,
-      tags: (v.tags ?? []).join(", "),
-      metadata: JSON.stringify(v.metadata ?? {}, null, 2),
-    });
-    toast.info(`Loaded version ${v.version} — click Save to restore`);
   };
 
   const archive = async (ids: string[], value: boolean) => {
@@ -461,7 +400,7 @@ export default function Memory() {
               </div>
             ) : (
               filtered.map((r) => (
-                <div key={r.id} className="grid grid-cols-[40px_140px_110px_120px_1fr_140px_110px_40px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => openEdit(r)}>
+                <div key={r.id} className="grid grid-cols-[40px_140px_110px_120px_1fr_140px_110px_40px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/dashboard/memory/${r.mem_id ?? r.id}`)}>
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggle(r.id)} />
                   </div>
@@ -489,99 +428,6 @@ export default function Memory() {
           </div>
       </div>
 
-      <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <SheetContent className="sm:max-w-3xl overflow-y-auto scrollbar-thin">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              Edit memory
-              {editing?.mem_id && (
-                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                  {editing.mem_id}
-                </span>
-              )}
-            </SheetTitle>
-            {editing && (
-              <p className="text-xs text-muted-foreground">
-                Created {format(new Date(editing.created_at), "PP p")} · Last updated {format(new Date(editing.updated_at), "PP p")}
-              </p>
-            )}
-          </SheetHeader>
-          <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Category</Label>
-                <Input value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Namespace</Label>
-                <Input value={editForm.namespace} onChange={(e) => setEditForm({ ...editForm, namespace: e.target.value })} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Content</Label>
-              <Textarea rows={16} value={editForm.content} onChange={(e) => setEditForm({ ...editForm, content: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Tags</Label>
-                <Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Metadata (JSON)</Label>
-                <Textarea rows={4} className="font-mono text-xs" value={editForm.metadata} onChange={(e) => setEditForm({ ...editForm, metadata: e.target.value })} />
-              </div>
-            </div>
-
-            <details className="group rounded-lg border border-border bg-card/30">
-              <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
-                <span className="flex items-center gap-2">
-                  <History className="h-3.5 w-3.5" /> Versions ({versions.length})
-                </span>
-                <span className="text-[10px] text-muted-foreground group-open:hidden">Show</span>
-                <span className="text-[10px] text-muted-foreground hidden group-open:inline">Hide</span>
-              </summary>
-              <div className="border-t border-border divide-y divide-border max-h-64 overflow-y-auto scrollbar-thin">
-                {versions.length === 0 ? (
-                  <div className="p-4 text-xs text-muted-foreground">No previous versions yet. Edits will be tracked here.</div>
-                ) : versions.map((v) => (
-                  <div key={v.id} className="p-3 text-xs space-y-1 hover:bg-secondary/30">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono">v{v.version}</span>
-                      <span className="text-muted-foreground">{format(new Date(v.created_at), "PP p")}</span>
-                    </div>
-                    <div className="text-muted-foreground">{v.category} · {v.namespace}</div>
-                    <div className="line-clamp-2">{v.content}</div>
-                    <div className="pt-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => restoreVersion(v)}>
-                        <RotateCcw className="h-3 w-3 mr-1" /> Load
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </details>
-          </div>
-          <SheetFooter className="mt-4 flex justify-between sm:justify-between">
-            <div>
-              {editing && (
-                editing.archived ? (
-                  <Button variant="outline" onClick={() => { archive([editing.id], false); setEditing(null); }}>
-                    <ArchiveRestore className="h-3.5 w-3.5 mr-1.5" /> Restore
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => { archive([editing.id], true); setEditing(null); }}>
-                    <Archive className="h-3.5 w-3.5 mr-1.5" /> Archive
-                  </Button>
-                )
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-              <Button onClick={saveEdit}>Save</Button>
-            </div>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }
