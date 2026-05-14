@@ -55,6 +55,72 @@ export function WelcomeWidget({ onRemove }: RProps) {
   const blurb = isAgent
     ? "You're now in this agent's workspace. Memories, events and tools below are scoped to it."
     : "Your agent memory layer is live. Add memories, plug in connectors, and watch your event bus.";
+
+  const [agent, setAgent] = useState<{ id: string; name: string; token: string; metadata: any } | null>(null);
+  const [copied, setCopied] = useState<"prompt" | "token" | null>(null);
+
+  useEffect(() => {
+    if (!isAgent || !ws?.agentId) { setAgent(null); return; }
+    supabase.from("agents")
+      .select("id,name,token,metadata")
+      .eq("id", ws.agentId)
+      .maybeSingle()
+      .then(({ data }) => setAgent(data as any));
+  }, [isAgent, ws?.agentId]);
+
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-api`;
+  const workspaceName = (agent?.metadata as any)?.workspace_name as string | undefined;
+  const wsIdForAgent = agent ? workspaceIdForAgent(agent.id) : "";
+
+  const connectPrompt = agent ? `You are ${agent.name} — a Synapse agent.
+
+## Your identity
+- Agent ID:    ${agent.id}
+- Workspace:   ${wsIdForAgent}${workspaceName ? `  ("${workspaceName}")` : ""}
+- Endpoint:    ${apiUrl}
+- Auth:        Authorization: Bearer $SYNAPSE_TOKEN
+
+## Set your token (one time, in your shell — do NOT commit this)
+\`\`\`bash
+export SYNAPSE_TOKEN="${agent.token}"
+\`\`\`
+PowerShell:
+\`\`\`powershell
+setx SYNAPSE_TOKEN "${agent.token}"
+\`\`\`
+
+## First thing on EVERY new session (REQUIRED)
+Run this in a bash tool to rehydrate yourself:
+
+\`\`\`bash
+curl -s -X POST ${apiUrl} \\
+  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"agents.bootstrap"}'
+\`\`\`
+
+This single call returns:
+- \`role\` — your role.md (read it carefully — that's who you are)
+- \`memories\` — your persisted memories
+- \`skills\` — what you can do
+- \`documents\` — the user's files (index)
+- \`events\` — your recent activity
+
+## After bootstrap
+- Use \`memory.remember\` to persist preferences, facts, decisions.
+- Use \`memory.recall\` for older context.
+- Use \`events.log\` to record meaningful actions.
+- Your role.md is just a memory — call \`memory.update\` with its id to evolve who you are over time.
+
+The body of this prompt (without the export line) is safe to commit to CLAUDE.md. Keep the token in \`$SYNAPSE_TOKEN\` only.` : "";
+
+  const doCopy = async (kind: "prompt" | "token", value: string) => {
+    await navigator.clipboard.writeText(value);
+    setCopied(kind);
+    toast.success(kind === "token" ? "Token copied" : "Connect prompt copied");
+    setTimeout(() => setCopied(null), 1400);
+  };
+
   return (
     <WidgetShell title="Welcome" icon={Sparkles} onRemove={onRemove}>
       <div className="flex items-start gap-3">
@@ -72,6 +138,27 @@ export function WelcomeWidget({ onRemove }: RProps) {
             <div className="text-[11px] font-mono text-muted-foreground truncate">{wsId}</div>
           )}
           <p className="text-xs text-muted-foreground">{blurb}</p>
+
+          {isAgent && agent && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                onClick={() => doCopy("prompt", connectPrompt)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-[11px] font-medium transition-colors"
+                title="Copy the full reconnect prompt (token + bootstrap instructions) — paste into Claude Code / CLAUDE.md"
+              >
+                {copied === "prompt" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                Copy connect prompt
+              </button>
+              <button
+                onClick={() => doCopy("token", agent.token)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border hover:bg-secondary px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+                title="Copy just the SYNAPSE_TOKEN"
+              >
+                {copied === "token" ? <Check className="h-3 w-3 text-emerald-400" /> : <KeyRound className="h-3 w-3" />}
+                Copy token
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </WidgetShell>
