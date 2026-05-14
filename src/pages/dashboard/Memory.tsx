@@ -25,9 +25,9 @@ const PREDEFINED_CATEGORIES = [
   "billing",
   "integrations",
 ];
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type MemoryRow = {
