@@ -548,21 +548,7 @@ export default function Mcp() {
       </Dialog>
 
       <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
-        {servers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-12 text-center">
-            <Server className="h-8 w-8 mx-auto mb-3 text-muted-foreground/60" />
-            <p className="text-sm font-medium">No MCP servers</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Add a Streamable HTTP or SSE MCP server to expose its tools to your agents.</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {PRESETS.map((p) => (
-                <Button key={p.id} variant="outline" size="sm" onClick={() => setPresetOpen(p)}>
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Connect {p.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          servers.map((s) => {
+        {servers.map((s) => {
             const stools = tools.filter((t) => t.mcp_server_id === s.id);
             return (
               <Collapsible key={s.id} className="rounded-lg border border-border bg-card overflow-hidden group/srv">
