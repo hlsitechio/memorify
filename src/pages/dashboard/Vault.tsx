@@ -363,6 +363,7 @@ export default function Vault() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 
