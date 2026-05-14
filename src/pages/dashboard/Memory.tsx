@@ -490,7 +490,7 @@ export default function Memory() {
       </div>
 
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <SheetContent className="sm:max-w-2xl overflow-y-auto scrollbar-thin">
+        <SheetContent className="sm:max-w-3xl overflow-y-auto scrollbar-thin">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               Edit memory
@@ -506,37 +506,41 @@ export default function Memory() {
               </p>
             )}
           </SheetHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label>Category</Label>
-                  <Input value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Namespace</Label>
-                  <Input value={editForm.namespace} onChange={(e) => setEditForm({ ...editForm, namespace: e.target.value })} />
-                </div>
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Category</Label>
+                <Input value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Content</Label>
-                <Textarea rows={6} value={editForm.content} onChange={(e) => setEditForm({ ...editForm, content: e.target.value })} />
+                <Label>Namespace</Label>
+                <Input value={editForm.namespace} onChange={(e) => setEditForm({ ...editForm, namespace: e.target.value })} />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Content</Label>
+              <Textarea rows={16} value={editForm.content} onChange={(e) => setEditForm({ ...editForm, content: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Tags</Label>
                 <Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Metadata (JSON)</Label>
-                <Textarea rows={5} className="font-mono text-xs" value={editForm.metadata} onChange={(e) => setEditForm({ ...editForm, metadata: e.target.value })} />
+                <Textarea rows={4} className="font-mono text-xs" value={editForm.metadata} onChange={(e) => setEditForm({ ...editForm, metadata: e.target.value })} />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
-                <History className="h-3.5 w-3.5" /> Versions ({versions.length})
-              </div>
-              <div className="rounded-lg border border-border divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
+            <details className="group rounded-lg border border-border bg-card/30">
+              <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                <span className="flex items-center gap-2">
+                  <History className="h-3.5 w-3.5" /> Versions ({versions.length})
+                </span>
+                <span className="text-[10px] text-muted-foreground group-open:hidden">Show</span>
+                <span className="text-[10px] text-muted-foreground hidden group-open:inline">Hide</span>
+              </summary>
+              <div className="border-t border-border divide-y divide-border max-h-64 overflow-y-auto scrollbar-thin">
                 {versions.length === 0 ? (
                   <div className="p-4 text-xs text-muted-foreground">No previous versions yet. Edits will be tracked here.</div>
                 ) : versions.map((v) => (
@@ -555,7 +559,7 @@ export default function Memory() {
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           </div>
           <SheetFooter className="mt-4 flex justify-between sm:justify-between">
             <div>
