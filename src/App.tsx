@@ -12,6 +12,7 @@ import ResetPassword from "./pages/ResetPassword.tsx";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import DashboardHome from "./pages/dashboard/Home";
 import Memory from "./pages/dashboard/Memory";
+import MemoryDetail from "./pages/dashboard/MemoryDetail";
 import Connectors from "./pages/dashboard/Connectors";
 import Events from "./pages/dashboard/Events";
 import Logs from "./pages/dashboard/Logs";
