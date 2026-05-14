@@ -71,7 +71,6 @@ export default function Memory() {
   const [form, setForm] = useState({ namespace: defaultNs, category: "general", content: "", tags: "" });
   useEffect(() => { setForm((f) => ({ ...f, namespace: defaultNs })); }, [defaultNs]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = async () => {
     if (!user) return;
