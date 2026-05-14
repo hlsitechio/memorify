@@ -57,6 +57,7 @@ type VersionRow = {
 
 export default function Memory() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [ws] = useCurrentWorkspace();
   const [rows, setRows] = useState<MemoryRow[]>([]);
   const [loading, setLoading] = useState(true);
