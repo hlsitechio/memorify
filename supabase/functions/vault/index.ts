@@ -58,6 +58,67 @@ async function decrypt(value: string, iv: string): Promise<string> {
   return dec.decode(pt);
 }
 
+// --- Password hashing (PBKDF2-SHA256) ---
+async function hashPassword(pwd: string, saltB64?: string): Promise<{ hash: string; salt: string }> {
+  const salt = saltB64 ? fromB64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const baseKey = await crypto.subtle.importKey("raw", enc.encode(pwd), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: 200_000 },
+    baseKey,
+    256,
+  );
+  return { hash: b64(bits), salt: b64(salt) };
+}
+
+// --- Unlock token (HMAC-signed) ---
+let hmacKeyPromise: Promise<CryptoKey> | null = null;
+async function getHmacKey(): Promise<CryptoKey> {
+  if (!hmacKeyPromise) {
+    hmacKeyPromise = crypto.subtle.importKey(
+      "raw",
+      enc.encode(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! + ":vault-unlock"),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"],
+    );
+  }
+  return hmacKeyPromise;
+}
+async function issueUnlockToken(user_id: string, ttlSec = 60 * 30): Promise<{ token: string; exp: number }> {
+  const exp = Math.floor(Date.now() / 1000) + ttlSec;
+  const payload = `${user_id}.${exp}`;
+  const sig = await crypto.subtle.sign("HMAC", await getHmacKey(), enc.encode(payload));
+  return { token: `${payload}.${b64(sig)}`, exp };
+}
+async function verifyUnlockToken(token: string, user_id: string): Promise<boolean> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  const [uid, expStr, sigB64] = parts;
+  if (uid !== user_id) return false;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
+  try {
+    return await crypto.subtle.verify(
+      "HMAC", await getHmacKey(), fromB64(sigB64), enc.encode(`${uid}.${expStr}`),
+    );
+  } catch { return false; }
+}
+
+async function vaultPasswordRow(sb: any, user_id: string) {
+  const { data } = await sb.from("profiles")
+    .select("vault_password_hash, vault_password_salt")
+    .eq("user_id", user_id).maybeSingle();
+  return data;
+}
+async function ensureUnlocked(req: Request, sb: any, user_id: string): Promise<string | null> {
+  const row = await vaultPasswordRow(sb, user_id);
+  if (!row?.vault_password_hash) return null; // no password set => open
+  const tok = req.headers.get("x-vault-unlock") || "";
+  if (!tok) return "vault locked";
+  const ok = await verifyUnlockToken(tok, user_id);
+  return ok ? null : "vault locked";
+}
+
 // --- Auth helpers ---
 async function userFromJWT(req: Request): Promise<{ user_id: string } | null> {
   const auth = req.headers.get("authorization") || "";
