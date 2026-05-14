@@ -18,7 +18,8 @@ import {
   resetAccent,
   setStoredAccent,
 } from "@/lib/theme";
-import { Check, RotateCcw, Palette, User, Briefcase, ShieldAlert } from "lucide-react";
+import { Check, RotateCcw, Palette, User, Briefcase, ShieldAlert, Bot } from "lucide-react";
+import { AgentsManager } from "./Agents";
 import { cn } from "@/lib/utils";
 
 export default function Settings() {
