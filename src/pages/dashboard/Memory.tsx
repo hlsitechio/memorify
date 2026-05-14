@@ -70,9 +70,7 @@ export default function Memory() {
   const defaultNs = ws?.kind === "agent" && ws.agentId ? `agent:${ws.agentId}` : "default";
   const [form, setForm] = useState({ namespace: defaultNs, category: "general", content: "", tags: "" });
   useEffect(() => { setForm((f) => ({ ...f, namespace: defaultNs })); }, [defaultNs]);
-  const [editing, setEditing] = useState<MemoryRow | null>(null);
-  const [editForm, setEditForm] = useState({ namespace: "", category: "general", content: "", tags: "", metadata: "{}" });
-  const [versions, setVersions] = useState<VersionRow[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = async () => {
