@@ -72,16 +72,91 @@ export default function Vault() {
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Password gate state
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [unlocked, setUnlocked] = useState<boolean>(!!sessionStorage.getItem("vault_unlock"));
+  const [unlockPwd, setUnlockPwd] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwdCurrent, setPwdCurrent] = useState("");
+  const [pwdNew, setPwdNew] = useState("");
+  const [pwdNew2, setPwdNew2] = useState("");
+  const [pwdBusy, setPwdBusy] = useState(false);
+
   const refresh = useCallback(async () => {
     try {
       const { items } = await vault("list");
       setItems(items);
     } catch (e: any) {
-      toast.error(e.message);
+      if (!/locked/i.test(e.message)) toast.error(e.message);
     }
   }, []);
 
-  useEffect(() => { if (user) refresh(); }, [user, refresh]);
+  useEffect(() => {
+    if (!user) return;
+    vault("password_status").then((r) => {
+      setHasPassword(!!r.has_password);
+      if (!r.has_password) setUnlocked(true);
+    }).catch(() => {});
+    const onLock = () => setUnlocked(false);
+    window.addEventListener("vault:locked", onLock);
+    return () => window.removeEventListener("vault:locked", onLock);
+  }, [user]);
+
+  useEffect(() => { if (user && unlocked) refresh(); }, [user, unlocked, refresh]);
+
+  const doUnlock = async () => {
+    if (!unlockPwd) return;
+    setUnlocking(true);
+    try {
+      const r = await vault("unlock", { password: unlockPwd });
+      sessionStorage.setItem("vault_unlock", r.token);
+      setUnlocked(true);
+      setUnlockPwd("");
+      toast.success("Vault unlocked");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setUnlocking(false); }
+  };
+
+  const lock = () => {
+    sessionStorage.removeItem("vault_unlock");
+    setUnlocked(false);
+    setRevealed({});
+    toast.success("Vault locked");
+  };
+
+  const savePassword = async () => {
+    if (pwdNew.length < 8) return toast.error("Password must be at least 8 characters");
+    if (pwdNew !== pwdNew2) return toast.error("Passwords do not match");
+    setPwdBusy(true);
+    try {
+      const r = await vault("password_set", {
+        new_password: pwdNew,
+        current_password: hasPassword ? pwdCurrent : undefined,
+      });
+      sessionStorage.setItem("vault_unlock", r.token);
+      setHasPassword(true);
+      setUnlocked(true);
+      setPwdOpen(false);
+      setPwdCurrent(""); setPwdNew(""); setPwdNew2("");
+      toast.success("Vault password updated");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPwdBusy(false); }
+  };
+
+  const removePassword = async () => {
+    if (!pwdCurrent) return toast.error("Current password required");
+    if (!confirm("Remove vault password protection?")) return;
+    setPwdBusy(true);
+    try {
+      await vault("password_remove", { current_password: pwdCurrent });
+      setHasPassword(false);
+      setPwdOpen(false);
+      setPwdCurrent(""); setPwdNew(""); setPwdNew2("");
+      toast.success("Password removed");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPwdBusy(false); }
+  };
 
   const addSecret = async () => {
     if (!newName.trim() || !newValue) return toast.error("Name and value required");
