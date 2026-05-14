@@ -33,6 +33,7 @@ async function vault(action: string, body: Record<string, any> = {}) {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
   if (!token) throw new Error("Not signed in");
+  const unlock = sessionStorage.getItem("vault_unlock") || "";
   const r = await fetch(
     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault`,
     {
@@ -41,12 +42,19 @@ async function vault(action: string, body: Record<string, any> = {}) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        ...(unlock ? { "x-vault-unlock": unlock } : {}),
       },
       body: JSON.stringify({ action, ...body }),
     },
   );
   const j = await r.json();
-  if (!j.ok) throw new Error(j.error || "Vault error");
+  if (!j.ok) {
+    if (j.locked) {
+      sessionStorage.removeItem("vault_unlock");
+      window.dispatchEvent(new Event("vault:locked"));
+    }
+    throw new Error(j.error || "Vault error");
+  }
   return j;
 }
 
