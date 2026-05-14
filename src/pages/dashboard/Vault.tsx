@@ -237,12 +237,95 @@ export default function Vault() {
     !q || s.name.toLowerCase().includes(q.toLowerCase()) || (s.description ?? "").toLowerCase().includes(q.toLowerCase())
   );
 
+  // Lock screen
+  if (hasPassword && !unlocked) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Vault" description="Encrypted secrets — locked." />
+        <div className="max-w-md mx-auto rounded-lg border border-border bg-card p-8 text-center space-y-4">
+          <div className="h-12 w-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <div className="font-semibold">Vault locked</div>
+            <div className="text-sm text-muted-foreground mt-1">Enter your vault password to access secrets.</div>
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); doUnlock(); }} className="space-y-3 text-left">
+            <Input
+              type="password"
+              autoFocus
+              placeholder="Vault password"
+              value={unlockPwd}
+              onChange={(e) => setUnlockPwd(e.target.value)}
+            />
+            <Button type="submit" className="w-full" disabled={unlocking || !unlockPwd}>
+              <Unlock className="h-3.5 w-3.5 mr-1.5" />
+              {unlocking ? "Unlocking…" : "Unlock vault"}
+            </Button>
+          </form>
+          <p className="text-[11px] text-muted-foreground">
+            Unlock lasts 30 minutes per browser session. Lock anytime from the header.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Vault"
         description="Encrypted secrets — API keys, tokens, credentials. AES-GCM at rest, never logged."
         actions={
+          <div className="flex items-center gap-2">
+            <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  {hasPassword ? <ShieldCheck className="h-3.5 w-3.5 mr-1.5 text-primary" /> : <Lock className="h-3.5 w-3.5 mr-1.5" />}
+                  {hasPassword ? "Password" : "Set password"}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{hasPassword ? "Change vault password" : "Set vault password"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  {hasPassword && (
+                    <div>
+                      <Label>Current password</Label>
+                      <Input type="password" value={pwdCurrent} onChange={(e) => setPwdCurrent(e.target.value)} />
+                    </div>
+                  )}
+                  <div>
+                    <Label>New password</Label>
+                    <Input type="password" value={pwdNew} onChange={(e) => setPwdNew(e.target.value)} placeholder="At least 8 characters" />
+                  </div>
+                  <div>
+                    <Label>Confirm new password</Label>
+                    <Input type="password" value={pwdNew2} onChange={(e) => setPwdNew2(e.target.value)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The password gates access to your encrypted secrets. If you forget it, an account admin must reset it — there is no recovery.
+                  </p>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  {hasPassword && (
+                    <Button variant="ghost" className="text-destructive hover:text-destructive sm:mr-auto" disabled={pwdBusy} onClick={removePassword}>
+                      Remove password
+                    </Button>
+                  )}
+                  <Button variant="ghost" onClick={() => setPwdOpen(false)}>Cancel</Button>
+                  <Button onClick={savePassword} disabled={pwdBusy}>
+                    {hasPassword ? "Update password" : "Set password"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            {hasPassword && (
+              <Button size="sm" variant="ghost" onClick={lock} title="Lock vault">
+                <Lock className="h-3.5 w-3.5 mr-1.5" />Lock
+              </Button>
+            )}
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />New secret</Button>
