@@ -18,7 +18,6 @@ export const Nav = () => {
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
           <a href="#protocol" className="hover:text-foreground transition-colors">Protocol</a>
           <a href="#primitives" className="hover:text-foreground transition-colors">Primitives</a>
-          <a href="#waitlist" className="hover:text-foreground transition-colors">Access</a>
         </div>
         <div className="flex items-center gap-2">
           {user ? (
@@ -26,14 +25,9 @@ export const Nav = () => {
               Dashboard
             </Link>
           ) : (
-            <>
-              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
-                Sign in
-              </Link>
-              <a href="#waitlist" className="text-sm font-medium px-4 py-2 rounded-md bg-foreground/[0.04] hover:bg-foreground/10 border border-border transition-colors">
-                Get early access
-              </a>
-            </>
+            <Link to="/auth" className="text-sm font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+              Sign in
+            </Link>
           )}
         </div>
       </nav>
