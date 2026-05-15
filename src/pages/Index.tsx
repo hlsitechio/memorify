@@ -6,9 +6,6 @@ import { Problem } from "@/components/synapse/Problem";
 import { Architecture } from "@/components/synapse/Architecture";
 import { Protocol } from "@/components/synapse/Protocol";
 import { Primitives } from "@/components/synapse/Primitives";
-// LiveDemo temporarily hidden — public demo token + endpoint not yet wired to api.memorify.dev.
-// import { LiveDemo } from "@/components/synapse/LiveDemo";
-// import { Waitlist } from "@/components/synapse/Waitlist"; // removed — backend live, sign-in is the CTA now
 import { Footer } from "@/components/synapse/Footer";
 
 const Index = () => {
