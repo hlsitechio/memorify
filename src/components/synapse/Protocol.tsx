@@ -1,5 +1,6 @@
-const codeRequest = `POST https://gateway.memorify.dev/v1
+const codeRequest = `POST https://api.memorify.dev/agent-gateway
 Content-Type: application/json
+Authorization: Bearer <agent_token>
 
 {
   "agent":  "memory",

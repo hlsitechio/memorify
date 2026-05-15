@@ -2,11 +2,11 @@ import { Brain, Database, FolderTree, Plug, Workflow, Wrench } from "lucide-reac
 
 const services = [
   { icon: Brain, name: "memory", desc: "remember · recall · link" },
-  { icon: FolderTree, name: "files", desc: "read · write · index" },
-  { icon: Wrench, name: "tools", desc: "register · invoke · stream" },
-  { icon: Plug, name: "connectors", desc: "gmail · drive · linear" },
-  { icon: Database, name: "vector", desc: "embed · query · upsert" },
-  { icon: Workflow, name: "automation", desc: "schedule · webhook · event" },
+  { icon: FolderTree, name: "files", desc: "documents · voices · images" },
+  { icon: Wrench, name: "skills", desc: "prompt · run · share" },
+  { icon: Plug, name: "mcp", desc: "server + client · oauth 2.1" },
+  { icon: Database, name: "vault", desc: "encrypted · scoped · audited" },
+  { icon: Workflow, name: "agents", desc: "tokens · scopes · gateway" },
 ];
 
 const agents = ["Claude Code", "Cursor", "ChatGPT", "Custom"];
