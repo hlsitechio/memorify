@@ -654,6 +654,21 @@ export default function Mcp() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {presetOpen?.setupUrl && (
+              <a
+                href={presetOpen.setupUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs hover:bg-primary/15 transition-colors"
+              >
+                <span className="font-medium text-primary">
+                  → {presetOpen.setupLabel ?? "Where to get this"}
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground truncate ml-3 max-w-[260px]">
+                  {presetOpen.setupUrl.replace(/^https?:\/\//, "")}
+                </span>
+              </a>
+            )}
             <div className="space-y-1.5">
               <Label>URL</Label>
               <Input value={presetOpen?.url ?? ""} readOnly className="font-mono text-xs" />
