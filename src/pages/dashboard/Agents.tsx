@@ -554,7 +554,7 @@ function WorkspaceStats({ agentId, workspaceName, onRenameWorkspace }: {
 
 function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const open = !!agent;
-  const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const base = `https://api.memorify.dev/functions/v1`;
   const apiUrl = `${base}/agent-api`;
   const pingUrl = `${base}/agent-ping`;
   const token = agent?.token ?? "";
