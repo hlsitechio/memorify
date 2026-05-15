@@ -805,6 +805,28 @@ export default function Mcp() {
                     </div>
                     <div className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{p.url}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{p.tokenHint}</div>
+                    <div className="flex items-center gap-3 mt-1.5 text-[11px]">
+                      {p.setupUrl && (
+                        <a
+                          href={p.setupUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          → {p.setupLabel ?? "Where to get it"}
+                        </a>
+                      )}
+                      <a
+                        href={p.docsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-muted-foreground hover:text-foreground hover:underline"
+                      >
+                        Docs ↗
+                      </a>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button size="sm" onClick={() => setPresetOpen(p)}>
