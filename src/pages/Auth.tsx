@@ -59,6 +59,20 @@ export default function Auth() {
     }
   };
 
+  const handleGoogle = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: "https://memorify.dev/dashboard" },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message ?? "Google sign-in failed");
+      setBusy(false);
+    }
+  };
+
   const handleReset = async () => {
     if (!email) return toast.error("Enter your email first");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
