@@ -45,6 +45,10 @@ type Preset = {
   tokenLabel: string;
   tokenHint: string;
   docsUrl: string;
+  /** Direct page where the user creates the token / authorizes the app. */
+  setupUrl?: string;
+  /** Short label for the setup link (e.g. "Create token", "Install app"). */
+  setupLabel?: string;
   oauth?: boolean;
   /** If set, the token is sent as a custom header rather than Authorization: Bearer */
   authHeader?: string;
