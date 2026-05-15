@@ -45,8 +45,10 @@ Only these origins can call the API:
 - https://api.memorify.dev
 - http://localhost:5173 (dev)
 - http://localhost:8080 (dev)
+- Any `*.lovable.app` subdomain (regex catch-all — covers Lovable previews)
+- Any `*.lovableproject.com` subdomain (regex catch-all — covers Lovable sandboxes)
 
-If you add a new frontend domain, it must be added to both nginx CORS map AND Express cors config on the VPS.
+If you add a new frontend domain outside the `*.lovable.app` / `*.lovableproject.com` patterns, it must be added to both the nginx CORS map AND the Express cors config on the VPS.
 
 ## Existing Tables (21)
 
