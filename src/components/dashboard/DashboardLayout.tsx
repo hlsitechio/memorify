@@ -198,7 +198,7 @@ function DashboardLayoutInner() {
   const initial = (user?.email ?? "?").charAt(0).toUpperCase();
   const inDocs = pathname.startsWith("/dashboard/docs");
   const [currentWs] = useCurrentWorkspace();
-  const wsTitle = inDocs ? "Synapse" : currentWs?.name || "Synapse";
+  const wsTitle = inDocs ? "Memorify" : currentWs?.name || "Memorify";
   const wsSubtitle = inDocs
     ? "Documentation"
     : currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Personal workspace");

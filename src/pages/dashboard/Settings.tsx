@@ -235,7 +235,7 @@ export default function Settings() {
           <TabsContent value="danger">
             <section className="rounded-lg border border-destructive/40 bg-card p-6">
               <h2 className="text-sm font-semibold mb-2">Danger zone</h2>
-              <p className="text-xs text-muted-foreground mb-4">Sign out of your Synapse workspace.</p>
+              <p className="text-xs text-muted-foreground mb-4">Sign out of your Memorify workspace.</p>
               <Button variant="destructive" size="sm" onClick={async () => { await signOut(); navigate("/"); }}>Sign out</Button>
             </section>
           </TabsContent>

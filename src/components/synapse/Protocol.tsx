@@ -1,4 +1,4 @@
-const codeRequest = `POST https://gateway.synapse.dev/v1
+const codeRequest = `POST https://gateway.memorify.dev/v1
 Content-Type: application/json
 
 {

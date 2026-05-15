@@ -35,7 +35,7 @@ export const Primitives = () => {
           <p className="text-xs font-mono text-primary mb-3 tracking-wider">PRIMITIVES</p>
           <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
             What Supabase did for apps,<br />
-            <span className="text-muted-foreground">Synapse does for agents.</span>
+            <span className="text-muted-foreground">Memorify does for agents.</span>
           </h2>
         </div>
 

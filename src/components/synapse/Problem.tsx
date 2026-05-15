@@ -28,7 +28,7 @@ export const Problem = () => {
               Notion, Obsidian, Drive, and a dozen MCP servers. SQL is the wrong dialect for an LLM. Notes apps are not memory.
             </p>
             <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-              Synapse replaces all of that with one gateway and one verb-based protocol.
+              Memorify replaces all of that with one gateway and one verb-based protocol.
             </p>
           </div>
 
@@ -44,7 +44,7 @@ export const Problem = () => {
                 </div>
               ))}
               <div className="col-span-2 px-3 py-3 rounded-md border border-primary/40 bg-gradient-primary text-primary-foreground text-sm font-medium text-center ring-primary-soft">
-                Synapse Gateway
+                Memorify Gateway
               </div>
             </div>
           </div>

@@ -51,7 +51,7 @@ export const Architecture = () => {
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-                  <span className="font-semibold">Synapse Gateway</span>
+                  <span className="font-semibold">Memorify Gateway</span>
                   <span className="font-mono text-xs text-muted-foreground">{`{ agent, action, input }`}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">

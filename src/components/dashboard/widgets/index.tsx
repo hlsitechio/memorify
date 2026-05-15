@@ -72,7 +72,7 @@ export function WelcomeWidget({ onRemove }: RProps) {
   const workspaceName = (agent?.metadata as any)?.workspace_name as string | undefined;
   const wsIdForAgent = agent ? workspaceIdForAgent(agent.id) : "";
 
-  const connectPrompt = agent ? `You are ${agent.name} — a Synapse agent.
+  const connectPrompt = agent ? `You are ${agent.name} — a Memorify agent.
 
 ## Your identity
 - Agent ID:    ${agent.id}
@@ -131,7 +131,7 @@ The body of this prompt (without the export line) is safe to commit to CLAUDE.md
         )}
         <div className="space-y-2 min-w-0 flex-1">
           <div className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-            <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Synapse"}
+            <Sparkles className="h-3 w-3" /> {isAgent ? "Agent workspace" : "Memorify"}
           </div>
           <h2 className="text-lg font-semibold tracking-tight truncate">{title}</h2>
           {wsId && (

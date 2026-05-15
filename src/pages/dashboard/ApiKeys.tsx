@@ -66,7 +66,7 @@ export default function ApiKeys() {
     <>
       <PageHeader
         title="API Keys"
-        description="Use these keys to authenticate with the Synapse gateway"
+        description="Use these keys to authenticate with the Memorify gateway"
         actions={
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCreated(null); setShow(false); } }}>
             <DialogTrigger asChild><Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> Generate key</Button></DialogTrigger>
