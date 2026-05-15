@@ -62,11 +62,12 @@ export default function Auth() {
   const handleGoogle = async () => {
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: "https://memorify.dev/dashboard" },
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
       });
-      if (error) throw error;
+      if (result.error) throw result.error;
+      if (result.redirected) return;
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       toast.error(err.message ?? "Google sign-in failed");
       setBusy(false);
