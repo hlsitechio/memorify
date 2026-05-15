@@ -86,7 +86,7 @@ You're now connected to **Synapse** — a personal AI workspace shared between y
 
 ## Calling commands
 \`\`\`bash
-curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
+curl -X POST https://api.memorify.dev/functions/v1/agent-api \\
   -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"action":"memory.recall","params":{"query":"dark mode"}}'
