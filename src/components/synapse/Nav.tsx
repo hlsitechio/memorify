@@ -12,7 +12,7 @@ export const Nav = () => {
             <Cpu className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
             <div className="absolute inset-0 rounded-md bg-gradient-primary blur-md opacity-50 group-hover:opacity-80 transition-opacity" />
           </div>
-          <span className="font-semibold tracking-tight">Synapse</span>
+          <span className="font-semibold tracking-tight">Memorify</span>
           <span className="font-mono text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 ml-1">v0.1</span>
         </a>
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">

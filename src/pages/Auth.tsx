@@ -85,7 +85,7 @@ export default function Auth() {
           <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
             <Zap className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold tracking-tight">Synapse</span>
+          <span className="font-semibold tracking-tight">Memorify</span>
         </Link>
         <div className="relative space-y-3 max-w-md">
           <h2 className="text-3xl font-semibold tracking-tight">The memory layer for AI agents.</h2>
@@ -93,7 +93,7 @@ export default function Auth() {
             Sign in to manage memories, connectors, real-time events, and observability — all in one place.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground relative">© Synapse</p>
+        <p className="text-xs text-muted-foreground relative">© Memorify</p>
       </section>
 
       <section className="flex items-center justify-center p-6">
@@ -102,7 +102,7 @@ export default function Auth() {
             <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold tracking-tight">Synapse</span>
+            <span className="font-semibold tracking-tight">Memorify</span>
           </div>
 
           <div>
@@ -110,7 +110,7 @@ export default function Auth() {
               {mode === "signin" ? "Welcome back" : "Create your account"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {mode === "signin" ? "Sign in to your Synapse workspace" : "Start building with the agent memory layer"}
+              {mode === "signin" ? "Sign in to your Memorify workspace" : "Start building with the agent memory layer"}
             </p>
           </div>
 

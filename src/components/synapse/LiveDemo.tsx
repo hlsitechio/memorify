@@ -9,7 +9,7 @@ const DEMO_TOKEN = "public_demo_token_synapse_landing";
 type Memory = { id: string; content: string; tags: string[]; created_at: string };
 
 export const LiveDemo = () => {
-  const [content, setContent] = useState("Synapse will replace MCP juggling for me.");
+  const [content, setContent] = useState("Memorify will replace MCP juggling for me.");
   const [tags, setTags] = useState("intent");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string>("");

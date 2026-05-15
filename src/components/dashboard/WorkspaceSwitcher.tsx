@@ -37,7 +37,7 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
 
   const userId = user?.id ?? "";
   const userRowId = `user:${userId}`;
-  const wsTitle = currentWs?.name || "Synapse";
+  const wsTitle = currentWs?.name || "Memorify";
   const wsSubtitle =
     currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Personal workspace");
   const activeId = currentWs?.id ?? userRowId;

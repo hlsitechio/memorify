@@ -46,7 +46,7 @@ const sections: Section[] = [
     group: "Get started",
     title: "Quickstart",
     intro:
-      "Synapse is your personal AI workspace — a Copilot that can read your memory, run skills, drive plugins, and call MCP tools. Drop in data, talk to it in natural language, ship.",
+      "Memorify is your personal AI workspace — a Copilot that can read your memory, run skills, drive plugins, and call MCP tools. Drop in data, talk to it in natural language, ship.",
     features: [
       { title: "Open the Copilot", desc: "Hit ⌘I anywhere to talk to the agent. It stays alive across tab switches and reloads.", status: "stable", icon: Bot },
       { title: "Search routes & actions", desc: "⌘K command palette to jump anywhere or fire an action.", status: "stable", icon: Sparkles },
@@ -171,7 +171,7 @@ export default function Docs() {
     const md = sections
       .map((s) => `## ${s.title}\n\n${s.intro ?? ""}\n\n${s.features.map((f) => `- **${f.title}** _(${statusLabel[f.status]})_ — ${f.desc}`).join("\n")}`)
       .join("\n\n");
-    await navigator.clipboard.writeText(`# Synapse — Docs\n\n${md}`);
+    await navigator.clipboard.writeText(`# Memorify — Docs\n\n${md}`);
     setCopied(true);
     toast.success("Markdown copied");
     setTimeout(() => setCopied(false), 1500);
@@ -194,7 +194,7 @@ export default function Docs() {
         {!section ? (
           <>
             <div className="flex items-start justify-between gap-4 mb-4">
-              <h1 className="text-4xl font-bold tracking-tight">Synapse Docs</h1>
+              <h1 className="text-4xl font-bold tracking-tight">Memorify Docs</h1>
               <button
                 onClick={copyMarkdown}
                 className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-card hover:bg-secondary/60 text-xs"

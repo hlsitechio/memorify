@@ -571,7 +571,7 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
   const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
   const workspaceName = ((agent?.metadata as any)?.workspace_name as string) || "";
 
-  const reconnectPrompt = `You are ${agent?.name ?? "this agent"} — a Synapse agent.
+  const reconnectPrompt = `You are ${agent?.name ?? "this agent"} — a Memorify agent.
 
 ## Your identity
 - Agent ID:    ${agentId}
@@ -605,7 +605,7 @@ This single call returns:
 This prompt has no secrets — safe to commit to CLAUDE.md or any repo. The token lives in \`$SYNAPSE_TOKEN\` (shell env, or Claude Code's MCP env config).`;
 
 
-  const systemPrompt = `You are connected to Synapse — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
+  const systemPrompt = `You are connected to Memorify — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
 
 ## Your identity (already provisioned — do NOT call whoami to discover these)
 - Agent ID:       ${agentId}
@@ -706,7 +706,7 @@ You're ready. Begin by running the GET request above to confirm the connection.`
                 </p>
                 <CopyField value={systemPrompt} label="Agent system prompt" multiline />
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
-                  <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Synapse data.
+                  <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Memorify data.
                 </div>
               </TabsContent>
 

@@ -8,7 +8,7 @@ export const Footer = () => {
           <div className="w-6 h-6 rounded bg-gradient-primary grid place-items-center">
             <Cpu className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <span className="text-sm font-medium">Synapse</span>
+          <span className="text-sm font-medium">Memorify</span>
           <span className="text-xs text-muted-foreground ml-2">The motherboard for AI agents.</span>
         </div>
         <p className="text-xs font-mono text-muted-foreground">
