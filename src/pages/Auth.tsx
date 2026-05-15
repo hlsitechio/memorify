@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,15 +19,21 @@ const GoogleIcon = () => (
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, hasAuthCallbackParams } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (hasAuthCallbackParams) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) navigate("/dashboard", { replace: true });
+      });
+      return;
+    }
     if (!loading && user) navigate("/dashboard", { replace: true });
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, hasAuthCallbackParams]);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,11 +60,16 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/dashboard`,
     });
-    if (error) toast.error(error.message ?? "Google sign-in failed");
+    if (result.error) {
+      toast.error(result.error.message ?? "Google sign-in failed");
+      return;
+    }
+    if (!result.redirected) {
+      navigate("/dashboard", { replace: true });
+    }
   };
 
   const handleReset = async () => {
