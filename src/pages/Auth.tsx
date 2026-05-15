@@ -11,11 +11,6 @@ import { toast } from "sonner";
 import { Zap } from "lucide-react";
 import authVideo from "@/assets/auth-bg.mp4.asset.json";
 
-const GoogleIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24">
-    <path fill="#EA4335" d="M12 11v3.2h4.5c-.2 1.2-1.5 3.5-4.5 3.5-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.5 0 2.6.7 3.2 1.2l2.2-2.1C16 5.5 14.2 4.7 12 4.7 7.9 4.7 4.7 8 4.7 12s3.2 7.3 7.3 7.3c4.2 0 7-3 7-7.2 0-.5 0-.8-.1-1.1H12z"/>
-  </svg>
-);
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -57,14 +52,6 @@ export default function Auth() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const handleGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
-    if (error) toast.error(error.message ?? "Google sign-in failed");
   };
 
   const handleReset = async () => {
@@ -122,17 +109,6 @@ export default function Auth() {
               {mode === "signin" ? "Sign in to your Memorify workspace" : "Start building with the agent memory layer"}
             </p>
           </div>
-
-          <Button variant="outline" className="w-full gap-2" onClick={handleGoogle}>
-            <GoogleIcon />
-            Continue with Google
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or</span></div>
-          </div>
-
           <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign in</TabsTrigger>
