@@ -145,7 +145,10 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
   }, [user, load]);
 
   const connect = async (kind: string, name: string) => {
-    if (!user) return;
+    if (!user) {
+      toast.error("You need to sign in before connecting an agent.");
+      return;
+    }
     if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot") {
       toast.info(`${name} support is coming soon.`);
       return;
