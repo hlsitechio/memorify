@@ -28,8 +28,8 @@ export const Hero = () => {
           </h1>
 
           <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            One backend that every agent plugs into. Memory, tools, files, and connectors behind a single endpoint —
-            so Claude, Cursor, ChatGPT and your custom agents share the same brain.
+            One self-hosted backend for memory, files, skills and tools — exposed over a single MCP endpoint.
+            Any MCP-compatible agent connects in one line.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center items-center">
@@ -41,16 +41,16 @@ export const Hero = () => {
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </a>
             <a
-              href="#demo"
+              href="#protocol"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-secondary/60 hover:bg-secondary border border-border font-medium"
             >
               <Terminal className="w-4 h-4" />
-              Try the live endpoint
+              See the protocol
             </a>
           </div>
 
           <p className="mt-6 text-xs font-mono text-muted-foreground">
-            MCP-compatible · HTTP/WS · No SQL required
+            MCP server + client · HTTP · Self-hosted · No SQL required
           </p>
         </div>
       </div>
