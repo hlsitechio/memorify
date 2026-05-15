@@ -109,17 +109,6 @@ export default function Auth() {
               {mode === "signin" ? "Sign in to your Memorify workspace" : "Start building with the agent memory layer"}
             </p>
           </div>
-
-          <Button variant="outline" className="w-full gap-2" onClick={handleGoogle}>
-            <GoogleIcon />
-            Continue with Google
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or</span></div>
-          </div>
-
           <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign in</TabsTrigger>
