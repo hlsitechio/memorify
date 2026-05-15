@@ -51,7 +51,7 @@ const CATALOG = [
 
 function endpointUrl() {
   // Public hosted ping endpoint — replaces the need for ngrok / local tunnels.
-  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-ping`;
+  return `https://api.memorify.dev/functions/v1/agent-ping`;
 }
 
 function CopyField({ value, label, mono = true, multiline = false }: { value: string; label?: string; mono?: boolean; multiline?: boolean }) {
