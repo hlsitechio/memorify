@@ -57,13 +57,21 @@ async function resolveAgent(token: string) {
   const sb = admin();
   const { data: agent } = await sb
     .from("agents")
-    .select("id, name, kind, user_id, status, metadata")
+    .select("id, name, kind, user_id, status, metadata, token_expires_at")
     .eq("token", token)
     .maybeSingle();
   if (!agent) return null;
   // Flip status to connected and bump last_seen_at (fire-and-forget).
   sb.rpc("agent_ping", { _token: token, _meta: { via: "agent-api" } }).then(() => {});
   return agent;
+}
+
+function clientIp(req: Request): string | null {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("cf-connecting-ip")
+    || req.headers.get("x-real-ip")
+    || null;
 }
 
 // -------- Welcome / onboarding payload --------
