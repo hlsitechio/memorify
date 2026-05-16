@@ -987,19 +987,19 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
 
               <TabsContent value="reconnect" className="space-y-4 mt-4">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground font-medium">For every new session.</span> Two pieces: (1) set <code className="text-foreground">SYNAPSE_TOKEN</code> once in your shell, then (2) paste the prompt into <code className="text-foreground">CLAUDE.md</code>. The prompt itself is secret-free and safe to commit.
+                  <span className="text-foreground font-medium">For every new session.</span> Two pieces: (1) set <code className="text-foreground">MEMORIFY_TOKEN</code> once in your shell, then (2) paste the prompt into <code className="text-foreground">CLAUDE.md</code>. The prompt itself is secret-free and safe to commit.
                 </p>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (macOS / Linux, bash/zsh)</label>
-                  <CopyField value={`export SYNAPSE_TOKEN="${token}"`} label="bash export" />
+                  <CopyField value={`export MEMORIFY_TOKEN="${token}"`} label="bash export" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (Windows PowerShell, persistent)</label>
-                  <CopyField value={`setx SYNAPSE_TOKEN "${token}"`} label="powershell setx" />
+                  <CopyField value={`setx MEMORIFY_TOKEN "${token}"`} label="powershell setx" />
                   <p className="text-[11px] text-muted-foreground">
                     Restart your terminal after <code className="text-foreground">setx</code>. For the current session only:{" "}
-                    <code className="text-foreground">$env:SYNAPSE_TOKEN = "{token.slice(0, 6)}…"</code>
+                    <code className="text-foreground">$env:MEMORIFY_TOKEN = "{token.slice(0, 6)}…"</code>
                   </p>
                 </div>
                 <div className="space-y-1.5">

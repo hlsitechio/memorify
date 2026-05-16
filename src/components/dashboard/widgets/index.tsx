@@ -152,7 +152,7 @@ The body of this prompt (without the export line) is safe to commit to CLAUDE.md
               <button
                 onClick={() => doCopy("token", agent.token)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border hover:bg-secondary px-2.5 py-1 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
-                title="Copy just the SYNAPSE_TOKEN"
+                title="Copy just the MEMORIFY_TOKEN"
               >
                 {copied === "token" ? <Check className="h-3 w-3 text-emerald-400" /> : <KeyRound className="h-3 w-3" />}
                 Copy token
