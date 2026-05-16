@@ -152,7 +152,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
 
   const connect = async (kind: string, name: string) => {
     if (!user) return;
-    if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot") {
+    if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot" && kind !== "openai_codex") {
       toast.info(`${name} support is coming soon.`);
       return;
     }
