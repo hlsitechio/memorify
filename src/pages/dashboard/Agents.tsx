@@ -276,7 +276,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
                   )}
                   <div className={cn("h-10 w-10 rounded-md bg-secondary/60 flex items-center justify-center mb-3 overflow-hidden", c.tone)}>
                     {c.logo ? (
-                      <img src={c.logo} alt={`${c.name} logo`} className="h-6 w-6 object-contain" />
+                      <img src={c.logo} alt={`${c.name} logo`} className="h-6 w-6 object-fill" />
                     ) : (
                       <Icon className="h-5 w-5" />
                     )}
