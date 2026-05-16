@@ -69,6 +69,8 @@ export type Database = {
           name: string
           status: string
           token: string
+          token_expires_at: string | null
+          token_rotated_at: string | null
           updated_at: string
           user_id: string
         }
@@ -81,6 +83,8 @@ export type Database = {
           name: string
           status?: string
           token?: string
+          token_expires_at?: string | null
+          token_rotated_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -93,6 +97,8 @@ export type Database = {
           name?: string
           status?: string
           token?: string
+          token_expires_at?: string | null
+          token_rotated_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -872,6 +878,18 @@ export type Database = {
       }
       memory_slug_for: {
         Args: { _namespace: string; _user_id: string }
+        Returns: string
+      }
+      rotate_agent_token: {
+        Args: { _agent_id: string; _expires_in_days?: number }
+        Returns: {
+          token: string
+          token_expires_at: string
+          token_rotated_at: string
+        }[]
+      }
+      set_agent_token_expiry: {
+        Args: { _agent_id: string; _expires_in_days?: number }
         Returns: string
       }
     }
