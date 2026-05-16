@@ -25,6 +25,10 @@ async function mcpRpc(url: string, method: string, params: any, headers: Record<
   return JSON.parse(text);
 }
 
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : "unknown";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -71,11 +75,17 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "unknown";
+      const msg = getErrorMessage(err);
       await supa.from("mcp_servers").update({ last_error: msg, last_handshake_at: new Date().toISOString() }).eq("id", server_id);
-      return new Response(JSON.stringify({ ok: false, error: msg }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: false, error: msg }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   } catch (e) {
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: false, error: getErrorMessage(e) }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

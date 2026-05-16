@@ -378,16 +378,6 @@ const PRESETS: Preset[] = [
     tokenHint: "Public MCP — run ping, traceroute, DNS and HTTP tests from 500+ locations worldwide.",
     docsUrl: "https://globalping.io/docs/mcp",
   },
-  {
-    id: "fetch",
-    name: "Fetch",
-    url: "https://remote.mcpservers.org/fetch/mcp",
-    transport: "http",
-    needsToken: false,
-    tokenLabel: "",
-    tokenHint: "Public MCP — fetch any URL and convert it to clean markdown for the agent.",
-    docsUrl: "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
-  },
 ];
 
 export default function Mcp() {
@@ -496,7 +486,7 @@ export default function Mcp() {
       if (!data?.ok) throw new Error(data?.error ?? "handshake failed");
       toast.success(`Discovered ${data.count} tools`);
     } catch (e: any) {
-      toast.error(e.message ?? "handshake failed");
+      toast.error(e?.message ?? e?.context?.error ?? "handshake failed");
     } finally {
       setBusy(null);
       load();
