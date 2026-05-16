@@ -400,7 +400,7 @@ export default function Mcp() {
   const [testRunning, setTestRunning] = useState(false);
 
   // Memorify-as-MCP connect card
-  const MCP_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memorify-mcp`;
+  const MCP_URL = "https://mcp.memorify.dev";
   const [connectOpen, setConnectOpen] = useState(false);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [keyName, setKeyName] = useState("ChatGPT");
