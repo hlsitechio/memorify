@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Sparkles, Trash2, Play, Plug2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Plus, Sparkles, Trash2, Play, Plug2, Download, Link2, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -37,7 +38,10 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").repla
 
 export default function Skills() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<Skill[]>([]);
+  const [currentWs] = useCurrentWorkspace();
+  const wsId = currentWs?.kind === "agent" && currentWs.agentId ? `agent:${currentWs.agentId}` : null;
+  const wsLabel = currentWs?.kind === "agent" ? (currentWs.name || "agent workspace") : "User workspace";
+  const [allRows, setAllRows] = useState<Skill[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Skill | null>(null);
   const [tryOpen, setTryOpen] = useState<Skill | null>(null);
@@ -45,13 +49,41 @@ export default function Skills() {
   const [tryOutput, setTryOutput] = useState("");
   const [tryBusy, setTryBusy] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", prompt: "", model: MODELS[0], status: "draft" });
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+
+  // In an agent WS show user-wide (NULL) + this WS's skills; in user WS show only user-wide.
+  const rows = useMemo(() => {
+    if (wsId) return allRows.filter((s: any) => s.workspace_id == null || s.workspace_id === wsId);
+    return allRows.filter((s: any) => s.workspace_id == null);
+  }, [allRows, wsId]);
 
   const load = async () => {
     if (!user) return;
     const { data } = await supabase.from("skills").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-    setRows((data as any) ?? []);
+    setAllRows((data as any) ?? []);
   };
   useEffect(() => { load(); }, [user]);
+
+  const runImport = async () => {
+    if (!/^https?:\/\//i.test(importUrl.trim())) { toast.error("Paste a valid URL (https://…)"); return; }
+    setImportBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("skill-import", {
+        body: { url: importUrl.trim(), workspace_id: wsId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Imported "${data.skill?.name}" into ${wsLabel}`);
+      setImportOpen(false); setImportUrl(""); load();
+    } catch (e: any) {
+      toast.error(e.message ?? "Import failed");
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
 
   const upsert = async () => {
     if (!user) return;
@@ -65,7 +97,7 @@ export default function Skills() {
       if (error) return toast.error(error.message);
     } else {
       const { error } = await supabase.from("skills").insert({
-        user_id: user.id, name: form.name, slug, description: form.description, prompt: form.prompt, model: form.model, status: form.status,
+        user_id: user.id, workspace_id: wsId, name: form.name, slug, description: form.description, prompt: form.prompt, model: form.model, status: form.status,
       });
       if (error) return toast.error(error.message);
     }
@@ -116,45 +148,89 @@ export default function Skills() {
     <>
       <PageHeader
         title="Skills"
-        description="Reusable agent capabilities"
+        description={`Reusable agent capabilities · scoped to ${wsLabel}`}
         actions={
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm({ name: "", description: "", prompt: "", model: MODELS[0], status: "draft" }); } }}>
-            <DialogTrigger asChild><Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> New skill</Button></DialogTrigger>
-            <DialogContent className="max-w-xl">
-              <DialogHeader><DialogTitle>{editing ? "Edit skill" : "New skill"}</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="flex items-center gap-2">
+            <Dialog open={importOpen} onOpenChange={setImportOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><Download className="h-3.5 w-3.5 mr-1.5" /> Import from URL</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Import skill from URL</DialogTitle>
+                  <DialogDescription>
+                    Paste any link to a SKILL.md, GitHub file/folder, doc page, or article.
+                    AI will extract the skill and install it into <span className="font-medium text-foreground">{wsLabel}</span>.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label>Status</Label>
-                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="live">Live</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Source URL</Label>
+                    <div className="relative">
+                      <Link2 className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        className="pl-8"
+                        value={importUrl}
+                        onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://github.com/mattpocock/skills/tree/main/skills/typescript"
+                        onKeyDown={(e) => { if (e.key === "Enter" && !importBusy) runImport(); }}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Examples: <code className="text-foreground/80">https://github.com/mattpocock/skills</code> ·
+                    a raw <code className="text-foreground/80">SKILL.md</code> URL ·
+                    an Anthropic docs page.
                   </div>
                 </div>
-                <div className="space-y-1.5"><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-                <div className="space-y-1.5">
-                  <Label>Model</Label>
-                  <Select value={form.model} onValueChange={(v) => setForm({ ...form, model: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                  </Select>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setImportOpen(false)} disabled={importBusy}>Cancel</Button>
+                  <Button onClick={runImport} disabled={importBusy}>
+                    {importBusy ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Importing…</> : <><Download className="h-3.5 w-3.5 mr-1.5" /> Import</>}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm({ name: "", description: "", prompt: "", model: MODELS[0], status: "draft" }); } }}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> New skill</Button></DialogTrigger>
+              <DialogContent className="max-w-xl">
+                <DialogHeader><DialogTitle>{editing ? "Edit skill" : "New skill"}</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+                    <div className="space-y-1.5">
+                      <Label>Status</Label>
+                      <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="live">Live</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5"><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+                  <div className="space-y-1.5">
+                    <Label>Model</Label>
+                    <Select value={form.model} onValueChange={(v) => setForm({ ...form, model: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>System prompt</Label>
+                    <Textarea rows={8} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="You are an expert at…" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>System prompt</Label>
-                  <Textarea rows={8} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="You are an expert at…" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button onClick={upsert}>{editing ? "Update" : "Create"}</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button onClick={upsert}>{editing ? "Update" : "Create"}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
       <div className="p-6 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
