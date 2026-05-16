@@ -718,7 +718,104 @@ export default function Mcp() {
         </DialogContent>
       </Dialog>
 
+      {/* Connect Memorify dialog */}
+      <Dialog open={connectOpen} onOpenChange={(v) => { setConnectOpen(v); if (!v) { setGeneratedToken(null); setKeyName("ChatGPT"); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Connect Memorify to your AI</DialogTitle>
+            <DialogDescription>
+              Plug Memorify into ChatGPT, Claude, Cursor or any MCP-compatible client. Just an URL + a bearer token — like any custom MCP.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Server URL</Label>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/40 px-3 py-2 font-mono text-xs">
+                <span className="flex-1 truncate">{MCP_URL}</span>
+                <button onClick={() => copy(MCP_URL, "url")} className="text-muted-foreground hover:text-foreground">
+                  {copied === "url" ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Bearer token</Label>
+              {!generatedToken ? (
+                <div className="flex items-center gap-2">
+                  <Input value={keyName} onChange={(e) => setKeyName(e.target.value)} placeholder="ChatGPT" className="flex-1" />
+                  <Button onClick={generateMcpToken} disabled={generating}>
+                    <KeyRound className="h-3.5 w-3.5 mr-1.5" /> {generating ? "Generating…" : "Generate token"}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 font-mono text-xs">
+                    <span className="flex-1 truncate">{generatedToken}</span>
+                    <button onClick={() => copy(generatedToken, "token")} className="text-muted-foreground hover:text-foreground">
+                      {copied === "token" ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Shown only once — copy it now. Revoke it anytime in API Keys.</p>
+                </>
+              )}
+            </div>
+
+            {generatedToken && (
+              <Tabs defaultValue="chatgpt">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Paste into</Label>
+                <TabsList className="mt-1.5">
+                  <TabsTrigger value="chatgpt">ChatGPT</TabsTrigger>
+                  <TabsTrigger value="claude">Claude</TabsTrigger>
+                  <TabsTrigger value="cursor">Cursor</TabsTrigger>
+                </TabsList>
+                <TabsContent value="chatgpt" className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Settings → Connectors → Add custom MCP server.</p>
+                  <pre className="text-[11px] font-mono bg-muted/40 border border-border rounded p-3 overflow-auto">{`Name:   Memorify
+URL:    ${MCP_URL}
+Auth:   Bearer ${generatedToken}`}</pre>
+                </TabsContent>
+                <TabsContent value="claude" className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Settings → Connectors → Add custom connector.</p>
+                  <pre className="text-[11px] font-mono bg-muted/40 border border-border rounded p-3 overflow-auto">{`Name:   Memorify
+URL:    ${MCP_URL}
+Token:  ${generatedToken}`}</pre>
+                </TabsContent>
+                <TabsContent value="cursor" className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Add to <code className="font-mono">~/.cursor/mcp.json</code>:</p>
+                  <pre className="text-[11px] font-mono bg-muted/40 border border-border rounded p-3 overflow-auto">{JSON.stringify({
+                    mcpServers: {
+                      memorify: { url: MCP_URL, headers: { Authorization: `Bearer ${generatedToken}` } },
+                    },
+                  }, null, 2)}</pre>
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConnectOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
+        {/* Connect Memorify hero card */}
+        <div className="rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card p-5 flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Connect Memorify to ChatGPT, Claude, Cursor…</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Memorify is itself an MCP server. Get the URL + a bearer token and paste them into any AI client.
+            </p>
+          </div>
+          <Button onClick={() => setConnectOpen(true)} className="flex-shrink-0">
+            <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Get connection
+          </Button>
+        </div>
+
         {servers.map((s) => {
             const stools = tools.filter((t) => t.mcp_server_id === s.id);
             return (
