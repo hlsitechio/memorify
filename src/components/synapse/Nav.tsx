@@ -13,11 +13,13 @@ export const Nav = () => {
             <div className="absolute inset-0 rounded-md bg-gradient-primary blur-md opacity-50 group-hover:opacity-80 transition-opacity" />
           </div>
           <span className="font-semibold tracking-tight">Memorify</span>
-          
+          <span className="font-mono text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 ml-1">v0.1</span>
         </a>
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
           <a href="#protocol" className="hover:text-foreground transition-colors">Protocol</a>
           <a href="#primitives" className="hover:text-foreground transition-colors">Primitives</a>
+          <a href="#demo" className="hover:text-foreground transition-colors">Live demo</a>
+          <a href="#waitlist" className="hover:text-foreground transition-colors">Access</a>
         </div>
         <div className="flex items-center gap-2">
           {user ? (
@@ -25,9 +27,14 @@ export const Nav = () => {
               Dashboard
             </Link>
           ) : (
-            <Link to="/auth" className="text-sm font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
-              Sign in
-            </Link>
+            <>
+              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
+                Sign in
+              </Link>
+              <a href="#waitlist" className="text-sm font-medium px-4 py-2 rounded-md bg-foreground/[0.04] hover:bg-foreground/10 border border-border transition-colors">
+                Get early access
+              </a>
+            </>
           )}
         </div>
       </nav>

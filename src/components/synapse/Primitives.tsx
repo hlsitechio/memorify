@@ -1,4 +1,4 @@
-import { Brain, Plug, KeyRound, Server } from "lucide-react";
+import { Brain, GitBranch, Radio, Shield } from "lucide-react";
 
 const items = [
   {
@@ -8,21 +8,21 @@ const items = [
     visual: <MemoryVisual />,
   },
   {
-    icon: Plug,
-    title: "MCP, both ways",
-    desc: "We're an MCP server your agents call (Claude, Cursor, Codex…), and an MCP client that connects out to Notion, Linear, GitHub via OAuth 2.1 PKCE. One handshake, every tool.",
+    icon: GitBranch,
+    title: "Universal connectors",
+    desc: "Link Gmail, Drive, Linear, Slack, GitHub once — every agent connected to your gateway can use them. Auth handled.",
     visual: <ConnectorsVisual />,
   },
   {
-    icon: KeyRound,
-    title: "Skills + Vault",
-    desc: "Portable prompts-as-tools. Reference secrets with {{vault.KEY}} — they're decrypted server-side at run time and never touch the client.",
+    icon: Radio,
+    title: "Real-time context bus",
+    desc: "Same state, every agent. What Claude Code learns in your terminal, ChatGPT sees in your browser. Live.",
     visual: <RealtimeVisual />,
   },
   {
-    icon: Server,
-    title: "Self-hosted, sovereign",
-    desc: "Your data on your VPS. Postgres, GoTrue, Storage, all yours. No vendor lock-in, no opaque cloud, full audit log.",
+    icon: Shield,
+    title: "Built-in observability",
+    desc: "Every call logged, replayable, scoped. Inspect what your agents read, wrote, and did — not a black box.",
     visual: <ObservabilityVisual />,
   },
 ];
@@ -122,7 +122,7 @@ function MemoryVisual() {
 }
 
 function ConnectorsVisual() {
-  const nodes = ["Notion", "Linear", "GitHub", "Slack", "Drive"];
+  const nodes = ["Gmail", "Drive", "Linear", "Slack", "GitHub"];
   const radius = 58;
   return (
     <div className="absolute inset-0 grid place-items-center">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,28 +12,22 @@ import { Zap } from "lucide-react";
 import authVideo from "@/assets/auth-bg.mp4.asset.json";
 
 const GoogleIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
+  <svg className="h-4 w-4" viewBox="0 0 24 24">
     <path fill="#EA4335" d="M12 11v3.2h4.5c-.2 1.2-1.5 3.5-4.5 3.5-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.5 0 2.6.7 3.2 1.2l2.2-2.1C16 5.5 14.2 4.7 12 4.7 7.9 4.7 4.7 8 4.7 12s3.2 7.3 7.3 7.3c4.2 0 7-3 7-7.2 0-.5 0-.8-.1-1.1H12z"/>
   </svg>
 );
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading, hasAuthCallbackParams } = useAuth();
+  const { user, loading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (hasAuthCallbackParams) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) navigate("/dashboard", { replace: true });
-      });
-      return;
-    }
     if (!loading && user) navigate("/dashboard", { replace: true });
-  }, [user, loading, navigate, hasAuthCallbackParams]);
+  }, [user, loading, navigate]);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,17 +54,8 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: "https://memorify.dev/dashboard" },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      toast.error(err.message ?? "Google sign-in failed");
-      setBusy(false);
-    }
+    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/dashboard` });
+    if (result.error) toast.error("Google sign-in failed");
   };
 
   const handleReset = async () => {
@@ -129,7 +114,7 @@ export default function Auth() {
             </p>
           </div>
 
-          <Button variant="outline" className="w-full gap-2" onClick={handleGoogle} disabled={busy}>
+          <Button variant="outline" className="w-full gap-2" onClick={handleGoogle}>
             <GoogleIcon />
             Continue with Google
           </Button>

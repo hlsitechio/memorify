@@ -1,6 +1,5 @@
 import heroVideo from "@/assets/hero-bg.mp4.asset.json";
 import { ArrowRight, Terminal } from "lucide-react";
-import { Link } from "react-router-dom";
 
 export const Hero = () => {
   return (
@@ -21,7 +20,7 @@ export const Hero = () => {
         <div className="max-w-3xl mx-auto text-center animate-float-up">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card/40 backdrop-blur text-xs font-mono text-muted-foreground mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />
-            Live · self-hosted on api.memorify.dev
+            Now in private alpha — gateway live below
           </div>
 
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05]">
@@ -29,29 +28,29 @@ export const Hero = () => {
           </h1>
 
           <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            One self-hosted backend for memory, files, skills and tools — exposed over a single MCP endpoint.
-            Any MCP-compatible agent connects in one line.
+            One backend that every agent plugs into. Memory, tools, files, and connectors behind a single endpoint —
+            so Claude, Cursor, ChatGPT and your custom agents share the same brain.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center items-center">
-            <Link
-              to="/auth"
+            <a
+              href="#waitlist"
               className="group inline-flex items-center gap-2 px-5 py-3 rounded-md bg-gradient-primary text-primary-foreground font-medium glow-primary hover:scale-[1.02] transition-transform"
             >
-              Sign in
+              Get a gateway URL
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
+            </a>
             <a
-              href="#protocol"
+              href="#demo"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-secondary/60 hover:bg-secondary border border-border font-medium"
             >
               <Terminal className="w-4 h-4" />
-              See the protocol
+              Try the live endpoint
             </a>
           </div>
 
           <p className="mt-6 text-xs font-mono text-muted-foreground">
-            MCP server + client · HTTP · Self-hosted · No SQL required
+            MCP-compatible · HTTP/WS · No SQL required
           </p>
         </div>
       </div>

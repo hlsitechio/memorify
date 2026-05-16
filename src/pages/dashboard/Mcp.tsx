@@ -45,10 +45,6 @@ type Preset = {
   tokenLabel: string;
   tokenHint: string;
   docsUrl: string;
-  /** Direct page where the user creates the token / authorizes the app. */
-  setupUrl?: string;
-  /** Short label for the setup link (e.g. "Create token", "Install app"). */
-  setupLabel?: string;
   oauth?: boolean;
   /** If set, the token is sent as a custom header rather than Authorization: Bearer */
   authHeader?: string;
@@ -73,11 +69,8 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "GitHub personal access token",
-    tokenHint: "Create a fine-grained PAT — scopes: repo, read:org, read:user.",
+    tokenHint: "Create a fine-grained PAT at github.com → Settings → Developer settings → Personal access tokens.",
     docsUrl: "https://github.com/github/github-mcp-server",
-    setupUrl: "https://github.com/settings/personal-access-tokens/new",
-    setupLabel: "Create token on GitHub",
-    tokenPlaceholder: "github_pat_…",
   },
   {
     id: "linearmcp",
@@ -98,10 +91,8 @@ const PRESETS: Preset[] = [
     needsToken: true,
     tokenLabel: "Lovable bearer token (JWT)",
     tokenHint:
-      "Open your Lovable project, then in DevTools → Network → filter Fetch/XHR → click any request to api.lovable.dev → Request Headers → copy the value after 'Authorization: Bearer '. Paste the eyJ… value below.",
+      "Two options — either works as a Bearer token: (1) Project token — open your Lovable preview, copy __lovable_token=eyJ… from the URL (valid ~7 days, scoped to this project). (2) User token — in DevTools → Network → filter Fetch/XHR → click any request to api.lovable.dev → Request Headers → copy the value after 'Authorization: Bearer ' (valid ~1 hour, full account access). Paste either eyJ… value below.",
     docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
-    setupUrl: "https://lovable.dev/",
-    setupLabel: "Open Lovable",
     tokenPlaceholder: "eyJhbGciOi…",
   },
   {
@@ -164,10 +155,8 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "Hugging Face access token",
-    tokenHint: "Create a Read-scope token on Hugging Face.",
+    tokenHint: "Create a token at huggingface.co → Settings → Access Tokens (read scope is enough).",
     docsUrl: "https://huggingface.co/settings/mcp",
-    setupUrl: "https://huggingface.co/settings/tokens/new?tokenType=read",
-    setupLabel: "Create token on Hugging Face",
     tokenPlaceholder: "hf_…",
   },
   {
@@ -177,10 +166,8 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "Stripe restricted API key",
-    tokenHint: "Use a restricted key (rk_…) — never your secret key (sk_…).",
+    tokenHint: "Use a restricted key (rk_…) — never your secret key. Dashboard → Developers → API keys.",
     docsUrl: "https://docs.stripe.com/mcp",
-    setupUrl: "https://dashboard.stripe.com/apikeys/create?type=restricted",
-    setupLabel: "Create restricted key on Stripe",
     tokenPlaceholder: "rk_live_… or rk_test_…",
   },
   {
@@ -223,10 +210,8 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "Zapier MCP server URL secret",
-    tokenHint: "Generate a personal MCP endpoint on Zapier — paste only the secret token portion of the URL.",
+    tokenHint: "Generate your personal MCP endpoint at mcp.zapier.com — paste the secret token portion.",
     docsUrl: "https://zapier.com/mcp",
-    setupUrl: "https://mcp.zapier.com/",
-    setupLabel: "Generate endpoint on Zapier",
     tokenPlaceholder: "your-zapier-mcp-token",
   },
   {
@@ -236,10 +221,8 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "Supabase personal access token",
-    tokenHint: "Create a personal access token (full account access).",
+    tokenHint: "Create at supabase.com/dashboard/account/tokens — full account access.",
     docsUrl: "https://supabase.com/docs/guides/getting-started/mcp",
-    setupUrl: "https://supabase.com/dashboard/account/tokens",
-    setupLabel: "Create token on Supabase",
     tokenPlaceholder: "sbp_…",
   },
   {
@@ -271,11 +254,9 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: false,
     tokenLabel: "",
-    tokenHint:
-      "Storefront MCP is per-store — endpoint is https://<your-store>.myshopify.com/api/mcp. Use the form below if your store URL differs.",
+    tokenHint: "OAuth — connect your Shopify store to read products, orders and customers.",
     docsUrl: "https://shopify.dev/docs/apps/build/storefront-mcp",
-    setupUrl: "https://shopify.dev/docs/apps/build/storefront-mcp",
-    setupLabel: "Storefront MCP docs",
+    oauth: true,
   },
   {
     id: "hubspot",
@@ -361,10 +342,8 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "ElevenLabs API key",
-    tokenHint: "Create an API key in your ElevenLabs account — powers TTS, voice cloning and dubbing.",
+    tokenHint: "Create at elevenlabs.io → Profile → API Keys. Powers TTS, voice cloning and dubbing.",
     docsUrl: "https://elevenlabs.io/docs/conversational-ai/customization/mcp",
-    setupUrl: "https://elevenlabs.io/app/settings/api-keys",
-    setupLabel: "Create key on ElevenLabs",
     tokenPlaceholder: "sk_…",
   },
   {
@@ -654,21 +633,6 @@ export default function Mcp() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {presetOpen?.setupUrl && (
-              <a
-                href={presetOpen.setupUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs hover:bg-primary/15 transition-colors"
-              >
-                <span className="font-medium text-primary">
-                  → {presetOpen.setupLabel ?? "Where to get this"}
-                </span>
-                <span className="text-[10px] font-mono text-muted-foreground truncate ml-3 max-w-[260px]">
-                  {presetOpen.setupUrl.replace(/^https?:\/\//, "")}
-                </span>
-              </a>
-            )}
             <div className="space-y-1.5">
               <Label>URL</Label>
               <Input value={presetOpen?.url ?? ""} readOnly className="font-mono text-xs" />
@@ -805,28 +769,6 @@ export default function Mcp() {
                     </div>
                     <div className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{p.url}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{p.tokenHint}</div>
-                    <div className="flex items-center gap-3 mt-1.5 text-[11px]">
-                      {p.setupUrl && (
-                        <a
-                          href={p.setupUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-primary hover:underline font-medium"
-                        >
-                          → {p.setupLabel ?? "Where to get it"}
-                        </a>
-                      )}
-                      <a
-                        href={p.docsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-muted-foreground hover:text-foreground hover:underline"
-                      >
-                        Docs ↗
-                      </a>
-                    </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button size="sm" onClick={() => setPresetOpen(p)}>

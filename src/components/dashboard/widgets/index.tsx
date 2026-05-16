@@ -68,7 +68,7 @@ export function WelcomeWidget({ onRemove }: RProps) {
       .then(({ data }) => setAgent(data as any));
   }, [isAgent, ws?.agentId]);
 
-  const apiUrl = `https://api.memorify.dev/functions/v1/agent-api`;
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-api`;
   const workspaceName = (agent?.metadata as any)?.workspace_name as string | undefined;
   const wsIdForAgent = agent ? workspaceIdForAgent(agent.id) : "";
 
