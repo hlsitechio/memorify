@@ -52,7 +52,7 @@ const CATALOG = [
   { kind: "hermes",       name: "Hermes Agents",     tagline: "Coming soon", description: "Open-source autonomous agent framework. MCP-native.", icon: Sparkles, logo: "/logos/hermes.png", tone: "text-yellow-400", featured: false },
   { kind: "manus",        name: "Manus AI",          tagline: "Coming soon", description: "General-purpose autonomous AI agent by Manus.",        icon: Sparkles, logo: "/logos/manus.svg", tone: "text-zinc-200",   featured: false },
   { kind: "opencode",     name: "OpenCode",          tagline: "Coming soon", description: "Open-source terminal coding agent (opencode.ai).",    icon: Terminal, logo: "/logos/opencode-dark.svg", tone: "text-orange-400",  featured: false },
-  { kind: "pi_dev",       name: "Pi",                tagline: "Coming soon", description: "Minimal terminal coding harness (pi.dev) — extensions, skills, MCP-friendly.", icon: Terminal, logo: "/logos/pi-dev.png", tone: "text-pink-400", featured: false },
+  { kind: "pi_dev",       name: "Pi",                tagline: "Coming soon", description: "Minimal terminal coding harness (pi.dev) — extensions, skills, MCP-friendly.", icon: Terminal, logo: "user-uploads://ChatGPT_Image_May_16_2026_09_39_40_AM.png", tone: "text-pink-400", featured: false },
   { kind: "custom",       name: "Custom agent",      tagline: "Bring your own", description: "Any MCP-capable agent via the hosted URL + token.", icon: Zap, tone: "text-primary",     featured: false },
 ];
 
@@ -276,7 +276,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
                   )}
                   <div className={cn("h-10 w-10 rounded-md bg-secondary/60 flex items-center justify-center mb-3 overflow-hidden", c.tone)}>
                     {c.logo ? (
-                      <img src={c.logo} alt={`${c.name} logo`} className="h-6 w-6 object-contain" />
+                      <img src={c.logo} alt={`${c.name} logo`} className="h-6 w-6 object-fill" />
                     ) : (
                       <Icon className="h-5 w-5" />
                     )}
