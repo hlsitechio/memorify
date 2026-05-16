@@ -57,13 +57,21 @@ async function resolveAgent(token: string) {
   const sb = admin();
   const { data: agent } = await sb
     .from("agents")
-    .select("id, name, kind, user_id, status, metadata")
+    .select("id, name, kind, user_id, status, metadata, token_expires_at")
     .eq("token", token)
     .maybeSingle();
   if (!agent) return null;
   // Flip status to connected and bump last_seen_at (fire-and-forget).
   sb.rpc("agent_ping", { _token: token, _meta: { via: "agent-api" } }).then(() => {});
   return agent;
+}
+
+function clientIp(req: Request): string | null {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("cf-connecting-ip")
+    || req.headers.get("x-real-ip")
+    || null;
 }
 
 // -------- Welcome / onboarding payload --------
@@ -974,6 +982,16 @@ Deno.serve(async (req) => {
   const agent = await resolveAgent(token);
   if (!agent) return json({ ok: false, error: "invalid token" }, 401);
 
+  // Reject expired tokens.
+  if ((agent as any).token_expires_at && new Date((agent as any).token_expires_at).getTime() < Date.now()) {
+    return json({
+      ok: false,
+      error: "token_expired",
+      message: "This token has expired. The user must rotate it from the Memorify dashboard.",
+      expired_at: (agent as any).token_expires_at,
+    }, 401);
+  }
+
   // Honor pause / revoke states set from the dashboard.
   if (agent.status === "paused") {
     return json({
@@ -989,6 +1007,9 @@ Deno.serve(async (req) => {
       message: "This agent's access was revoked. Ask the user to re-pair you with a fresh token.",
     }, 401);
   }
+
+  const ip = clientIp(req);
+  const userAgent = req.headers.get("user-agent") || null;
 
   // First-connection detection — show full welcome inline, then flag the agent.
   const firstConnection = !(agent as any).metadata?.onboarded;
@@ -1060,7 +1081,7 @@ Deno.serve(async (req) => {
       name: action,
       status: "ok",
       latency_ms: latency,
-      metadata: { source: "agent-api" },
+      metadata: { source: "agent-api", ip, user_agent: userAgent },
     }).then(() => {});
     return json({ ok: true, action, result, agent: { id: agent.id, name: agent.name } });
   } catch (e: any) {
@@ -1078,7 +1099,7 @@ Deno.serve(async (req) => {
       name: action,
       status: "error",
       latency_ms: latency,
-      metadata: { source: "agent-api", error: e?.message ?? "error" },
+      metadata: { source: "agent-api", error: e?.message ?? "error", ip, user_agent: userAgent },
     }).then(() => {});
     return json({ ok: false, action, error: e.message ?? "error" }, 400);
   }

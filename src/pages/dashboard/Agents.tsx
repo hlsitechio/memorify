@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle, MoreVertical, Pause, Play, KeyRound, Pencil, X } from "lucide-react";
+import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle, MoreVertical, Pause, Play, KeyRound, Pencil, X, Eye, EyeOff, Clock } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -23,6 +23,8 @@ type Agent = {
   last_seen_at: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
+  token_expires_at: string | null;
+  token_rotated_at: string | null;
 };
 
 type InstallInfo =
@@ -228,8 +230,23 @@ function endpointUrl() {
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-ping`;
 }
 
-function CopyField({ value, label, mono = true, multiline = false }: { value: string; label?: string; mono?: boolean; multiline?: boolean }) {
+function CopyField({
+  value,
+  label,
+  mono = true,
+  multiline = false,
+  secret = false,
+}: {
+  value: string;
+  label?: string;
+  mono?: boolean;
+  multiline?: boolean;
+  /** If true, content is blurred until the user clicks the eye. Copy still works while hidden. */
+  secret?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const hidden = secret && !revealed;
   const copy = async () => {
     await navigator.clipboard.writeText(value);
     setCopied(true);
@@ -239,20 +256,63 @@ function CopyField({ value, label, mono = true, multiline = false }: { value: st
   if (multiline) {
     return (
       <div className="relative rounded-md border border-border bg-secondary/40 overflow-hidden min-w-0 w-full">
-        <pre className={cn("max-h-72 overflow-auto px-3 py-2 pr-12 text-[11px] leading-relaxed whitespace-pre-wrap break-words", mono && "font-mono")}>{value}</pre>
-        <button
-          onClick={copy}
-          className="absolute top-1.5 right-1.5 rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Copy"
+        <pre
+          className={cn(
+            "max-h-72 overflow-auto px-3 py-2 pr-20 text-[11px] leading-relaxed whitespace-pre-wrap break-words transition select-none",
+            mono && "font-mono",
+            hidden && "blur-sm pointer-events-none"
+          )}
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
+          {value}
+        </pre>
+        {hidden && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/30 backdrop-blur-[2px] text-[11px] text-muted-foreground">
+            <span className="rounded-full border border-border bg-background/80 px-3 py-1">Click eye to reveal — copy still works</span>
+          </div>
+        )}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+          {secret && (
+            <button
+              onClick={() => setRevealed(v => !v)}
+              className="rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title={revealed ? "Hide" : "Reveal"}
+            >
+              {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <button
+            onClick={copy}
+            className="rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Copy"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       </div>
     );
   }
+  const display = hidden ? "•".repeat(Math.min(Math.max(value.length, 12), 48)) : value;
   return (
     <div className="flex items-stretch rounded-md border border-border bg-secondary/40 overflow-hidden group min-w-0 w-full">
-      <code className={cn("flex-1 min-w-0 px-3 py-2 text-xs truncate", mono && "font-mono")} title={value}>{value}</code>
+      <code
+        className={cn(
+          "flex-1 min-w-0 px-3 py-2 text-xs truncate select-none",
+          mono && "font-mono",
+          hidden && "tracking-widest text-muted-foreground"
+        )}
+        title={hidden ? "Hidden — click eye to reveal" : value}
+      >
+        {display}
+      </code>
+      {secret && (
+        <button
+          onClick={() => setRevealed(v => !v)}
+          className="px-3 shrink-0 border-l border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title={revealed ? "Hide" : "Reveal"}
+        >
+          {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      )}
       <button
         onClick={copy}
         className="px-3 shrink-0 border-l border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -284,6 +344,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardId, setWizardId] = useState<string | null>(null);
+  const [rotateId, setRotateId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -358,13 +419,36 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
     load();
   };
 
-  const revokeToken = async (a: Agent) => {
-    // Rotate the bearer token; old token immediately stops working.
-    const newToken = crypto.getRandomValues(new Uint8Array(24));
-    const hex = Array.from(newToken).map(b => b.toString(16).padStart(2, "0")).join("");
-    await supabase.from("agents").update({ token: hex, status: "pending", last_seen_at: null }).eq("id", a.id);
-    toast.success("Token rotated — old token revoked. Open Setup to copy the new one.");
+  const revokeToken = (a: Agent) => {
+    // Open the rotate dialog (lets the user pick a new expiry)
+    setRotateId(a.id);
+  };
+
+  const performRotate = async (a: Agent, expiresInDays: number | null) => {
+    const { data, error } = await supabase.rpc("rotate_agent_token", {
+      _agent_id: a.id,
+      _expires_in_days: expiresInDays,
+    });
+    if (error) { toast.error(error.message); return; }
+    const newRow = Array.isArray(data) ? (data[0] as any) : (data as any);
+    toast.success(
+      expiresInDays
+        ? `Token rotated — expires in ${expiresInDays} days. Open Setup to copy.`
+        : "Token rotated — never expires. Open Setup to copy.",
+    );
+    setRotateId(null);
     setWizardId(a.id);
+    load();
+    return newRow;
+  };
+
+  const setExpiry = async (a: Agent, expiresInDays: number | null) => {
+    const { error } = await supabase.rpc("set_agent_token_expiry", {
+      _agent_id: a.id,
+      _expires_in_days: expiresInDays,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success(expiresInDays ? `Token now expires in ${expiresInDays} days` : "Token set to never expire");
     load();
   };
 
@@ -474,9 +558,98 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
         agent={wizardAgent}
         onClose={() => setWizardId(null)}
       />
+
+      <RotateTokenDialog
+        agent={agents.find(a => a.id === rotateId) ?? null}
+        onClose={() => setRotateId(null)}
+        onConfirm={(days) => {
+          const a = agents.find(x => x.id === rotateId);
+          if (a) performRotate(a, days);
+        }}
+        onSetExpiryOnly={(days) => {
+          const a = agents.find(x => x.id === rotateId);
+          if (a) { setExpiry(a, days); setRotateId(null); }
+        }}
+      />
     </>
   );
 }
+
+function RotateTokenDialog({
+  agent,
+  onClose,
+  onConfirm,
+  onSetExpiryOnly,
+}: {
+  agent: Agent | null;
+  onClose: () => void;
+  onConfirm: (expiresInDays: number | null) => void;
+  onSetExpiryOnly: (expiresInDays: number | null) => void;
+}) {
+  const [choice, setChoice] = useState<"30" | "90" | "never">("30");
+  const days = choice === "never" ? null : Number(choice);
+  const currentExp = agent?.token_expires_at ? new Date(agent.token_expires_at) : null;
+  return (
+    <Dialog open={!!agent} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-amber-400" />
+            Rotate token for {agent?.name}
+          </DialogTitle>
+          <DialogDescription>
+            The old token stops working instantly. Pick how long the new one stays valid.
+          </DialogDescription>
+        </DialogHeader>
+
+        {currentExp && (
+          <div className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5" />
+            Current token expires {formatDistanceToNow(currentExp, { addSuffix: true })}
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          {[
+            { v: "30", label: "30 days", hint: "Recommended" },
+            { v: "90", label: "90 days", hint: "Longer" },
+            { v: "never", label: "Never", hint: "Risky" },
+          ].map(opt => (
+            <button
+              key={opt.v}
+              onClick={() => setChoice(opt.v as any)}
+              className={cn(
+                "rounded-md border px-3 py-3 text-left transition-colors",
+                choice === opt.v
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-secondary/30 hover:bg-secondary/60"
+              )}
+            >
+              <div className="text-sm font-medium">{opt.label}</div>
+              <div className="text-[11px] text-muted-foreground">{opt.hint}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={() => onConfirm(days)} className="w-full">
+            <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+            Rotate now {days ? `· expires in ${days}d` : "· no expiry"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onSetExpiryOnly(days)}
+            className="text-xs text-muted-foreground"
+          >
+            Just change expiry (keep current token)
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function InstallButton({ agent }: { agent: { name: string; logo?: string; tone: string; icon: any; install?: InstallInfo } }) {
   const [open, setOpen] = useState(false);
@@ -979,7 +1152,7 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                 <p className="text-xs text-muted-foreground">
                   <span className="text-foreground font-medium">First-time setup.</span> Paste this once into the agent's system prompt — token is baked in so it self-onboards. For day-to-day re-pastes, use the <span className="text-foreground font-medium">Reconnect</span> tab (no secrets).
                 </p>
-                <CopyField value={systemPrompt} label="Agent system prompt" multiline />
+                <CopyField value={systemPrompt} label="Agent system prompt" multiline secret />
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
                   <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Memorify data.
                 </div>
@@ -992,11 +1165,11 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (macOS / Linux, bash/zsh)</label>
-                  <CopyField value={`export MEMORIFY_TOKEN="${token}"`} label="bash export" />
+                  <CopyField value={`export MEMORIFY_TOKEN="${token}"`} label="bash export" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (Windows PowerShell, persistent)</label>
-                  <CopyField value={`setx MEMORIFY_TOKEN "${token}"`} label="powershell setx" />
+                  <CopyField value={`setx MEMORIFY_TOKEN "${token}"`} label="powershell setx" secret />
                   <p className="text-[11px] text-muted-foreground">
                     Restart your terminal after <code className="text-foreground">setx</code>. For the current session only:{" "}
                     <code className="text-foreground">$env:MEMORIFY_TOKEN = "{token.slice(0, 6)}…"</code>
@@ -1021,19 +1194,19 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Bearer token (keep secret)</label>
-                  <CopyField value={token} label="Token" />
+                  <CopyField value={token} label="Token" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">List commands + whoami</label>
-                  <CopyField value={curlWhoami} label="whoami" />
+                  <CopyField value={curlWhoami} label="whoami" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Store a memory</label>
-                  <CopyField value={curlRemember} label="memory.remember" />
+                  <CopyField value={curlRemember} label="memory.remember" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Recall</label>
-                  <CopyField value={curlRecall} label="memory.recall" />
+                  <CopyField value={curlRecall} label="memory.recall" secret />
                 </div>
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
                   <span className="text-primary font-medium">Tip:</span> any agent (Claude Code via bash, scripts, your own tools) can call this with no restart. Available actions: <code className="text-foreground">whoami</code>, <code className="text-foreground">memory.remember/recall/update/delete</code>, <code className="text-foreground">documents.list</code>, <code className="text-foreground">skills.list</code>, <code className="text-foreground">events.log/list</code>.
@@ -1048,14 +1221,14 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                     </p>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Option A — token inline (fastest)</label>
-                      <CopyField value={codexToml} label="codex config (inline)" multiline />
+                      <CopyField value={codexToml} label="codex config (inline)" multiline secret />
                       <p className="text-[11px] text-muted-foreground">
                         Append this block to <code className="text-foreground">~/.codex/config.toml</code> (create the file if missing).
                       </p>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Option B — token via env var (recommended)</label>
-                      <CopyField value={codexExport} label="env export" />
+                      <CopyField value={codexExport} label="env export" secret />
                       <CopyField value={codexTomlEnv} label="codex config (env)" multiline />
                       <p className="text-[11px] text-muted-foreground">
                         Add the <code className="text-foreground">export</code> to your shell profile, then paste the TOML block into <code className="text-foreground">~/.codex/config.toml</code>.
@@ -1068,7 +1241,7 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                 ) : (
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
-                    <CopyField value={mcpCmd} label="MCP install" />
+                    <CopyField value={mcpCmd} label="MCP install" secret />
                     <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
                   </div>
                 )}
