@@ -529,7 +529,7 @@ function InstallButton({ agent }: { agent: { name: string; logo?: string; tone: 
                 </TabsList>
                 {osTabs.map((t) => (
                   <TabsContent key={t.id} value={t.id} className="mt-3">
-                    <CopyField value={t.cmd} label={`${agent.name} ${t.label} install`} />
+                    <CopyField value={t.cmd} label={`${agent.name} ${t.label} install`} multiline />
                   </TabsContent>
                 ))}
               </Tabs>
