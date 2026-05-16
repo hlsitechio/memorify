@@ -242,6 +242,45 @@ const TOOLS: ToolDef[] = [
     action: "agents.list",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "web_fetch",
+    description: "Fetch any URL and return clean markdown/text/html/json. No API key. Gives tool-less agents live web access.",
+    action: "web.fetch",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        format: { type: "string", enum: ["markdown", "text", "html", "json"] },
+        max_chars: { type: "number" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "web_search",
+    description: "Search the web via SearxNG (no API key). Returns title/url/snippet results.",
+    action: "web.search",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        limit: { type: "number" },
+        engines: { type: "string", description: "Comma list e.g. 'google,duckduckgo,brave'" },
+        language: { type: "string" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "web_extract",
+    description: "Extract clean article markdown from a URL (reader-mode). Best for blogs, docs, news.",
+    action: "web.extract",
+    inputSchema: {
+      type: "object",
+      properties: { url: { type: "string" }, max_chars: { type: "number" } },
+      required: ["url"],
+    },
+  },
 ];
 
 function rpc(id: any, result?: any, error?: { code: number; message: string }) {

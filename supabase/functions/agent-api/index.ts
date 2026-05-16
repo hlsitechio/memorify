@@ -817,6 +817,74 @@ const COMMANDS: Cmd[] = [
       return { id: data.id, workspace: { id: `agent:${data.id}`, name: null, scope: "agent", shared_namespace: "default" } };
     },
   },
+
+  /* ─────────── Web tools (live internet access for any agent) ─────────── */
+  {
+    name: "web.fetch",
+    description: "Fetch a URL and return clean text/markdown/html/json. No API key. Inspired by webfetch-mcp.",
+    params: { url: "string (required)", format: "'markdown'|'text'|'html'|'json'? (default 'markdown')", max_chars: "number? (default 20000)" },
+    run: async (_sb, _userId, p) => {
+      const url = String(p?.url ?? "");
+      if (!/^https?:\/\//i.test(url)) throw new Error("url must start with http(s)://");
+      const format = String(p?.format ?? "markdown");
+      const maxChars = Math.min(Math.max(Number(p?.max_chars ?? 20000), 500), 200000);
+      const ua = "Mozilla/5.0 (compatible; MemorifyBot/1.0; +https://memorify.dev)";
+      if (format === "markdown") {
+        // r.jina.ai is a free clean-markdown reader proxy (no key)
+        const res = await fetch(`https://r.jina.ai/${url}`, { headers: { "User-Agent": ua, "X-Return-Format": "markdown" } });
+        const text = await res.text();
+        return { url, status: res.status, format, content: text.slice(0, maxChars), truncated: text.length > maxChars };
+      }
+      const res = await fetch(url, { headers: { "User-Agent": ua, Accept: format === "json" ? "application/json" : "text/html,*/*" } });
+      const ct = res.headers.get("content-type") ?? "";
+      const raw = await res.text();
+      let content: any = raw;
+      if (format === "text") {
+        content = raw.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      } else if (format === "json") {
+        try { content = JSON.parse(raw); } catch { /* return raw */ }
+      }
+      const out = typeof content === "string" ? content.slice(0, maxChars) : content;
+      return { url, status: res.status, content_type: ct, format, content: out, truncated: typeof content === "string" && content.length > maxChars };
+    },
+  },
+  {
+    name: "web.search",
+    description: "Search the web via SearxNG (no API key). Returns title/url/snippet results.",
+    params: { query: "string (required)", limit: "number? (default 10)", engines: "string? (comma list, e.g. 'google,duckduckgo,brave')", language: "string? (default 'en')" },
+    run: async (_sb, _userId, p) => {
+      const query = String(p?.query ?? "").trim();
+      if (!query) throw new Error("query required");
+      const limit = Math.min(Math.max(Number(p?.limit ?? 10), 1), 30);
+      const base = (Deno.env.get("SEARXNG_URL") || "https://searx.be").replace(/\/+$/, "");
+      const qs = new URLSearchParams({ q: query, format: "json", language: String(p?.language ?? "en") });
+      if (p?.engines) qs.set("engines", String(p.engines));
+      const res = await fetch(`${base}/search?${qs.toString()}`, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; MemorifyBot/1.0)", Accept: "application/json" },
+      });
+      if (!res.ok) throw new Error(`search failed [${res.status}]: ${(await res.text()).slice(0, 200)}`);
+      const data = await res.json();
+      const results = (data?.results ?? []).slice(0, limit).map((r: any) => ({
+        title: r.title, url: r.url, snippet: r.content, engine: r.engine, score: r.score,
+      }));
+      return { query, count: results.length, results };
+    },
+  },
+  {
+    name: "web.extract",
+    description: "Extract clean article content from a URL as markdown (via reader proxy). Best for blog posts & docs.",
+    params: { url: "string (required)", max_chars: "number? (default 30000)" },
+    run: async (_sb, _userId, p) => {
+      const url = String(p?.url ?? "");
+      if (!/^https?:\/\//i.test(url)) throw new Error("url must start with http(s)://");
+      const maxChars = Math.min(Math.max(Number(p?.max_chars ?? 30000), 500), 200000);
+      const res = await fetch(`https://r.jina.ai/${url}`, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; MemorifyBot/1.0)", "X-Return-Format": "markdown" },
+      });
+      const text = await res.text();
+      return { url, status: res.status, markdown: text.slice(0, maxChars), truncated: text.length > maxChars };
+    },
+  },
 ];
 
 const MCP_ACCEPT = "application/json, text/event-stream";
