@@ -471,8 +471,10 @@ const COMMANDS: Cmd[] = [
           .neq("category", "identity")
           .order("updated_at", { ascending: false }).limit(memLimit),
         sb.from("skills")
-          .select("id, name, slug, description, status, model")
-          .eq("user_id", userId).order("updated_at", { ascending: false }),
+          .select("id, name, slug, description, status, model, workspace_id")
+          .eq("user_id", userId)
+          .or(`workspace_id.is.null,workspace_id.eq.${ns}`)
+          .order("updated_at", { ascending: false }),
         sb.from("documents")
           .select("id, name, mime, size, created_at")
           .eq("user_id", userId).order("created_at", { ascending: false }).limit(docLimit),
