@@ -1037,7 +1037,7 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                 <p className="text-xs text-muted-foreground">
                   <span className="text-foreground font-medium">First-time setup.</span> Paste this once into the agent's system prompt — token is baked in so it self-onboards. For day-to-day re-pastes, use the <span className="text-foreground font-medium">Reconnect</span> tab (no secrets).
                 </p>
-                <CopyField value={systemPrompt} label="Agent system prompt" multiline />
+                <CopyField value={systemPrompt} label="Agent system prompt" multiline secret />
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
                   <span className="text-primary font-medium">Keep token secret.</span> Anyone with this prompt has full read/write access to your Memorify data.
                 </div>
@@ -1050,11 +1050,11 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (macOS / Linux, bash/zsh)</label>
-                  <CopyField value={`export MEMORIFY_TOKEN="${token}"`} label="bash export" />
+                  <CopyField value={`export MEMORIFY_TOKEN="${token}"`} label="bash export" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Step 1 — set the token (Windows PowerShell, persistent)</label>
-                  <CopyField value={`setx MEMORIFY_TOKEN "${token}"`} label="powershell setx" />
+                  <CopyField value={`setx MEMORIFY_TOKEN "${token}"`} label="powershell setx" secret />
                   <p className="text-[11px] text-muted-foreground">
                     Restart your terminal after <code className="text-foreground">setx</code>. For the current session only:{" "}
                     <code className="text-foreground">$env:MEMORIFY_TOKEN = "{token.slice(0, 6)}…"</code>
@@ -1079,19 +1079,19 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Bearer token (keep secret)</label>
-                  <CopyField value={token} label="Token" />
+                  <CopyField value={token} label="Token" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">List commands + whoami</label>
-                  <CopyField value={curlWhoami} label="whoami" />
+                  <CopyField value={curlWhoami} label="whoami" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Store a memory</label>
-                  <CopyField value={curlRemember} label="memory.remember" />
+                  <CopyField value={curlRemember} label="memory.remember" secret />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Recall</label>
-                  <CopyField value={curlRecall} label="memory.recall" />
+                  <CopyField value={curlRecall} label="memory.recall" secret />
                 </div>
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
                   <span className="text-primary font-medium">Tip:</span> any agent (Claude Code via bash, scripts, your own tools) can call this with no restart. Available actions: <code className="text-foreground">whoami</code>, <code className="text-foreground">memory.remember/recall/update/delete</code>, <code className="text-foreground">documents.list</code>, <code className="text-foreground">skills.list</code>, <code className="text-foreground">events.log/list</code>.
@@ -1106,14 +1106,14 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                     </p>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Option A — token inline (fastest)</label>
-                      <CopyField value={codexToml} label="codex config (inline)" multiline />
+                      <CopyField value={codexToml} label="codex config (inline)" multiline secret />
                       <p className="text-[11px] text-muted-foreground">
                         Append this block to <code className="text-foreground">~/.codex/config.toml</code> (create the file if missing).
                       </p>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Option B — token via env var (recommended)</label>
-                      <CopyField value={codexExport} label="env export" />
+                      <CopyField value={codexExport} label="env export" secret />
                       <CopyField value={codexTomlEnv} label="codex config (env)" multiline />
                       <p className="text-[11px] text-muted-foreground">
                         Add the <code className="text-foreground">export</code> to your shell profile, then paste the TOML block into <code className="text-foreground">~/.codex/config.toml</code>.
@@ -1126,7 +1126,7 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
                 ) : (
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
-                    <CopyField value={mcpCmd} label="MCP install" />
+                    <CopyField value={mcpCmd} label="MCP install" secret />
                     <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
                   </div>
                 )}
