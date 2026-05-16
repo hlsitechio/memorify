@@ -502,7 +502,7 @@ function InstallButton({ agent }: { agent: { name: string; logo?: string; tone: 
         <Terminal className="h-3.5 w-3.5 mr-1.5" /> Install
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-md overflow-hidden [&>*]:min-w-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className={cn("h-7 w-7 rounded-md bg-secondary/60 flex items-center justify-center overflow-hidden", agent.tone)}>
@@ -529,7 +529,7 @@ function InstallButton({ agent }: { agent: { name: string; logo?: string; tone: 
                 </TabsList>
                 {osTabs.map((t) => (
                   <TabsContent key={t.id} value={t.id} className="mt-3">
-                    <CopyField value={t.cmd} label={`${agent.name} ${t.label} install`} />
+                    <CopyField value={t.cmd} label={`${agent.name} ${t.label} install`} multiline />
                   </TabsContent>
                 ))}
               </Tabs>
