@@ -66,17 +66,23 @@ serve(async (req) => {
     if (server.auth?.bearer) headers.Authorization = `Bearer ${server.auth.bearer}`;
     if (server.auth?.headers) Object.assign(headers, server.auth.headers);
 
-    // Some MCP servers require initialize before tools/call. Best-effort init.
+    // Initialize session — Streamable HTTP servers (Notion, etc.) require this.
+    let sessionHeaders = { ...headers };
     try {
-      await mcpRpc(server.url, "initialize", {
-        protocolVersion: "2024-11-05",
+      const init = await mcpRpc(server.url, "initialize", {
+        protocolVersion: "2025-03-26",
         capabilities: {},
         clientInfo: { name: "synapse", version: "1.0.0" },
       }, headers);
-    } catch { /* ignore — many servers are stateless */ }
+      if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+      await mcpNotify(server.url, "notifications/initialized", sessionHeaders);
+    } catch { /* stateless servers — proceed without session */ }
 
-    const out = await mcpRpc(server.url, "tools/call", { name: tool, arguments: args ?? {} }, headers);
-    const result = out?.result ?? out;
+    const out = await mcpRpc(server.url, "tools/call", { name: tool, arguments: args ?? {} }, sessionHeaders);
+    const result = out.body?.result ?? out.body;
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
     return new Response(JSON.stringify({ ok: true, result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
