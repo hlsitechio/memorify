@@ -38,7 +38,10 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").repla
 
 export default function Skills() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<Skill[]>([]);
+  const [currentWs] = useCurrentWorkspace();
+  const wsId = currentWs?.kind === "agent" && currentWs.agentId ? `agent:${currentWs.agentId}` : null;
+  const wsLabel = currentWs?.kind === "agent" ? (currentWs.name || "agent workspace") : "User workspace";
+  const [allRows, setAllRows] = useState<Skill[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Skill | null>(null);
   const [tryOpen, setTryOpen] = useState<Skill | null>(null);
@@ -46,13 +49,41 @@ export default function Skills() {
   const [tryOutput, setTryOutput] = useState("");
   const [tryBusy, setTryBusy] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", prompt: "", model: MODELS[0], status: "draft" });
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+
+  // In an agent WS show user-wide (NULL) + this WS's skills; in user WS show only user-wide.
+  const rows = useMemo(() => {
+    if (wsId) return allRows.filter((s: any) => s.workspace_id == null || s.workspace_id === wsId);
+    return allRows.filter((s: any) => s.workspace_id == null);
+  }, [allRows, wsId]);
 
   const load = async () => {
     if (!user) return;
     const { data } = await supabase.from("skills").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-    setRows((data as any) ?? []);
+    setAllRows((data as any) ?? []);
   };
   useEffect(() => { load(); }, [user]);
+
+  const runImport = async () => {
+    if (!/^https?:\/\//i.test(importUrl.trim())) { toast.error("Paste a valid URL (https://…)"); return; }
+    setImportBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("skill-import", {
+        body: { url: importUrl.trim(), workspace_id: wsId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Imported "${data.skill?.name}" into ${wsLabel}`);
+      setImportOpen(false); setImportUrl(""); load();
+    } catch (e: any) {
+      toast.error(e.message ?? "Import failed");
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
 
   const upsert = async () => {
     if (!user) return;
