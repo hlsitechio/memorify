@@ -271,8 +271,12 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
                   {c.featured && (
                     <Badge className="absolute top-3 right-3 text-[10px]" variant="default">Featured</Badge>
                   )}
-                  <div className={cn("h-10 w-10 rounded-md bg-secondary/60 flex items-center justify-center mb-3", c.tone)}>
-                    <Icon className="h-5 w-5" />
+                  <div className={cn("h-10 w-10 rounded-md bg-secondary/60 flex items-center justify-center mb-3 overflow-hidden", c.tone)}>
+                    {c.logo ? (
+                      <img src={c.logo} alt={`${c.name} logo`} className="h-6 w-6 object-contain" />
+                    ) : (
+                      <Icon className="h-5 w-5" />
+                    )}
                   </div>
                   <div className="text-sm font-semibold">{c.name}</div>
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">{c.tagline}</div>
