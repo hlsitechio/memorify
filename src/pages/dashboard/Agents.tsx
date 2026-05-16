@@ -419,13 +419,36 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
     load();
   };
 
-  const revokeToken = async (a: Agent) => {
-    // Rotate the bearer token; old token immediately stops working.
-    const newToken = crypto.getRandomValues(new Uint8Array(24));
-    const hex = Array.from(newToken).map(b => b.toString(16).padStart(2, "0")).join("");
-    await supabase.from("agents").update({ token: hex, status: "pending", last_seen_at: null }).eq("id", a.id);
-    toast.success("Token rotated — old token revoked. Open Setup to copy the new one.");
+  const revokeToken = (a: Agent) => {
+    // Open the rotate dialog (lets the user pick a new expiry)
+    setRotateId(a.id);
+  };
+
+  const performRotate = async (a: Agent, expiresInDays: number | null) => {
+    const { data, error } = await supabase.rpc("rotate_agent_token", {
+      _agent_id: a.id,
+      _expires_in_days: expiresInDays,
+    });
+    if (error) { toast.error(error.message); return; }
+    const newRow = Array.isArray(data) ? (data[0] as any) : (data as any);
+    toast.success(
+      expiresInDays
+        ? `Token rotated — expires in ${expiresInDays} days. Open Setup to copy.`
+        : "Token rotated — never expires. Open Setup to copy.",
+    );
+    setRotateId(null);
     setWizardId(a.id);
+    load();
+    return newRow;
+  };
+
+  const setExpiry = async (a: Agent, expiresInDays: number | null) => {
+    const { error } = await supabase.rpc("set_agent_token_expiry", {
+      _agent_id: a.id,
+      _expires_in_days: expiresInDays,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success(expiresInDays ? `Token now expires in ${expiresInDays} days` : "Token set to never expire");
     load();
   };
 
