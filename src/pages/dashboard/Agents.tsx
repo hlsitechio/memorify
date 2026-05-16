@@ -525,7 +525,10 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
 
         <TabsContent value="library" className="mt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {CATALOG.map((c) => {
+            {(isAgentWs && agents[0]
+              ? CATALOG.filter((c) => c.kind === agents[0].kind)
+              : CATALOG
+            ).map((c) => {
               const Icon = c.icon;
               const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot" || c.kind === "openai_codex";
               return (
