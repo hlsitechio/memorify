@@ -10,7 +10,12 @@ const corsHeaders = {
 };
 const MCP_ACCEPT = "application/json, text/event-stream";
 
-async function mcpRpc(url: string, method: string, params: any, headers: Record<string, string>) {
+async function mcpRpc(
+  url: string,
+  method: string,
+  params: any,
+  headers: Record<string, string>,
+): Promise<{ body: any; sessionId: string | null }> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
@@ -18,12 +23,24 @@ async function mcpRpc(url: string, method: string, params: any, headers: Record<
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
+  const sessionId = res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
+  let body: any = {};
   if (text.startsWith("event:") || text.includes("data:")) {
     const lines = text.split("\n").filter((l) => l.startsWith("data:"));
     const last = lines[lines.length - 1]?.slice(5).trim();
-    return last ? JSON.parse(last) : {};
+    body = last ? JSON.parse(last) : {};
+  } else if (text.trim()) {
+    body = JSON.parse(text);
   }
-  return JSON.parse(text);
+  return { body, sessionId };
+}
+
+async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
+    body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
+  }).then((r) => r.text()).catch(() => {});
 }
 
 serve(async (req) => {
