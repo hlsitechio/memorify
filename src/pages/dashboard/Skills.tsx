@@ -97,7 +97,7 @@ export default function Skills() {
       if (error) return toast.error(error.message);
     } else {
       const { error } = await supabase.from("skills").insert({
-        user_id: user.id, name: form.name, slug, description: form.description, prompt: form.prompt, model: form.model, status: form.status,
+        user_id: user.id, workspace_id: wsId, name: form.name, slug, description: form.description, prompt: form.prompt, model: form.model, status: form.status,
       });
       if (error) return toast.error(error.message);
     }
