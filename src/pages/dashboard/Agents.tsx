@@ -152,7 +152,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
 
   const connect = async (kind: string, name: string) => {
     if (!user) return;
-    if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot") {
+    if (kind !== "claude_code" && kind !== "custom" && kind !== "github_copilot" && kind !== "openai_codex") {
       toast.info(`${name} support is coming soon.`);
       return;
     }
@@ -264,7 +264,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {CATALOG.map((c) => {
               const Icon = c.icon;
-              const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot";
+              const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot" || c.kind === "openai_codex";
               return (
                 <div key={c.kind} className={cn(
                   "relative rounded-lg border bg-card p-4 transition-all hover:border-primary/40",
@@ -575,7 +575,16 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.remember","params":{"content":"User prefers dark mode","tags":["preference"]}}'`;
   const curlRecall =
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
+  const mcpHttpUrl = `${base}/synapse-mcp`;
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
+  const isCodex = agent?.kind === "openai_codex";
+  const codexToml = `[mcp_servers.memorify]
+url = "${mcpHttpUrl}"
+bearer_token = "${token}"`;
+  const codexExport = `export MEMORIFY_TOKEN="${token}"`;
+  const codexTomlEnv = `[mcp_servers.memorify]
+url = "${mcpHttpUrl}"
+bearer_token_env_var = "MEMORIFY_TOKEN"`;
 
   const agentId = agent?.id ?? "";
   const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
@@ -776,11 +785,37 @@ You're ready. Begin by running the GET request above to confirm the connection.`
               </TabsContent>
 
               <TabsContent value="mcp" className="space-y-3 mt-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
-                  <CopyField value={mcpCmd} label="MCP install" />
-                  <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
-                </div>
+                {isCodex ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Codex CLI loads MCP servers from <code className="text-foreground">~/.codex/config.toml</code>. Pick one of the two options below, then restart Codex.
+                    </p>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Option A — token inline (fastest)</label>
+                      <CopyField value={codexToml} label="codex config (inline)" multiline />
+                      <p className="text-[11px] text-muted-foreground">
+                        Append this block to <code className="text-foreground">~/.codex/config.toml</code> (create the file if missing).
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Option B — token via env var (recommended)</label>
+                      <CopyField value={codexExport} label="env export" />
+                      <CopyField value={codexTomlEnv} label="codex config (env)" multiline />
+                      <p className="text-[11px] text-muted-foreground">
+                        Add the <code className="text-foreground">export</code> to your shell profile, then paste the TOML block into <code className="text-foreground">~/.codex/config.toml</code>.
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                      <span className="text-primary font-medium">Verify:</span> run <code className="text-foreground">codex mcp list</code> — you should see <code className="text-foreground">memorify</code> with all Synapse tools (memory_*, documents_*, web_*).
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
+                    <CopyField value={mcpCmd} label="MCP install" />
+                    <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
