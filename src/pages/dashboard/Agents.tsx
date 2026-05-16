@@ -25,7 +25,34 @@ type Agent = {
   created_at: string;
 };
 
-const CATALOG = [
+type InstallInfo =
+  | {
+      type: "cli";
+      docs: string;
+      mac?: string;
+      linux?: string;
+      windows?: string;
+      note?: string;
+    }
+  | {
+      type: "app";
+      docs: string;
+      downloadUrl: string;
+      downloadLabel?: string;
+      note?: string;
+    };
+
+const CATALOG: Array<{
+  kind: string;
+  name: string;
+  tagline: string;
+  description: string;
+  icon: any;
+  logo?: string;
+  tone: string;
+  featured: boolean;
+  install?: InstallInfo;
+}> = [
   {
     kind: "claude_code",
     name: "Claude Code",
@@ -35,6 +62,14 @@ const CATALOG = [
     logo: "/logos/claude-ai-icon.svg",
     tone: "text-amber-400",
     featured: true,
+    install: {
+      type: "cli",
+      docs: "https://code.claude.com/docs/en/overview",
+      mac: "curl -fsSL https://claude.ai/install.sh | bash",
+      linux: "curl -fsSL https://claude.ai/install.sh | bash",
+      windows: "irm https://claude.ai/install.ps1 | iex",
+      note: "Or via npm (any OS): npm install -g @anthropic-ai/claude-code",
+    },
   },
   {
     kind: "github_copilot",
@@ -45,15 +80,147 @@ const CATALOG = [
     logo: "/logos/copilot_dark.svg",
     tone: "text-violet-400",
     featured: true,
+    install: {
+      type: "cli",
+      docs: "https://docs.github.com/en/copilot/how-tos/use-copilot-in-the-cli",
+      mac: "brew install gh && gh extension install github/gh-copilot",
+      linux: "sudo apt install gh -y && gh extension install github/gh-copilot",
+      windows: "winget install --id GitHub.cli && gh extension install github/gh-copilot",
+      note: "Requires GitHub CLI (gh). Then run: gh auth login",
+    },
   },
-  { kind: "openai_codex", name: "OpenAI Codex CLI",  tagline: "Coming soon", description: "OpenAI's terminal coding agent.",          icon: Sparkles, logo: "/logos/codex.svg", tone: "text-emerald-400", featured: false },
-  { kind: "microsoft_copilot", name: "Microsoft Copilot", tagline: "Coming soon", description: "Microsoft 365 Copilot — assistant for Word, Excel, Teams.", icon: Bot, logo: "/logos/microsoft-copilot.svg", tone: "text-cyan-400", featured: false },
-  { kind: "cursor",       name: "Cursor",            tagline: "Coming soon", description: "Cursor MCP integration.",                  icon: Bot,      logo: "/logos/cursor_dark.svg", tone: "text-sky-400",     featured: false },
-  { kind: "hermes",       name: "Hermes Agents",     tagline: "Coming soon", description: "Open-source autonomous agent framework. MCP-native.", icon: Sparkles, logo: "/logos/hermes.png", tone: "text-yellow-400", featured: false },
-  { kind: "manus",        name: "Manus AI",          tagline: "Coming soon", description: "General-purpose autonomous AI agent by Manus.",        icon: Sparkles, logo: "/logos/manus.svg", tone: "text-zinc-200",   featured: false },
-  { kind: "opencode",     name: "OpenCode",          tagline: "Coming soon", description: "Open-source terminal coding agent (opencode.ai).",    icon: Terminal, logo: "/logos/opencode-dark.svg", tone: "text-orange-400",  featured: false },
-  { kind: "pi_dev",       name: "Pi",                tagline: "Coming soon", description: "Minimal terminal coding harness (pi.dev) — extensions, skills, MCP-friendly.", icon: Terminal, logo: "/logos/pi-dev.png", tone: "text-pink-400", featured: false },
-  { kind: "custom",       name: "Custom agent",      tagline: "Bring your own", description: "Any MCP-capable agent via the hosted URL + token.", icon: Zap, tone: "text-primary",     featured: false },
+  {
+    kind: "openai_codex",
+    name: "OpenAI Codex CLI",
+    tagline: "Terminal coding agent",
+    description: "OpenAI's terminal coding agent. MCP-native via ~/.codex/config.toml.",
+    icon: Sparkles,
+    logo: "/logos/codex.svg",
+    tone: "text-emerald-400",
+    featured: false,
+    install: {
+      type: "cli",
+      docs: "https://github.com/openai/codex",
+      mac: "brew install codex",
+      linux: "npm install -g @openai/codex",
+      windows: "npm install -g @openai/codex",
+      note: "Then run: codex login",
+    },
+  },
+  {
+    kind: "microsoft_copilot",
+    name: "Microsoft Copilot",
+    tagline: "Coming soon",
+    description: "Microsoft 365 Copilot — assistant for Word, Excel, Teams.",
+    icon: Bot,
+    logo: "/logos/microsoft-copilot.svg",
+    tone: "text-cyan-400",
+    featured: false,
+    install: {
+      type: "app",
+      docs: "https://www.microsoft.com/en-us/microsoft-copilot",
+      downloadUrl: "https://copilot.microsoft.com/",
+      downloadLabel: "Open Copilot",
+      note: "Desktop app available on Windows 11 and via the Microsoft 365 mobile apps.",
+    },
+  },
+  {
+    kind: "cursor",
+    name: "Cursor",
+    tagline: "Coming soon",
+    description: "Cursor MCP integration.",
+    icon: Bot,
+    logo: "/logos/cursor_dark.svg",
+    tone: "text-sky-400",
+    featured: false,
+    install: {
+      type: "app",
+      docs: "https://docs.cursor.com/",
+      downloadUrl: "https://cursor.com/download",
+      downloadLabel: "Download Cursor",
+      note: "Native apps for macOS, Windows and Linux.",
+    },
+  },
+  {
+    kind: "hermes",
+    name: "Hermes Agents",
+    tagline: "Coming soon",
+    description: "Open-source autonomous agent framework. MCP-native.",
+    icon: Sparkles,
+    logo: "/logos/hermes.png",
+    tone: "text-yellow-400",
+    featured: false,
+    install: {
+      type: "cli",
+      docs: "https://github.com/Mervyn-Vala/Hermes",
+      mac: "pip install hermes-agents",
+      linux: "pip install hermes-agents",
+      windows: "pip install hermes-agents",
+      note: "Python 3.10+ required.",
+    },
+  },
+  {
+    kind: "manus",
+    name: "Manus AI",
+    tagline: "Coming soon",
+    description: "General-purpose autonomous AI agent by Manus.",
+    icon: Sparkles,
+    logo: "/logos/manus.svg",
+    tone: "text-zinc-200",
+    featured: false,
+    install: {
+      type: "app",
+      docs: "https://manus.im/",
+      downloadUrl: "https://manus.im/",
+      downloadLabel: "Open Manus",
+      note: "Hosted SaaS — sign up at manus.im.",
+    },
+  },
+  {
+    kind: "opencode",
+    name: "OpenCode",
+    tagline: "Coming soon",
+    description: "Open-source terminal coding agent (opencode.ai).",
+    icon: Terminal,
+    logo: "/logos/opencode-dark.svg",
+    tone: "text-orange-400",
+    featured: false,
+    install: {
+      type: "cli",
+      docs: "https://opencode.ai/docs",
+      mac: "brew install sst/tap/opencode",
+      linux: "curl -fsSL https://opencode.ai/install | bash",
+      windows: "npm install -g opencode-ai",
+      note: "Configure MCP servers in ~/.config/opencode/opencode.json",
+    },
+  },
+  {
+    kind: "pi_dev",
+    name: "Pi",
+    tagline: "Coming soon",
+    description: "Minimal terminal coding harness (pi.dev) — extensions, skills, MCP-friendly.",
+    icon: Terminal,
+    logo: "/logos/pi-dev.png",
+    tone: "text-pink-400",
+    featured: false,
+    install: {
+      type: "cli",
+      docs: "https://pi.dev/",
+      mac: "npm install -g @earendil/pi",
+      linux: "npm install -g @earendil/pi",
+      windows: "npm install -g @earendil/pi",
+      note: "Source: github.com/earendil-works/pi",
+    },
+  },
+  {
+    kind: "custom",
+    name: "Custom agent",
+    tagline: "Bring your own",
+    description: "Any MCP-capable agent via the hosted URL + token.",
+    icon: Zap,
+    tone: "text-primary",
+    featured: false,
+  },
 ];
 
 function endpointUrl() {
