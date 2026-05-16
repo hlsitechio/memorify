@@ -20,6 +20,9 @@ async function mcpRpc(
     body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
   });
   const text = await res.text();
+  const allHeaders: Record<string, string> = {};
+  res.headers.forEach((v, k) => { allHeaders[k] = v; });
+  console.log(`[mcp-handshake] ${method} -> ${res.status}`, JSON.stringify(allHeaders), text.slice(0, 200));
   if (!res.ok) throw new Error(`MCP ${method} failed [${res.status}]: ${text.slice(0, 300)}`);
   const sessionId =
     res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
