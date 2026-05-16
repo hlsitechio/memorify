@@ -982,6 +982,16 @@ Deno.serve(async (req) => {
   const agent = await resolveAgent(token);
   if (!agent) return json({ ok: false, error: "invalid token" }, 401);
 
+  // Reject expired tokens.
+  if ((agent as any).token_expires_at && new Date((agent as any).token_expires_at).getTime() < Date.now()) {
+    return json({
+      ok: false,
+      error: "token_expired",
+      message: "This token has expired. The user must rotate it from the Memorify dashboard.",
+      expired_at: (agent as any).token_expires_at,
+    }, 401);
+  }
+
   // Honor pause / revoke states set from the dashboard.
   if (agent.status === "paused") {
     return json({
@@ -997,6 +1007,9 @@ Deno.serve(async (req) => {
       message: "This agent's access was revoked. Ask the user to re-pair you with a fresh token.",
     }, 401);
   }
+
+  const ip = clientIp(req);
+  const userAgent = req.headers.get("user-agent") || null;
 
   // First-connection detection — show full welcome inline, then flag the agent.
   const firstConnection = !(agent as any).metadata?.onboarded;
