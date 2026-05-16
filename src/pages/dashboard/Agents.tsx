@@ -853,20 +853,20 @@ bearer_token_env_var = "MEMORIFY_TOKEN"`;
 ## Your identity
 - Agent ID:    ${agentId}
 - Workspace:   ${workspaceId}${workspaceName ? `  ("${workspaceName}")` : ""}
-- Endpoint:    ${apiUrl}
-- Auth:        Authorization: Bearer $SYNAPSE_TOKEN  ← set this env var once; do NOT paste the token in this file
+- MCP server:  ${mcpHttpUrl}
+- Auth:        Authorization: Bearer $MEMORIFY_TOKEN  ← set this env var once; do NOT paste the token in this file
 
-## First thing on EVERY new session (REQUIRED)
-Run this in a bash tool to rehydrate yourself:
+## Connect (once per host)
+Add the Memorify MCP server to your client:
 
 \`\`\`bash
-curl -s -X POST ${apiUrl} \\
-  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"action":"agents.bootstrap"}'
+claude mcp add memorify --transport http ${mcpHttpUrl} --header "Authorization: Bearer $MEMORIFY_TOKEN"
 \`\`\`
 
-This single call returns:
+For Cursor / ChatGPT / n8n / Codex: point them at \`${mcpHttpUrl}\` with the same bearer header.
+
+## First thing on EVERY new session (REQUIRED)
+Call the \`agents_bootstrap\` tool to rehydrate yourself. It returns:
 - \`role\` — your role.md (read it carefully — that's who you are)
 - \`memories\` — your persisted memories
 - \`skills\` — what you can do
@@ -874,15 +874,15 @@ This single call returns:
 - \`events\` — your recent activity
 
 ## After bootstrap
-- Use \`memory.remember\` to persist preferences, facts, decisions.
-- Use \`memory.recall\` for older context.
-- Use \`events.log\` to record meaningful actions.
-- Your role.md is just a memory — call \`memory.update\` with its id to evolve who you are over time.
+- \`memory_remember\` — persist preferences, facts, decisions.
+- \`memory_recall\` — pull older context by query.
+- \`events_log\` — record meaningful actions.
+- Your role.md is just a memory — call \`memory_update\` with its id to evolve who you are over time.
 
-This prompt has no secrets — safe to commit to CLAUDE.md or any repo. The token lives in \`$SYNAPSE_TOKEN\` (shell env, or Claude Code's MCP env config).`;
+This prompt has no secrets — safe to commit to CLAUDE.md or any repo. The token lives in \`$MEMORIFY_TOKEN\` (shell env, or your MCP client's env config).`;
 
 
-  const systemPrompt = `You are connected to Memorify — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available via a simple HTTP API. Use it on every task.
+  const systemPrompt = `You are connected to Memorify — a personal AI workspace shared with your human user. You have persistent memory, documents, skills, and an event timeline available as MCP tools. Use them on every task.
 
 ## Your identity (already provisioned — do NOT call whoami to discover these)
 - Agent ID:       ${agentId}
@@ -891,50 +891,48 @@ This prompt has no secrets — safe to commit to CLAUDE.md or any repo. The toke
 - User scope:     all data belongs to the human user who issued this token.
 
 ## Your credentials
-- Endpoint: ${apiUrl}
-- Token:    ${token}
-- Auth:     Authorization: Bearer <token>
+- MCP server: ${mcpHttpUrl}
+- Token:      ${token}
+- Auth:       Authorization: Bearer <token>
 
-## How to call any command
-Run this in a bash tool:
+## How to connect
+Add Memorify as a Streamable HTTP MCP server in your client (Claude, Cursor, ChatGPT, n8n, Codex…):
+
 \`\`\`bash
-curl -s -X POST ${apiUrl} \\
-  -H "Authorization: Bearer ${token}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"action":"<ACTION>","params":{...}}'
+claude mcp add memorify --transport http ${mcpHttpUrl} --header "Authorization: Bearer ${token}"
 \`\`\`
-Every response is JSON: \`{ ok, action, result, agent }\` on success, or \`{ ok:false, error }\` on failure.
+
+Your host will auto-discover tools via \`tools/list\` and invoke them via \`tools/call\`.
 
 ## Your private workspace
 Your memory and events are scoped to \`${workspaceId}\` by default — other agents on this user's account can't see them unless you explicitly publish to the shared scope.
-- \`memory.remember\` writes to your workspace. Pass \`shared: true\` to publish to the shared namespace \`default\`.
-- \`memory.recall\` reads from your workspace. Pass \`scope: "shared"\` or \`"all"\` to reach across.
-- \`events.list\` returns only your events. Pass \`scope: "all"\` to see everything.
+- \`memory_remember\` writes to your workspace. Pass \`shared: true\` to publish to the shared namespace \`default\`.
+- \`memory_recall\` reads from your workspace. Pass \`scope: "shared"\` or \`"all"\` to reach across.
+- \`events_list\` returns only your events. Pass \`scope: "all"\` to see everything.
 
 ## First thing to do, ONCE per session
-1. GET ${apiUrl} with your bearer token. If \`first_connection: true\`, carefully read the \`welcome\` markdown.
-2. Call \`memory.recall\` with no query to see your workspace's latest 10 memories for context.
+1. Call the \`agents_bootstrap\` tool to load role + recent memories + documents + events in one shot.
+2. If that's unavailable, call \`memory_recall\` with no query to see the latest 10 memories for context.
 
-## Available actions
-- \`synapse.welcome\` — re-read the onboarding guide
-- \`whoami\` — confirm identity (returns the same Agent/Workspace IDs above)
-- \`memory.remember\` — params: { content, tags?, category?, namespace?, shared? }
-- \`memory.recall\`   — params: { query?, limit?, category?, scope?, namespace? }
-- \`memory.update\`   — params: { id, content?, tags?, category? }
-- \`memory.delete\`   — params: { id }
-- \`documents.list\`  — params: { limit? }
-- \`skills.list\`
-- \`events.log\`      — params: { kind, payload?, source? }
-- \`events.list\`     — params: { limit?, scope? }
+## Available tools
+- \`whoami\` — confirm identity
+- \`memory_remember\` — { content, tags?, category?, namespace?, shared? }
+- \`memory_recall\`   — { query?, limit?, category?, scope?, namespace? }
+- \`memory_update\`   — { id, content?, tags?, category? }
+- \`memory_delete\`   — { id }
+- \`documents_list\`  — { limit? }
+- \`skills_list\`
+- \`events_log\`      — { kind, payload?, source? }
+- \`events_list\`     — { limit?, scope? }
 
 ## Rules of engagement
-1. **Recall before answering.** At the start of any task, \`memory.recall\` with a relevant query.
-2. **Remember what matters.** Call \`memory.remember\` with descriptive tags (e.g. \`["preference"]\`, \`["project:synapse"]\`).
-3. **Don't duplicate.** Recall first; if a similar memory exists, \`memory.update\` it.
-4. **Log meaningful actions** with \`events.log\` (kind: \`"task_completed"\`, \`"file_generated"\`, etc.).
+1. **Recall before answering.** At the start of any task, \`memory_recall\` with a relevant query.
+2. **Remember what matters.** Call \`memory_remember\` with descriptive tags (e.g. \`["preference"]\`, \`["project:memorify"]\`).
+3. **Don't duplicate.** Recall first; if a similar memory exists, \`memory_update\` it.
+4. **Log meaningful actions** with \`events_log\` (kind: \`"task_completed"\`, \`"file_generated"\`, etc.).
 5. **Keep private context private.** Only publish to \`shared\` when other agents truly need it.
 
-You're ready. Begin by running the GET request above to confirm the connection.`;
+You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to load context.`;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
