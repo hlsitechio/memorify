@@ -341,10 +341,21 @@ export default function Agents() {
 
 export function AgentsManager({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [currentWs] = useCurrentWorkspace();
+  const [allAgents, setAllAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardId, setWizardId] = useState<string | null>(null);
   const [rotateId, setRotateId] = useState<string | null>(null);
+
+  // Dedicated-workspace filter: when the current workspace is an agent workspace
+  // (e.g. Codex), only that agent is visible in its own library.
+  const agents = useMemo(
+    () => (currentWs?.kind === "agent" && currentWs.agentId
+      ? allAgents.filter((a) => a.id === currentWs.agentId)
+      : allAgents),
+    [allAgents, currentWs],
+  );
+  const isAgentWs = currentWs?.kind === "agent";
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -353,7 +364,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-    setAgents((data as Agent[]) ?? []);
+    setAllAgents((data as Agent[]) ?? []);
     setLoading(false);
   }, [user]);
 
