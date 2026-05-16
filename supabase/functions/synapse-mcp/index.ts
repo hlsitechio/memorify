@@ -303,6 +303,27 @@ async function callAgentApi(action: string, params: any, token: string) {
   return data.result;
 }
 
+async function getDynamicMcpTools(token: string) {
+  const servers = await callAgentApi("mcp.servers", {}, token);
+  const enabledServers = Array.isArray(servers) ? servers.filter((s) => s?.enabled) : [];
+  const tools = await callAgentApi("mcp.tools", { enabled_only: true }, token);
+  const serverById = new Map(enabledServers.map((s: any) => [s.id, s]));
+
+  return (Array.isArray(tools) ? tools : [])
+    .filter((tool: any) => tool?.enabled && serverById.has(tool.mcp_server_id))
+    .map((tool: any) => {
+      const server = serverById.get(tool.mcp_server_id);
+      return {
+        name: String(tool.name),
+        description: tool.description || `Connected MCP tool from ${server?.name ?? "external server"}.`,
+        inputSchema: tool.input_schema || { type: "object", properties: {} },
+        action: "mcp.call",
+        dynamic: true,
+        serverId: tool.mcp_server_id,
+      };
+    });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -357,8 +378,13 @@ serve(async (req) => {
     }
 
     if (method === "tools/list") {
+      const dynamicTools = await getDynamicMcpTools(token);
+      const toolMap = new Map<string, any>();
+      for (const t of TOOLS) toolMap.set(t.name, t);
+      for (const t of dynamicTools) toolMap.set(t.name, t);
+
       return new Response(JSON.stringify(rpc(id, {
-        tools: TOOLS.map((t) => ({
+        tools: Array.from(toolMap.values()).map((t) => ({
           name: t.name,
           description: t.description,
           inputSchema: t.inputSchema,
@@ -369,14 +395,17 @@ serve(async (req) => {
     if (method === "tools/call") {
       const toolName = params?.name as string;
       const args = params?.arguments ?? {};
-      const def = TOOLS.find((t) => t.name === toolName);
+      const dynamicTools = await getDynamicMcpTools(token);
+      const def = [...TOOLS, ...dynamicTools].find((t) => t.name === toolName);
       if (!def) {
         return new Response(JSON.stringify(rpc(id, undefined, { code: -32602, message: `unknown tool ${toolName}` })), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       try {
-        const result = await callAgentApi(def.action, args, token);
+        const result = def.dynamic
+          ? await callAgentApi(def.action, { server: def.serverId, tool: toolName, arguments: args }, token)
+          : await callAgentApi(def.action, args, token);
         return new Response(JSON.stringify(rpc(id, {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         })), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

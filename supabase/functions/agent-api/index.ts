@@ -542,11 +542,14 @@ const COMMANDS: Cmd[] = [
       if (server.auth?.bearer) headers.Authorization = `Bearer ${server.auth.bearer}`;
       if (server.auth?.headers) Object.assign(headers, server.auth.headers);
       try {
-        await mcpRpc(server.url, "initialize", {
-          protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+        const init = await mcpRpc(server.url, "initialize", {
+          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
         }, headers);
-        const list = await mcpRpc(server.url, "tools/list", {}, headers);
-        const tools = (list?.result?.tools ?? list?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
+        const sessionHeaders = { ...headers };
+        if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+        await mcpNotify(server.url, "notifications/initialized", sessionHeaders);
+        const list = await mcpRpc(server.url, "tools/list", {}, sessionHeaders);
+        const tools = (list.body?.result?.tools ?? list.body?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
         await sb.from("mcp_tools").delete().eq("mcp_server_id", server.id);
         if (tools.length) {
           await sb.from("mcp_tools").insert(tools.map((t) => ({
@@ -581,13 +584,16 @@ const COMMANDS: Cmd[] = [
       const headers: Record<string, string> = {};
       if (srv.auth?.bearer) headers.Authorization = `Bearer ${srv.auth.bearer}`;
       if (srv.auth?.headers) Object.assign(headers, srv.auth.headers);
+      let sessionHeaders = { ...headers };
       try {
-        await mcpRpc(srv.url, "initialize", {
-          protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+        const init = await mcpRpc(srv.url, "initialize", {
+          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
         }, headers);
+        if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+        await mcpNotify(srv.url, "notifications/initialized", sessionHeaders);
       } catch { /* stateless servers ok */ }
-      const out = await mcpRpc(srv.url, "tools/call", { name: String(p.tool), arguments: p.arguments ?? {} }, headers);
-      return out?.result ?? out;
+      const out = await mcpRpc(srv.url, "tools/call", { name: String(p.tool), arguments: p.arguments ?? {} }, sessionHeaders);
+      return out.body?.result ?? out.body;
     },
   },
   {
@@ -612,11 +618,14 @@ const COMMANDS: Cmd[] = [
       if (p.auth?.bearer) headers.Authorization = `Bearer ${p.auth.bearer}`;
       if (p.auth?.headers) Object.assign(headers, p.auth.headers);
       try {
-        await mcpRpc(server.url, "initialize", {
-          protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+        const init = await mcpRpc(server.url, "initialize", {
+          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
         }, headers);
-        const list = await mcpRpc(server.url, "tools/list", {}, headers);
-        const tools = (list?.result?.tools ?? list?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
+        const sessionHeaders = { ...headers };
+        if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+        await mcpNotify(server.url, "notifications/initialized", sessionHeaders);
+        const list = await mcpRpc(server.url, "tools/list", {}, sessionHeaders);
+        const tools = (list.body?.result?.tools ?? list.body?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
         if (tools.length) {
           await sb.from("mcp_tools").insert(tools.map((t) => ({
             mcp_server_id: server.id, name: t.name, description: t.description ?? null, input_schema: t.inputSchema ?? {},
@@ -896,12 +905,21 @@ async function mcpRpc(url: string, method: string, params: any, headers: Record<
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
+  const sessionId = res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
   if (text.startsWith("event:") || text.includes("data:")) {
     const lines = text.split("\n").filter((l) => l.startsWith("data:"));
     const last = lines[lines.length - 1]?.slice(5).trim();
-    return last ? JSON.parse(last) : {};
+    return { body: last ? JSON.parse(last) : {}, sessionId };
   }
-  return JSON.parse(text);
+  return { body: JSON.parse(text), sessionId };
+}
+
+async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
+    body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
+  }).then((r) => r.text()).catch(() => {});
 }
 
 function mimeFromName(name: string): string | null {
