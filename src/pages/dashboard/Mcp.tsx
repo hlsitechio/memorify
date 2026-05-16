@@ -399,6 +399,45 @@ export default function Mcp() {
   const [testOutput, setTestOutput] = useState<string>("");
   const [testRunning, setTestRunning] = useState(false);
 
+  // Memorify-as-MCP connect card
+  const MCP_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memorify-mcp`;
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [keyName, setKeyName] = useState("ChatGPT");
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(label);
+    toast.success("Copied");
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const generateMcpToken = async () => {
+    if (!user) return;
+    setGenerating(true);
+    try {
+      const arr = new Uint8Array(24);
+      crypto.getRandomValues(arr);
+      const key = "syn_live_" + Array.from(arr).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+      const key_hash = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const { error } = await supabase.from("api_keys").insert({
+        user_id: user.id,
+        name: keyName || "MCP client",
+        key_prefix: key.slice(0, 12),
+        key_hash,
+      });
+      if (error) throw error;
+      setGeneratedToken(key);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to generate");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const load = async () => {
     if (!user) return;
     const [s, t] = await Promise.all([
