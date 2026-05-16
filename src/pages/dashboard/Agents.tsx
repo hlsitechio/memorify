@@ -575,7 +575,16 @@ function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () =>
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.remember","params":{"content":"User prefers dark mode","tags":["preference"]}}'`;
   const curlRecall =
     `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
+  const mcpHttpUrl = `${base}/synapse-mcp`;
   const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
+  const isCodex = agent?.kind === "openai_codex";
+  const codexToml = `[mcp_servers.memorify]
+url = "${mcpHttpUrl}"
+bearer_token = "${token}"`;
+  const codexExport = `export MEMORIFY_TOKEN="${token}"`;
+  const codexTomlEnv = `[mcp_servers.memorify]
+url = "${mcpHttpUrl}"
+bearer_token_env_var = "MEMORIFY_TOKEN"`;
 
   const agentId = agent?.id ?? "";
   const workspaceId = agentId ? workspaceIdForAgent(agentId) : "";
