@@ -46,7 +46,7 @@ const CATALOG = [
     tone: "text-violet-400",
     featured: true,
   },
-  { kind: "openai_codex", name: "OpenAI Codex CLI",  tagline: "Coming soon", description: "OpenAI's terminal coding agent.",          icon: Sparkles, logo: "/logos/codex.png", tone: "text-emerald-400", featured: false },
+  { kind: "openai_codex", name: "OpenAI Codex CLI",  tagline: "Coming soon", description: "OpenAI's terminal coding agent.",          icon: Sparkles, logo: "/logos/codex.svg", tone: "text-emerald-400", featured: false },
   { kind: "cursor",       name: "Cursor",            tagline: "Coming soon", description: "Cursor MCP integration.",                  icon: Bot,      logo: "/logos/cursor_dark.svg", tone: "text-sky-400",     featured: false },
   { kind: "hermes",       name: "Hermes Agents",     tagline: "Coming soon", description: "Open-source autonomous agent framework. MCP-native.", icon: Sparkles, tone: "text-fuchsia-400", featured: false },
   { kind: "opencode",     name: "OpenCode",          tagline: "Coming soon", description: "Open-source terminal coding agent (opencode.ai).",    icon: Terminal, logo: "/logos/opencode-dark.svg", tone: "text-orange-400",  featured: false },
