@@ -264,7 +264,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {CATALOG.map((c) => {
               const Icon = c.icon;
-              const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot";
+              const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot" || c.kind === "openai_codex";
               return (
                 <div key={c.kind} className={cn(
                   "relative rounded-lg border bg-card p-4 transition-all hover:border-primary/40",
