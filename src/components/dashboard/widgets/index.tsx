@@ -68,7 +68,7 @@ export function WelcomeWidget({ onRemove }: RProps) {
       .then(({ data }) => setAgent(data as any));
   }, [isAgent, ws?.agentId]);
 
-  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-api`;
+  const mcpUrl = "https://mcp.memorify.dev";
   const workspaceName = (agent?.metadata as any)?.workspace_name as string | undefined;
   const wsIdForAgent = agent ? workspaceIdForAgent(agent.id) : "";
 
@@ -77,29 +77,29 @@ export function WelcomeWidget({ onRemove }: RProps) {
 ## Your identity
 - Agent ID:    ${agent.id}
 - Workspace:   ${wsIdForAgent}${workspaceName ? `  ("${workspaceName}")` : ""}
-- Endpoint:    ${apiUrl}
-- Auth:        Authorization: Bearer $SYNAPSE_TOKEN
+- MCP server:  ${mcpUrl}
+- Auth:        Authorization: Bearer $MEMORIFY_TOKEN
 
 ## Set your token (one time, in your shell — do NOT commit this)
 \`\`\`bash
-export SYNAPSE_TOKEN="${agent.token}"
+export MEMORIFY_TOKEN="${agent.token}"
 \`\`\`
 PowerShell:
 \`\`\`powershell
-setx SYNAPSE_TOKEN "${agent.token}"
+setx MEMORIFY_TOKEN "${agent.token}"
 \`\`\`
 
-## First thing on EVERY new session (REQUIRED)
-Run this in a bash tool to rehydrate yourself:
+## Connect (once per host)
+Add Memorify as a Streamable HTTP MCP server in your client:
 
 \`\`\`bash
-curl -s -X POST ${apiUrl} \\
-  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"action":"agents.bootstrap"}'
+claude mcp add memorify --transport http ${mcpUrl} --header "Authorization: Bearer $MEMORIFY_TOKEN"
 \`\`\`
 
-This single call returns:
+For Cursor / ChatGPT / n8n / Codex: point them at \`${mcpUrl}\` with the same bearer header.
+
+## First thing on EVERY new session (REQUIRED)
+Call the \`agents_bootstrap\` tool to rehydrate yourself. It returns:
 - \`role\` — your role.md (read it carefully — that's who you are)
 - \`memories\` — your persisted memories
 - \`skills\` — what you can do
@@ -107,12 +107,12 @@ This single call returns:
 - \`events\` — your recent activity
 
 ## After bootstrap
-- Use \`memory.remember\` to persist preferences, facts, decisions.
-- Use \`memory.recall\` for older context.
-- Use \`events.log\` to record meaningful actions.
-- Your role.md is just a memory — call \`memory.update\` with its id to evolve who you are over time.
+- \`memory_remember\` — persist preferences, facts, decisions.
+- \`memory_recall\` — pull older context by query.
+- \`events_log\` — record meaningful actions.
+- Your role.md is just a memory — call \`memory_update\` with its id to evolve who you are over time.
 
-The body of this prompt (without the export line) is safe to commit to CLAUDE.md. Keep the token in \`$SYNAPSE_TOKEN\` only.` : "";
+The body of this prompt (without the export line) is safe to commit to CLAUDE.md. Keep the token in \`$MEMORIFY_TOKEN\` only.` : "";
 
   const doCopy = async (kind: "prompt" | "token", value: string) => {
     await navigator.clipboard.writeText(value);
