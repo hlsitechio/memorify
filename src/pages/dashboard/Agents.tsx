@@ -478,6 +478,95 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
   );
 }
 
+function InstallButton({ agent }: { agent: { name: string; logo?: string; tone: string; icon: any; install?: InstallInfo } }) {
+  const [open, setOpen] = useState(false);
+  const info = agent.install!;
+  const Icon = agent.icon;
+  const osTabs =
+    info.type === "cli"
+      ? ([
+          { id: "mac", label: "macOS", cmd: info.mac },
+          { id: "linux", label: "Linux", cmd: info.linux },
+          { id: "windows", label: "Windows", cmd: info.windows },
+        ].filter((t) => !!t.cmd) as { id: string; label: string; cmd: string }[])
+      : [];
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 px-2.5"
+        onClick={() => setOpen(true)}
+        title="Install instructions"
+      >
+        <Terminal className="h-3.5 w-3.5 mr-1.5" /> Install
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className={cn("h-7 w-7 rounded-md bg-secondary/60 flex items-center justify-center overflow-hidden", agent.tone)}>
+                {agent.logo ? (
+                  <img src={agent.logo} alt="" className="h-5 w-5 object-contain" />
+                ) : (
+                  <Icon className="h-4 w-4" />
+                )}
+              </span>
+              Install {agent.name}
+            </DialogTitle>
+            <DialogDescription>
+              Pick your OS, copy the command, then come back and click <span className="text-foreground font-medium">Connect</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {info.type === "cli" ? (
+            <div className="space-y-3">
+              <Tabs defaultValue={osTabs[0]?.id ?? "mac"} className="w-full">
+                <TabsList className="grid grid-cols-3 w-full">
+                  {osTabs.map((t) => (
+                    <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>
+                  ))}
+                </TabsList>
+                {osTabs.map((t) => (
+                  <TabsContent key={t.id} value={t.id} className="mt-3">
+                    <CopyField value={t.cmd} label={`${agent.name} ${t.label} install`} />
+                  </TabsContent>
+                ))}
+              </Tabs>
+              {info.note && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{info.note}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Button asChild className="w-full">
+                <a href={info.downloadUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                  {info.downloadLabel ?? `Open ${agent.name}`}
+                </a>
+              </Button>
+              {info.note && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{info.note}</p>
+              )}
+            </div>
+          )}
+
+          <div className="pt-2 border-t border-border">
+            <a
+              href={info.docs}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" /> Official docs
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function EmptyHero({ onConnect }: { onConnect: () => void }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-gradient-to-b from-card to-card/30 p-10 text-center">
