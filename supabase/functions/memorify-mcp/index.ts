@@ -110,9 +110,33 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "skills_list",
-    description: "List available skills (reusable prompt+schema bundles).",
+    description: "List available skills (reusable prompt+schema bundles) in this agent's workspace.",
     action: "skills.list",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "skills_get",
+    description: "Get a single skill's full definition (prompt, model, schema) by id or slug.",
+    action: "skills.get",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, slug: { type: "string" } },
+    },
+  },
+  {
+    name: "skills_run",
+    description: "Run a skill by id or slug with an input. Returns the AI output.",
+    action: "skills.run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        slug: { type: "string" },
+        input: { description: "String or object passed as user message." },
+        model: { type: "string", description: "Optional model override." },
+      },
+      required: ["input"],
+    },
   },
   {
     name: "events_log",

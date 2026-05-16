@@ -398,6 +398,72 @@ const COMMANDS: Cmd[] = [
     },
   },
   {
+    name: "skills.get",
+    description: "Get a single skill (by id or slug) available to this agent.",
+    params: { id: "string?", slug: "string?" },
+    run: async (sb, userId, p, agent) => {
+      const ws = `agent:${agent.id}`;
+      let q = sb.from("skills")
+        .select("id, name, slug, description, prompt, schema, model, status, workspace_id")
+        .eq("user_id", userId)
+        .or(`workspace_id.is.null,workspace_id.eq.${ws}`);
+      if (p?.id) q = q.eq("id", String(p.id));
+      else if (p?.slug) q = q.eq("slug", String(p.slug));
+      else throw new Error("id or slug required");
+      const { data, error } = await q.limit(1).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("skill not found");
+      return data;
+    },
+  },
+  {
+    name: "skills.run",
+    description: "Execute a skill (by id or slug) with input. Runs the skill's prompt+model through Lovable AI and returns the output.",
+    params: { id: "string?", slug: "string?", input: "string|object (required)", model: "string? (override)" },
+    run: async (sb, userId, p, agent) => {
+      const ws = `agent:${agent.id}`;
+      let q = sb.from("skills").select("*")
+        .eq("user_id", userId)
+        .or(`workspace_id.is.null,workspace_id.eq.${ws}`);
+      if (p?.id) q = q.eq("id", String(p.id));
+      else if (p?.slug) q = q.eq("slug", String(p.slug));
+      else throw new Error("id or slug required");
+      const { data: skill, error } = await q.limit(1).maybeSingle();
+      if (error) throw error;
+      if (!skill) throw new Error("skill not found");
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+      const input = p?.input ?? "";
+      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: p?.model || skill.model || "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: skill.prompt || "You are a helpful assistant." },
+            { role: "user", content: typeof input === "string" ? input : JSON.stringify(input) },
+          ],
+        }),
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`AI gateway ${r.status}: ${t.slice(0, 300)}`);
+      }
+      const data = await r.json();
+      const output = data.choices?.[0]?.message?.content ?? "";
+
+      await sb.from("events").insert({
+        user_id: userId,
+        kind: "skill.run",
+        source: `agent:${agent.id}`,
+        payload: { skill_id: skill.id, slug: skill.slug, input, output, agent_id: agent.id, agent_name: agent.name },
+      });
+      return { skill: { id: skill.id, slug: skill.slug, name: skill.name }, output };
+    },
+  },
+  {
     name: "events.log",
     description: "Append an event to the timeline.",
     params: { kind: "string (required)", payload: "object?", source: "string?" },
