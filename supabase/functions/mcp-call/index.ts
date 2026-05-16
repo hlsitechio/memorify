@@ -10,7 +10,12 @@ const corsHeaders = {
 };
 const MCP_ACCEPT = "application/json, text/event-stream";
 
-async function mcpRpc(url: string, method: string, params: any, headers: Record<string, string>) {
+async function mcpRpc(
+  url: string,
+  method: string,
+  params: any,
+  headers: Record<string, string>,
+): Promise<{ body: any; sessionId: string | null }> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
@@ -18,12 +23,24 @@ async function mcpRpc(url: string, method: string, params: any, headers: Record<
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
+  const sessionId = res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
+  let body: any = {};
   if (text.startsWith("event:") || text.includes("data:")) {
     const lines = text.split("\n").filter((l) => l.startsWith("data:"));
     const last = lines[lines.length - 1]?.slice(5).trim();
-    return last ? JSON.parse(last) : {};
+    body = last ? JSON.parse(last) : {};
+  } else if (text.trim()) {
+    body = JSON.parse(text);
   }
-  return JSON.parse(text);
+  return { body, sessionId };
+}
+
+async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
+    body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
+  }).then((r) => r.text()).catch(() => {});
 }
 
 serve(async (req) => {
@@ -49,17 +66,23 @@ serve(async (req) => {
     if (server.auth?.bearer) headers.Authorization = `Bearer ${server.auth.bearer}`;
     if (server.auth?.headers) Object.assign(headers, server.auth.headers);
 
-    // Some MCP servers require initialize before tools/call. Best-effort init.
+    // Initialize session — Streamable HTTP servers (Notion, etc.) require this.
+    let sessionHeaders = { ...headers };
     try {
-      await mcpRpc(server.url, "initialize", {
-        protocolVersion: "2024-11-05",
+      const init = await mcpRpc(server.url, "initialize", {
+        protocolVersion: "2025-03-26",
         capabilities: {},
         clientInfo: { name: "synapse", version: "1.0.0" },
       }, headers);
-    } catch { /* ignore — many servers are stateless */ }
+      if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+      await mcpNotify(server.url, "notifications/initialized", sessionHeaders);
+    } catch { /* stateless servers — proceed without session */ }
 
-    const out = await mcpRpc(server.url, "tools/call", { name: tool, arguments: args ?? {} }, headers);
-    const result = out?.result ?? out;
+    const out = await mcpRpc(server.url, "tools/call", { name: tool, arguments: args ?? {} }, sessionHeaders);
+    const result = out.body?.result ?? out.body;
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
     return new Response(JSON.stringify({ ok: true, result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

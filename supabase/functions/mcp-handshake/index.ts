@@ -8,7 +8,12 @@ const corsHeaders = {
 
 const MCP_ACCEPT = "application/json, text/event-stream";
 
-async function mcpRpc(url: string, method: string, params: any, headers: Record<string, string>) {
+async function mcpRpc(
+  url: string,
+  method: string,
+  params: any,
+  headers: Record<string, string>,
+): Promise<{ body: any; sessionId: string | null }> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
@@ -16,13 +21,26 @@ async function mcpRpc(url: string, method: string, params: any, headers: Record<
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`MCP ${method} failed [${res.status}]: ${text.slice(0, 300)}`);
-  // Server may stream SSE; take last data: line
+  const sessionId =
+    res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
+  let body: any = {};
   if (text.startsWith("event:") || text.includes("data:")) {
     const lines = text.split("\n").filter((l) => l.startsWith("data:"));
     const last = lines[lines.length - 1]?.slice(5).trim();
-    return last ? JSON.parse(last) : {};
+    body = last ? JSON.parse(last) : {};
+  } else if (text.trim()) {
+    body = JSON.parse(text);
   }
-  return JSON.parse(text);
+  return { body, sessionId };
+}
+
+async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
+  // Notifications have no id; servers respond 202 with no body.
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
+    body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
+  }).then((r) => r.text()).catch(() => {});
 }
 
 function getErrorMessage(err: unknown) {
@@ -51,13 +69,20 @@ serve(async (req) => {
 
     try {
       const init = await mcpRpc(server.url, "initialize", {
-        protocolVersion: "2024-11-05",
+        protocolVersion: "2025-03-26",
         capabilities: {},
         clientInfo: { name: "synapse", version: "1.0.0" },
       }, headers);
 
-      const list = await mcpRpc(server.url, "tools/list", {}, headers);
-      const tools = (list?.result?.tools ?? list?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
+      // Streamable HTTP servers (Notion, etc.) return a session id we must echo back.
+      const sessionHeaders = { ...headers };
+      if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+
+      // Required by MCP spec — must be sent after initialize before any other call.
+      await mcpNotify(server.url, "notifications/initialized", sessionHeaders);
+
+      const list = await mcpRpc(server.url, "tools/list", {}, sessionHeaders);
+      const tools = (list.body?.result?.tools ?? list.body?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
 
       // Replace tools
       await supa.from("mcp_tools").delete().eq("mcp_server_id", server_id);
@@ -71,7 +96,7 @@ serve(async (req) => {
       }
       await supa.from("mcp_servers").update({ last_handshake_at: new Date().toISOString(), last_error: null }).eq("id", server_id);
 
-      return new Response(JSON.stringify({ ok: true, count: tools.length, server: init?.result?.serverInfo ?? init?.serverInfo }), {
+      return new Response(JSON.stringify({ ok: true, count: tools.length, server: init.body?.result?.serverInfo ?? init.body?.serverInfo }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err) {
