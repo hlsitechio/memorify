@@ -23,6 +23,8 @@ type Agent = {
   last_seen_at: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
+  token_expires_at: string | null;
+  token_rotated_at: string | null;
 };
 
 type InstallInfo =
