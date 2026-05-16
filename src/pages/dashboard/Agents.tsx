@@ -344,6 +344,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardId, setWizardId] = useState<string | null>(null);
+  const [rotateId, setRotateId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
