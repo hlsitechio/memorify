@@ -228,8 +228,23 @@ function endpointUrl() {
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-ping`;
 }
 
-function CopyField({ value, label, mono = true, multiline = false }: { value: string; label?: string; mono?: boolean; multiline?: boolean }) {
+function CopyField({
+  value,
+  label,
+  mono = true,
+  multiline = false,
+  secret = false,
+}: {
+  value: string;
+  label?: string;
+  mono?: boolean;
+  multiline?: boolean;
+  /** If true, content is blurred until the user clicks the eye. Copy still works while hidden. */
+  secret?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const hidden = secret && !revealed;
   const copy = async () => {
     await navigator.clipboard.writeText(value);
     setCopied(true);
@@ -239,20 +254,63 @@ function CopyField({ value, label, mono = true, multiline = false }: { value: st
   if (multiline) {
     return (
       <div className="relative rounded-md border border-border bg-secondary/40 overflow-hidden min-w-0 w-full">
-        <pre className={cn("max-h-72 overflow-auto px-3 py-2 pr-12 text-[11px] leading-relaxed whitespace-pre-wrap break-words", mono && "font-mono")}>{value}</pre>
-        <button
-          onClick={copy}
-          className="absolute top-1.5 right-1.5 rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Copy"
+        <pre
+          className={cn(
+            "max-h-72 overflow-auto px-3 py-2 pr-20 text-[11px] leading-relaxed whitespace-pre-wrap break-words transition select-none",
+            mono && "font-mono",
+            hidden && "blur-sm pointer-events-none"
+          )}
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
+          {value}
+        </pre>
+        {hidden && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/30 backdrop-blur-[2px] text-[11px] text-muted-foreground">
+            <span className="rounded-full border border-border bg-background/80 px-3 py-1">Click eye to reveal — copy still works</span>
+          </div>
+        )}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+          {secret && (
+            <button
+              onClick={() => setRevealed(v => !v)}
+              className="rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title={revealed ? "Hide" : "Reveal"}
+            >
+              {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <button
+            onClick={copy}
+            className="rounded-md border border-border bg-background/80 backdrop-blur px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Copy"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       </div>
     );
   }
+  const display = hidden ? "•".repeat(Math.min(Math.max(value.length, 12), 48)) : value;
   return (
     <div className="flex items-stretch rounded-md border border-border bg-secondary/40 overflow-hidden group min-w-0 w-full">
-      <code className={cn("flex-1 min-w-0 px-3 py-2 text-xs truncate", mono && "font-mono")} title={value}>{value}</code>
+      <code
+        className={cn(
+          "flex-1 min-w-0 px-3 py-2 text-xs truncate select-none",
+          mono && "font-mono",
+          hidden && "tracking-widest text-muted-foreground"
+        )}
+        title={hidden ? "Hidden — click eye to reveal" : value}
+      >
+        {display}
+      </code>
+      {secret && (
+        <button
+          onClick={() => setRevealed(v => !v)}
+          className="px-3 shrink-0 border-l border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title={revealed ? "Hide" : "Reveal"}
+        >
+          {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      )}
       <button
         onClick={copy}
         className="px-3 shrink-0 border-l border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
