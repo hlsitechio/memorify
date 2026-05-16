@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { workspaceIdForAgent } from "@/hooks/useCurrentWorkspace";
+import { workspaceIdForAgent, useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
