@@ -785,11 +785,37 @@ You're ready. Begin by running the GET request above to confirm the connection.`
               </TabsContent>
 
               <TabsContent value="mcp" className="space-y-3 mt-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
-                  <CopyField value={mcpCmd} label="MCP install" />
-                  <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
-                </div>
+                {isCodex ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Codex CLI loads MCP servers from <code className="text-foreground">~/.codex/config.toml</code>. Pick one of the two options below, then restart Codex.
+                    </p>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Option A — token inline (fastest)</label>
+                      <CopyField value={codexToml} label="codex config (inline)" multiline />
+                      <p className="text-[11px] text-muted-foreground">
+                        Append this block to <code className="text-foreground">~/.codex/config.toml</code> (create the file if missing).
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Option B — token via env var (recommended)</label>
+                      <CopyField value={codexExport} label="env export" />
+                      <CopyField value={codexTomlEnv} label="codex config (env)" multiline />
+                      <p className="text-[11px] text-muted-foreground">
+                        Add the <code className="text-foreground">export</code> to your shell profile, then paste the TOML block into <code className="text-foreground">~/.codex/config.toml</code>.
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+                      <span className="text-primary font-medium">Verify:</span> run <code className="text-foreground">codex mcp list</code> — you should see <code className="text-foreground">memorify</code> with all Synapse tools (memory_*, documents_*, web_*).
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">1. Register MCP server</label>
+                    <CopyField value={mcpCmd} label="MCP install" />
+                    <p className="text-[11px] text-muted-foreground">Restart Claude Code afterward — MCP servers only load at startup.</p>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
