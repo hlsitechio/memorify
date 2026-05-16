@@ -1081,7 +1081,7 @@ Deno.serve(async (req) => {
       name: action,
       status: "ok",
       latency_ms: latency,
-      metadata: { source: "agent-api" },
+      metadata: { source: "agent-api", ip, user_agent: userAgent },
     }).then(() => {});
     return json({ ok: true, action, result, agent: { id: agent.id, name: agent.name } });
   } catch (e: any) {
@@ -1099,7 +1099,7 @@ Deno.serve(async (req) => {
       name: action,
       status: "error",
       latency_ms: latency,
-      metadata: { source: "agent-api", error: e?.message ?? "error" },
+      metadata: { source: "agent-api", error: e?.message ?? "error", ip, user_agent: userAgent },
     }).then(() => {});
     return json({ ok: false, action, error: e.message ?? "error" }, 400);
   }
