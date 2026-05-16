@@ -451,15 +451,18 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
                   <div className="text-sm font-semibold">{c.name}</div>
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">{c.tagline}</div>
                   <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{c.description}</p>
-                  <Button
-                    size="sm"
-                    className="w-full h-8 mt-4"
-                    variant={available ? "default" : "outline"}
-                    disabled={!available}
-                    onClick={() => connect(c.kind, c.name)}
-                  >
-                    {available ? <><Plus className="h-3.5 w-3.5 mr-1.5" /> Connect</> : "Coming soon"}
-                  </Button>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-8"
+                      variant={available ? "default" : "outline"}
+                      disabled={!available}
+                      onClick={() => connect(c.kind, c.name)}
+                    >
+                      {available ? <><Plus className="h-3.5 w-3.5 mr-1.5" /> Connect</> : "Coming soon"}
+                    </Button>
+                    {c.install && <InstallButton agent={c} />}
+                  </div>
                 </div>
               );
             })}
