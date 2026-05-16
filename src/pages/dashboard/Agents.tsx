@@ -558,9 +558,98 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
         agent={wizardAgent}
         onClose={() => setWizardId(null)}
       />
+
+      <RotateTokenDialog
+        agent={agents.find(a => a.id === rotateId) ?? null}
+        onClose={() => setRotateId(null)}
+        onConfirm={(days) => {
+          const a = agents.find(x => x.id === rotateId);
+          if (a) performRotate(a, days);
+        }}
+        onSetExpiryOnly={(days) => {
+          const a = agents.find(x => x.id === rotateId);
+          if (a) { setExpiry(a, days); setRotateId(null); }
+        }}
+      />
     </>
   );
 }
+
+function RotateTokenDialog({
+  agent,
+  onClose,
+  onConfirm,
+  onSetExpiryOnly,
+}: {
+  agent: Agent | null;
+  onClose: () => void;
+  onConfirm: (expiresInDays: number | null) => void;
+  onSetExpiryOnly: (expiresInDays: number | null) => void;
+}) {
+  const [choice, setChoice] = useState<"30" | "90" | "never">("30");
+  const days = choice === "never" ? null : Number(choice);
+  const currentExp = agent?.token_expires_at ? new Date(agent.token_expires_at) : null;
+  return (
+    <Dialog open={!!agent} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-amber-400" />
+            Rotate token for {agent?.name}
+          </DialogTitle>
+          <DialogDescription>
+            The old token stops working instantly. Pick how long the new one stays valid.
+          </DialogDescription>
+        </DialogHeader>
+
+        {currentExp && (
+          <div className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5" />
+            Current token expires {formatDistanceToNow(currentExp, { addSuffix: true })}
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          {[
+            { v: "30", label: "30 days", hint: "Recommended" },
+            { v: "90", label: "90 days", hint: "Longer" },
+            { v: "never", label: "Never", hint: "Risky" },
+          ].map(opt => (
+            <button
+              key={opt.v}
+              onClick={() => setChoice(opt.v as any)}
+              className={cn(
+                "rounded-md border px-3 py-3 text-left transition-colors",
+                choice === opt.v
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-secondary/30 hover:bg-secondary/60"
+              )}
+            >
+              <div className="text-sm font-medium">{opt.label}</div>
+              <div className="text-[11px] text-muted-foreground">{opt.hint}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={() => onConfirm(days)} className="w-full">
+            <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+            Rotate now {days ? `· expires in ${days}d` : "· no expiry"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onSetExpiryOnly(days)}
+            className="text-xs text-muted-foreground"
+          >
+            Just change expiry (keep current token)
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function InstallButton({ agent }: { agent: { name: string; logo?: string; tone: string; icon: any; install?: InstallInfo } }) {
   const [open, setOpen] = useState(false);
