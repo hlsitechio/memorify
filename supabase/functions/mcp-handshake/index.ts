@@ -96,7 +96,7 @@ serve(async (req) => {
       }
       await supa.from("mcp_servers").update({ last_handshake_at: new Date().toISOString(), last_error: null }).eq("id", server_id);
 
-      return new Response(JSON.stringify({ ok: true, count: tools.length, server: init?.result?.serverInfo ?? init?.serverInfo }), {
+      return new Response(JSON.stringify({ ok: true, count: tools.length, server: init.body?.result?.serverInfo ?? init.body?.serverInfo }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err) {
