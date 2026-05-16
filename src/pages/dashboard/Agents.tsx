@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { workspaceIdForAgent } from "@/hooks/useCurrentWorkspace";
+import { workspaceIdForAgent, useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -341,10 +341,21 @@ export default function Agents() {
 
 export function AgentsManager({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [currentWs] = useCurrentWorkspace();
+  const [allAgents, setAllAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardId, setWizardId] = useState<string | null>(null);
   const [rotateId, setRotateId] = useState<string | null>(null);
+
+  // Dedicated-workspace filter: when the current workspace is an agent workspace
+  // (e.g. Codex), only that agent is visible in its own library.
+  const agents = useMemo(
+    () => (currentWs?.kind === "agent" && currentWs.agentId
+      ? allAgents.filter((a) => a.id === currentWs.agentId)
+      : allAgents),
+    [allAgents, currentWs],
+  );
+  const isAgentWs = currentWs?.kind === "agent";
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -353,7 +364,7 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-    setAgents((data as Agent[]) ?? []);
+    setAllAgents((data as Agent[]) ?? []);
     setLoading(false);
   }, [user]);
 
@@ -514,7 +525,10 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
 
         <TabsContent value="library" className="mt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {CATALOG.map((c) => {
+            {(isAgentWs && agents[0]
+              ? CATALOG.filter((c) => c.kind === agents[0].kind)
+              : CATALOG
+            ).map((c) => {
               const Icon = c.icon;
               const available = c.kind === "claude_code" || c.kind === "custom" || c.kind === "github_copilot" || c.kind === "openai_codex";
               return (
