@@ -69,13 +69,20 @@ serve(async (req) => {
 
     try {
       const init = await mcpRpc(server.url, "initialize", {
-        protocolVersion: "2024-11-05",
+        protocolVersion: "2025-03-26",
         capabilities: {},
         clientInfo: { name: "synapse", version: "1.0.0" },
       }, headers);
 
-      const list = await mcpRpc(server.url, "tools/list", {}, headers);
-      const tools = (list?.result?.tools ?? list?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
+      // Streamable HTTP servers (Notion, etc.) return a session id we must echo back.
+      const sessionHeaders = { ...headers };
+      if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
+
+      // Required by MCP spec — must be sent after initialize before any other call.
+      await mcpNotify(server.url, "notifications/initialized", sessionHeaders);
+
+      const list = await mcpRpc(server.url, "tools/list", {}, sessionHeaders);
+      const tools = (list.body?.result?.tools ?? list.body?.tools ?? []) as Array<{ name: string; description?: string; inputSchema?: any }>;
 
       // Replace tools
       await supa.from("mcp_tools").delete().eq("mcp_server_id", server_id);
