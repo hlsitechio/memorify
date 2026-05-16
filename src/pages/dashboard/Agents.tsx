@@ -824,19 +824,17 @@ function WorkspaceStats({ agentId, workspaceName, onRenameWorkspace }: {
 
 function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const open = !!agent;
-  const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-  const apiUrl = `${base}/agent-api`;
-  const pingUrl = `${base}/agent-ping`;
+  const mcpHttpUrl = "https://mcp.memorify.dev";
+  const apiUrl = mcpHttpUrl; // public, white-labelled MCP endpoint
   const token = agent?.token ?? "";
 
   const curlWhoami =
-    `curl -s ${apiUrl} -H "Authorization: Bearer ${token}"`;
+    `curl -s -X POST ${mcpHttpUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -H "Accept: application/json, text/event-stream" \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'`;
   const curlRemember =
-    `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.remember","params":{"content":"User prefers dark mode","tags":["preference"]}}'`;
+    `curl -s -X POST ${mcpHttpUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -H "Accept: application/json, text/event-stream" \\\n  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_remember","arguments":{"content":"User prefers dark mode","tags":["preference"]}}}'`;
   const curlRecall =
-    `curl -s -X POST ${apiUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"memory.recall","params":{"query":"dark"}}'`;
-  const mcpHttpUrl = `${base}/synapse-mcp`;
-  const mcpCmd = `claude mcp add synapse --transport http ${pingUrl}?token=${token}`;
+    `curl -s -X POST ${mcpHttpUrl} \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -H "Accept: application/json, text/event-stream" \\\n  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_recall","arguments":{"query":"dark"}}}'`;
+  const mcpCmd = `claude mcp add memorify --transport http ${mcpHttpUrl} --header "Authorization: Bearer ${token}"`;
   const isCodex = agent?.kind === "openai_codex";
   const codexToml = `[mcp_servers.memorify]
 url = "${mcpHttpUrl}"
