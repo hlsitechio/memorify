@@ -148,45 +148,89 @@ export default function Skills() {
     <>
       <PageHeader
         title="Skills"
-        description="Reusable agent capabilities"
+        description={`Reusable agent capabilities · scoped to ${wsLabel}`}
         actions={
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm({ name: "", description: "", prompt: "", model: MODELS[0], status: "draft" }); } }}>
-            <DialogTrigger asChild><Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> New skill</Button></DialogTrigger>
-            <DialogContent className="max-w-xl">
-              <DialogHeader><DialogTitle>{editing ? "Edit skill" : "New skill"}</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="flex items-center gap-2">
+            <Dialog open={importOpen} onOpenChange={setImportOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><Download className="h-3.5 w-3.5 mr-1.5" /> Import from URL</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Import skill from URL</DialogTitle>
+                  <DialogDescription>
+                    Paste any link to a SKILL.md, GitHub file/folder, doc page, or article.
+                    AI will extract the skill and install it into <span className="font-medium text-foreground">{wsLabel}</span>.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label>Status</Label>
-                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="live">Live</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Source URL</Label>
+                    <div className="relative">
+                      <Link2 className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        className="pl-8"
+                        value={importUrl}
+                        onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://github.com/mattpocock/skills/tree/main/skills/typescript"
+                        onKeyDown={(e) => { if (e.key === "Enter" && !importBusy) runImport(); }}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Examples: <code className="text-foreground/80">https://github.com/mattpocock/skills</code> ·
+                    a raw <code className="text-foreground/80">SKILL.md</code> URL ·
+                    an Anthropic docs page.
                   </div>
                 </div>
-                <div className="space-y-1.5"><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-                <div className="space-y-1.5">
-                  <Label>Model</Label>
-                  <Select value={form.model} onValueChange={(v) => setForm({ ...form, model: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                  </Select>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setImportOpen(false)} disabled={importBusy}>Cancel</Button>
+                  <Button onClick={runImport} disabled={importBusy}>
+                    {importBusy ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Importing…</> : <><Download className="h-3.5 w-3.5 mr-1.5" /> Import</>}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm({ name: "", description: "", prompt: "", model: MODELS[0], status: "draft" }); } }}>
+              <DialogTrigger asChild><Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> New skill</Button></DialogTrigger>
+              <DialogContent className="max-w-xl">
+                <DialogHeader><DialogTitle>{editing ? "Edit skill" : "New skill"}</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+                    <div className="space-y-1.5">
+                      <Label>Status</Label>
+                      <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="live">Live</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5"><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+                  <div className="space-y-1.5">
+                    <Label>Model</Label>
+                    <Select value={form.model} onValueChange={(v) => setForm({ ...form, model: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>System prompt</Label>
+                    <Textarea rows={8} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="You are an expert at…" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>System prompt</Label>
-                  <Textarea rows={8} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} placeholder="You are an expert at…" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button onClick={upsert}>{editing ? "Update" : "Create"}</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button onClick={upsert}>{editing ? "Update" : "Create"}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
       <div className="p-6 overflow-y-auto scrollbar-thin h-[calc(100vh-3.5rem)]">
