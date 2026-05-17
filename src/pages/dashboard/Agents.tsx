@@ -1287,20 +1287,20 @@ exec ${launchCli}
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl [&>*]:min-w-0">
-        <DialogHeader className="min-w-0">
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col gap-0">
+        <SheetHeader className="px-6 py-4 border-b border-border min-w-0">
+          <SheetTitle className="flex items-center gap-2">
             <Terminal className="h-4 w-4 text-amber-400" />
             Connect {agent?.name}
-          </DialogTitle>
-          <DialogDescription>
-            <span className="text-foreground font-medium">Launch script</span> is the fastest path — one click, agent reopens fully loaded with identity, memory and MCP wiring.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetTitle>
+          <SheetDescription>
+            Edit identity, workspace and launch command — then export a ready-to-run <code className="text-foreground">.ps1</code> / <code className="text-foreground">.sh</code>.
+          </SheetDescription>
+        </SheetHeader>
 
         {agent && (
-          <div className="space-y-4 min-w-0">
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-4 min-w-0">
             <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-2">
               <span className={cn(
                 "h-2 w-2 rounded-full",
@@ -1332,12 +1332,143 @@ exec ${launchCli}
 
               <TabsContent value="launch" className="space-y-4 mt-4">
                 <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
-                  <span className="text-primary font-medium">One-click rebirth.</span> The script creates <code className="text-foreground">~/Memorify/{safeName}/</code>, pins your token, drops <code className="text-foreground">{promptFile}</code> with full identity + Memorify/Methora context, registers the MCP server, then launches <code className="text-foreground">{launchCli}</code> — {agent.name} comes back exactly as you left them.
+                  <span className="text-primary font-medium">One-click rebirth.</span> Edit anything below — the <code className="text-foreground">.ps1</code> / <code className="text-foreground">.sh</code> rebuild live.
                 </div>
 
+                {/* ── Editable identity & paths ───────────────────────────── */}
+                <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <Pencil className="h-3 w-3" /> Customize
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Workspace folder</Label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] font-mono text-muted-foreground">~/Memorify/</span>
+                        <Input
+                          value={safeName}
+                          onChange={(e) => setSafeName(e.target.value.replace(/[^a-zA-Z0-9_-]+/g, "_"))}
+                          className="h-8 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Prompt filename</Label>
+                      <Input
+                        value={promptFile}
+                        onChange={(e) => setPromptFile(e.target.value)}
+                        className="h-8 text-xs font-mono"
+                        placeholder="CLAUDE.md"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Launch command</Label>
+                      <Input
+                        value={launchCli}
+                        onChange={(e) => setLaunchCli(e.target.value)}
+                        className="h-8 text-xs font-mono"
+                        placeholder="claude"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">MCP registration</Label>
+                      <div className="flex h-8 items-center rounded-md border border-border bg-background overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterAsCodex(false)}
+                          className={cn(
+                            "flex-1 h-full text-[11px] font-mono transition-colors",
+                            !registerAsCodex ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary/40"
+                          )}
+                        >
+                          CLI ({launchCli.split(" ")[0]} mcp add)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterAsCodex(true)}
+                          className={cn(
+                            "flex-1 h-full text-[11px] font-mono border-l border-border transition-colors",
+                            registerAsCodex ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary/40"
+                          )}
+                        >
+                          ~/.codex/config.toml
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] text-muted-foreground">
+                        Identity prompt — written to <code className="text-foreground">{promptFile}</code>
+                      </Label>
+                      <button
+                        type="button"
+                        onClick={() => setIdentityHeader(defaultIdentity)}
+                        className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                        title="Reset to default"
+                      >
+                        <RefreshCw className="h-3 w-3" /> reset
+                      </button>
+                    </div>
+                    <Textarea
+                      value={identityHeader}
+                      onChange={(e) => setIdentityHeader(e.target.value)}
+                      className="font-mono text-[11px] leading-relaxed min-h-[220px] max-h-[360px]"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+
+                {/* ── Export buttons ──────────────────────────────────────── */}
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => downloadScript(`start-${safeName}.ps1`, ps1Script)}
+                    className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
+                  >
+                    <div className="h-10 w-10 rounded-md bg-sky-500/15 text-sky-400 flex items-center justify-center">
+                      <Download className="h-5 w-5" />
+                    </div>
+                    <div className="text-sm font-semibold">Windows .ps1</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">start-{safeName}.ps1</div>
+                  </button>
+                  <button
+                    onClick={() => downloadScript(`start-${safeName}.sh`, shScript)}
+                    className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
+                  >
+                    <div className="h-10 w-10 rounded-md bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                      <Download className="h-5 w-5" />
+                    </div>
+                    <div className="text-sm font-semibold">macOS / Linux .sh</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">start-{safeName}.sh</div>
+                  </button>
+                </div>
+
+                <details className="rounded-md border border-border bg-secondary/30 px-3 py-2">
+                  <summary className="text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground">
+                    Preview generated script
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">PowerShell (.ps1)</label>
+                      <CopyField value={ps1Script} label="PowerShell script" multiline secret />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Bash (.sh)</label>
+                      <CopyField value={shScript} label="Bash script" multiline secret />
+                    </div>
+                  </div>
+                </details>
+
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-amber-400 font-medium">Heads-up:</span> the script contains your bearer token in plain text — treat it like a password.
+                </div>
+              </TabsContent>
+
                     className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
                   >
                     <div className="h-10 w-10 rounded-md bg-sky-500/15 text-sky-400 flex items-center justify-center">
