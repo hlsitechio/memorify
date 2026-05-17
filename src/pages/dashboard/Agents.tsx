@@ -1611,8 +1611,8 @@ exec ${launchCli}
             </Tabs>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
