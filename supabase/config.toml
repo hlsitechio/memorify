@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.vault]
 verify_jwt = false
+
+[functions.skills-receive]
+verify_jwt = false
