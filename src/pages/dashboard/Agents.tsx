@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle, MoreVertical, Pause, Play, KeyRound, Pencil, X, Eye, EyeOff, Clock } from "lucide-react";
+import { Bot, Terminal, Copy, Check, Plus, Trash2, Zap, Wifi, RefreshCw, ExternalLink, Sparkles, ShieldCheck, Activity, AlertTriangle, MoreVertical, Pause, Play, KeyRound, Pencil, X, Eye, EyeOff, Clock, Download, Rocket } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -1121,6 +1121,150 @@ Your memory and events are scoped to \`${workspaceId}\` by default — other age
 
 You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to load context.`;
 
+  // ── Launch-script generator ──────────────────────────────────────────────
+  // One-shot bootstrap: pin token, create ~/Memorify/<agent>, drop CLAUDE.md
+  // (identity + Memorify/Methora context), register MCP, launch the CLI.
+  const safeName = (agent?.name ?? "agent").replace(/[^a-zA-Z0-9_-]+/g, "_");
+  const promptFile =
+    agent?.kind === "openai_codex" ? "AGENTS.md" :
+    agent?.kind === "github_copilot" ? "COPILOT.md" :
+    "CLAUDE.md";
+  const launchCli =
+    agent?.kind === "openai_codex" ? "codex" :
+    agent?.kind === "github_copilot" ? "gh copilot" :
+    "claude";
+
+  const identityHeader = `# ${agent?.name ?? "Agent"} — Memorify-native agent
+
+You are **${agent?.name ?? "this agent"}**, a ${agent?.kind ?? "coding"} agent living inside the Memorify workspace \`${workspaceId}\`${workspaceName ? ` ("${workspaceName}")` : ""}.
+Your memory, files, skills and event log persist across sessions in Memorify.
+
+## Memorify ⇄ Methora context
+
+**Memorify** is your runtime brain — persistent memory, documents, voices, vaults, skills, MCP fan-out. Every tool the user has wired (Methora, Notion, GitHub, …) reaches you through Memorify's single MCP endpoint.
+
+**Methora** (https://methora.lovable.app) is the skill-authoring studio. It plugs into Memorify as one more MCP server, exposing \`methora.skills_create / list / get / run / publish\`. When the user says "make me a skill" → call \`methora.skills_create\`. Skills authored in Methora land back inside Memorify via \`skills-receive\` and are immediately runnable.
+
+## Your identity (already provisioned)
+- Agent ID:     ${agentId}
+- Workspace ID: ${workspaceId}
+- MCP server:   ${mcpHttpUrl}
+- Auth:         \`Authorization: Bearer $MEMORIFY_TOKEN\` (env var)
+
+## First thing on EVERY new session (REQUIRED)
+Call \`agents_bootstrap\` → returns role, memories, skills, documents, events. That's how you remember who you are.
+
+## Rules
+1. Recall before answering — \`memory_recall\` with a relevant query.
+2. Remember what matters — \`memory_remember\` with descriptive tags.
+3. Don't duplicate — \`memory_update\` existing memories instead.
+4. Log meaningful actions — \`events_log\`.
+5. Build new capabilities through Methora — \`methora.skills_create\`.
+
+This file is commit-safe — token lives in \`$MEMORIFY_TOKEN\`.
+`;
+
+  const ps1Script = `# Memorify bootstrap for ${agent?.name ?? "agent"} (${agent?.kind ?? "agent"})
+# Run:  powershell -ExecutionPolicy Bypass -File .\\start-${safeName}.ps1
+$ErrorActionPreference = "Stop"
+
+$AgentName = "${agent?.name ?? "agent"}"
+$WorkDir   = Join-Path $HOME "Memorify\\${safeName}"
+$McpUrl    = "${mcpHttpUrl}"
+$Token     = "${token}"
+
+Write-Host "-> Workspace: $WorkDir" -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
+Set-Location $WorkDir
+
+Write-Host "-> Pinning MEMORIFY_TOKEN (user scope, persistent)" -ForegroundColor Cyan
+[System.Environment]::SetEnvironmentVariable("MEMORIFY_TOKEN", $Token, "User")
+$env:MEMORIFY_TOKEN = $Token
+
+Write-Host "-> Writing ${promptFile}" -ForegroundColor Cyan
+@'
+${identityHeader.replace(/'/g, "''")}
+'@ | Set-Content -Path "${promptFile}" -Encoding UTF8
+
+${agent?.kind === "openai_codex"
+  ? `Write-Host "-> Registering Memorify MCP in ~/.codex/config.toml" -ForegroundColor Cyan
+$CodexDir = Join-Path $HOME ".codex"
+New-Item -ItemType Directory -Force -Path $CodexDir | Out-Null
+$Cfg = Join-Path $CodexDir "config.toml"
+$Block = @"
+[mcp_servers.memorify]
+url = "$McpUrl"
+bearer_token_env_var = "MEMORIFY_TOKEN"
+"@
+if (-not (Test-Path $Cfg) -or -not (Select-String -Path $Cfg -Pattern "mcp_servers.memorify" -Quiet)) {
+  Add-Content -Path $Cfg -Value $Block
+}`
+  : `Write-Host "-> Registering Memorify MCP server" -ForegroundColor Cyan
+try { & ${launchCli} mcp add memorify --transport http $McpUrl --header "Authorization: Bearer $Token" 2>&1 | Out-Host } catch { Write-Host "  (already registered or CLI not installed)" -ForegroundColor Yellow }`}
+
+Write-Host ""
+Write-Host "OK $AgentName is ready in $WorkDir" -ForegroundColor Green
+Write-Host "-> Launching ${launchCli}..." -ForegroundColor Cyan
+Write-Host ""
+& ${launchCli}
+`;
+
+  const shScript = `#!/usr/bin/env bash
+# Memorify bootstrap for ${agent?.name ?? "agent"} (${agent?.kind ?? "agent"})
+# Run:  bash start-${safeName}.sh
+set -euo pipefail
+
+AGENT_NAME="${agent?.name ?? "agent"}"
+WORK_DIR="$HOME/Memorify/${safeName}"
+MCP_URL="${mcpHttpUrl}"
+TOKEN="${token}"
+
+echo "-> Workspace: $WORK_DIR"
+mkdir -p "$WORK_DIR"
+cd "$WORK_DIR"
+
+echo "-> Pinning MEMORIFY_TOKEN in shell profile"
+PROFILE="$HOME/.zshrc"; [ -f "$HOME/.bashrc" ] && PROFILE="$HOME/.bashrc"
+if ! grep -q "MEMORIFY_TOKEN" "$PROFILE" 2>/dev/null; then
+  echo "export MEMORIFY_TOKEN=\\"$TOKEN\\"" >> "$PROFILE"
+fi
+export MEMORIFY_TOKEN="$TOKEN"
+
+echo "-> Writing ${promptFile}"
+cat > "${promptFile}" <<'EOF'
+${identityHeader}
+EOF
+
+${agent?.kind === "openai_codex"
+  ? `echo "-> Registering Memorify MCP in ~/.codex/config.toml"
+mkdir -p "$HOME/.codex"
+CFG="$HOME/.codex/config.toml"
+if ! grep -q "mcp_servers.memorify" "$CFG" 2>/dev/null; then
+  cat >> "$CFG" <<EOF2
+[mcp_servers.memorify]
+url = "$MCP_URL"
+bearer_token_env_var = "MEMORIFY_TOKEN"
+EOF2
+fi`
+  : `echo "-> Registering Memorify MCP server"
+${launchCli} mcp add memorify --transport http "$MCP_URL" --header "Authorization: Bearer $TOKEN" 2>/dev/null || echo "  (already registered or CLI not installed)"`}
+
+echo ""
+echo "OK $AGENT_NAME is ready in $WORK_DIR"
+echo "-> Launching ${launchCli}..."
+echo ""
+exec ${launchCli}
+`;
+
+  const downloadScript = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filename} downloaded`);
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl [&>*]:min-w-0">
@@ -1130,7 +1274,7 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
             Connect {agent?.name}
           </DialogTitle>
           <DialogDescription>
-            Two ways to plug in. <span className="text-foreground font-medium">Direct API</span> is instant — no restart, no handshake.
+            <span className="text-foreground font-medium">Launch script</span> is the fastest path — one click, agent reopens fully loaded with identity, memory and MCP wiring.
           </DialogDescription>
         </DialogHeader>
 
@@ -1150,17 +1294,69 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
               </span>
             </div>
 
-            <Tabs defaultValue="prompt">
-              <TabsList className="w-full grid grid-cols-4">
+            <Tabs defaultValue="launch">
+              <TabsList className="w-full grid grid-cols-5">
+                <TabsTrigger value="launch">
+                  <Rocket className="h-3.5 w-3.5 mr-1.5" /> Launch
+                </TabsTrigger>
                 <TabsTrigger value="prompt">
-                  <Zap className="h-3.5 w-3.5 mr-1.5" /> First connect
+                  <Zap className="h-3.5 w-3.5 mr-1.5" /> Prompt
                 </TabsTrigger>
                 <TabsTrigger value="reconnect">
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Reconnect
                 </TabsTrigger>
-                <TabsTrigger value="api">Direct API</TabsTrigger>
+                <TabsTrigger value="api">API</TabsTrigger>
                 <TabsTrigger value="mcp">MCP</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="launch" className="space-y-4 mt-4">
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                  <span className="text-primary font-medium">One-click rebirth.</span> The script creates <code className="text-foreground">~/Memorify/{safeName}/</code>, pins your token, drops <code className="text-foreground">{promptFile}</code> with full identity + Memorify/Methora context, registers the MCP server, then launches <code className="text-foreground">{launchCli}</code> — {agent.name} comes back exactly as you left them.
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => downloadScript(`start-${safeName}.ps1`, ps1Script)}
+                    className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
+                  >
+                    <div className="h-10 w-10 rounded-md bg-sky-500/15 text-sky-400 flex items-center justify-center">
+                      <Download className="h-5 w-5" />
+                    </div>
+                    <div className="text-sm font-semibold">Windows</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">start-{safeName}.ps1</div>
+                  </button>
+                  <button
+                    onClick={() => downloadScript(`start-${safeName}.sh`, shScript)}
+                    className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
+                  >
+                    <div className="h-10 w-10 rounded-md bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                      <Download className="h-5 w-5" />
+                    </div>
+                    <div className="text-sm font-semibold">macOS / Linux</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">start-{safeName}.sh</div>
+                  </button>
+                </div>
+
+                <details className="rounded-md border border-border bg-secondary/30 px-3 py-2">
+                  <summary className="text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground">
+                    Preview script contents
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">PowerShell (.ps1)</label>
+                      <CopyField value={ps1Script} label="PowerShell script" multiline secret />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Bash (.sh)</label>
+                      <CopyField value={shScript} label="Bash script" multiline secret />
+                    </div>
+                  </div>
+                </details>
+
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="text-amber-400 font-medium">Heads-up:</span> the script contains your bearer token in plain text — treat it like a password. Delete after running, or use the <span className="text-foreground">Reconnect</span> tab for a token-free flow.
+                </div>
+              </TabsContent>
 
               <TabsContent value="prompt" className="space-y-3 mt-4">
                 <p className="text-xs text-muted-foreground">
