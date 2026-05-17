@@ -1127,17 +1127,16 @@ You're ready. Begin by calling \`agents_bootstrap\` (or \`memory_recall\`) to lo
   // ── Launch-script generator ──────────────────────────────────────────────
   // One-shot bootstrap: pin token, create ~/Memorify/<agent>, drop CLAUDE.md
   // (identity + Memorify/Methora context), register MCP, launch the CLI.
-  const safeName = (agent?.name ?? "agent").replace(/[^a-zA-Z0-9_-]+/g, "_");
-  const promptFile =
+  const defaultSafeName = (agent?.name ?? "agent").replace(/[^a-zA-Z0-9_-]+/g, "_");
+  const defaultPromptFile =
     agent?.kind === "openai_codex" ? "AGENTS.md" :
     agent?.kind === "github_copilot" ? "COPILOT.md" :
     "CLAUDE.md";
-  const launchCli =
+  const defaultLaunchCli =
     agent?.kind === "openai_codex" ? "codex" :
     agent?.kind === "github_copilot" ? "gh copilot" :
     "claude";
-
-  const identityHeader = `# ${agent?.name ?? "Agent"} — Memorify-native agent
+  const defaultIdentity = `# ${agent?.name ?? "Agent"} — Memorify-native agent
 
 You are **${agent?.name ?? "this agent"}**, a ${agent?.kind ?? "coding"} agent living inside the Memorify workspace \`${workspaceId}\`${workspaceName ? ` ("${workspaceName}")` : ""}.
 Your memory, files, skills and event log persist across sessions in Memorify.
@@ -1167,6 +1166,24 @@ Call \`agents_bootstrap\` → returns role, memories, skills, documents, events.
 This file is commit-safe — token lives in \`$MEMORIFY_TOKEN\`.
 `;
 
+  // ── Editable launch-script form state ─────────────────────────────────────
+  const [safeName, setSafeName] = useState(defaultSafeName);
+  const [promptFile, setPromptFile] = useState(defaultPromptFile);
+  const [launchCli, setLaunchCli] = useState(defaultLaunchCli);
+  const [identityHeader, setIdentityHeader] = useState(defaultIdentity);
+  const [registerAsCodex, setRegisterAsCodex] = useState(agent?.kind === "openai_codex");
+
+  // Re-seed when switching agents
+  useEffect(() => {
+    if (!agent) return;
+    setSafeName(defaultSafeName);
+    setPromptFile(defaultPromptFile);
+    setLaunchCli(defaultLaunchCli);
+    setIdentityHeader(defaultIdentity);
+    setRegisterAsCodex(agent.kind === "openai_codex");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent?.id]);
+
   const ps1Script = `# Memorify bootstrap for ${agent?.name ?? "agent"} (${agent?.kind ?? "agent"})
 # Run:  powershell -ExecutionPolicy Bypass -File .\\start-${safeName}.ps1
 $ErrorActionPreference = "Stop"
@@ -1189,7 +1206,7 @@ Write-Host "-> Writing ${promptFile}" -ForegroundColor Cyan
 ${identityHeader.replace(/'/g, "''")}
 '@ | Set-Content -Path "${promptFile}" -Encoding UTF8
 
-${agent?.kind === "openai_codex"
+${registerAsCodex
   ? `Write-Host "-> Registering Memorify MCP in ~/.codex/config.toml" -ForegroundColor Cyan
 $CodexDir = Join-Path $HOME ".codex"
 New-Item -ItemType Directory -Force -Path $CodexDir | Out-Null
@@ -1203,7 +1220,7 @@ if (-not (Test-Path $Cfg) -or -not (Select-String -Path $Cfg -Pattern "mcp_serve
   Add-Content -Path $Cfg -Value $Block
 }`
   : `Write-Host "-> Registering Memorify MCP server" -ForegroundColor Cyan
-try { & ${launchCli} mcp add memorify --transport http $McpUrl --header "Authorization: Bearer $Token" 2>&1 | Out-Host } catch { Write-Host "  (already registered or CLI not installed)" -ForegroundColor Yellow }`}
+try { & ${launchCli.split(" ")[0]} mcp add memorify --transport http $McpUrl --header "Authorization: Bearer $Token" 2>&1 | Out-Host } catch { Write-Host "  (already registered or CLI not installed)" -ForegroundColor Yellow }`}
 
 Write-Host ""
 Write-Host "OK $AgentName is ready in $WorkDir" -ForegroundColor Green
@@ -1238,7 +1255,7 @@ cat > "${promptFile}" <<'EOF'
 ${identityHeader}
 EOF
 
-${agent?.kind === "openai_codex"
+${registerAsCodex
   ? `echo "-> Registering Memorify MCP in ~/.codex/config.toml"
 mkdir -p "$HOME/.codex"
 CFG="$HOME/.codex/config.toml"
@@ -1250,7 +1267,7 @@ bearer_token_env_var = "MEMORIFY_TOKEN"
 EOF2
 fi`
   : `echo "-> Registering Memorify MCP server"
-${launchCli} mcp add memorify --transport http "$MCP_URL" --header "Authorization: Bearer $TOKEN" 2>/dev/null || echo "  (already registered or CLI not installed)"`}
+${launchCli.split(" ")[0]} mcp add memorify --transport http "$MCP_URL" --header "Authorization: Bearer $TOKEN" 2>/dev/null || echo "  (already registered or CLI not installed)"`}
 
 echo ""
 echo "OK $AGENT_NAME is ready in $WORK_DIR"
@@ -1258,6 +1275,7 @@ echo "-> Launching ${launchCli}..."
 echo ""
 exec ${launchCli}
 `;
+
 
   const downloadScript = (filename: string, content: string) => {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
