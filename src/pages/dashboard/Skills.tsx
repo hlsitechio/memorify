@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Sparkles, Trash2, Play, Plug2, Download, Link2, Loader2 } from "lucide-react";
+import { Plus, Sparkles, Trash2, Play, Plug2, Download, Link2, Loader2, Wand2, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,7 +24,10 @@ type Skill = {
   schema: any;
   model: string;
   version: number;
+  source?: any;
 };
+
+const METHORA_STUDIO_URL = "https://methora.lovable.app/studio";
 
 const MODELS = [
   "google/gemini-3-flash-preview",
@@ -151,6 +154,20 @@ export default function Skills() {
         description={`Reusable agent capabilities · scoped to ${wsLabel}`}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => {
+                const callback = `${window.location.origin}/dashboard/skills`;
+                const receiveUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/skills-receive`;
+                const url = `${METHORA_STUDIO_URL}?from=memorify&callback=${encodeURIComponent(callback)}&receive=${encodeURIComponent(receiveUrl)}&workspace=${encodeURIComponent(wsLabel)}`;
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <Wand2 className="h-3.5 w-3.5 mr-1.5" /> Author in Methora Studio
+              <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
+            </Button>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline"><Download className="h-3.5 w-3.5 mr-1.5" /> Import from URL</Button>
@@ -246,7 +263,14 @@ export default function Skills() {
               <div key={s.id} className="rounded-lg border border-border bg-card p-4 hover:bg-secondary/20 transition-colors group">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{s.name}</div>
+                    <div className="text-sm font-semibold truncate flex items-center gap-1.5">
+                      {s.name}
+                      {s.source?.origin === "methora" && (
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 flex items-center gap-0.5">
+                          <Wand2 className="h-2.5 w-2.5" /> Methora
+                        </span>
+                      )}
+                    </div>
                     <div className="font-mono text-[10px] text-muted-foreground truncate">{s.slug} · v{s.version}</div>
                   </div>
                   <span className={cn("text-[10px] px-1.5 py-0.5 rounded",
