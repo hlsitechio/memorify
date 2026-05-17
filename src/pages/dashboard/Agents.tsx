@@ -1468,48 +1468,6 @@ exec ${launchCli}
                   <span className="text-amber-400 font-medium">Heads-up:</span> the script contains your bearer token in plain text — treat it like a password.
                 </div>
               </TabsContent>
-
-                    className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
-                  >
-                    <div className="h-10 w-10 rounded-md bg-sky-500/15 text-sky-400 flex items-center justify-center">
-                      <Download className="h-5 w-5" />
-                    </div>
-                    <div className="text-sm font-semibold">Windows</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">start-{safeName}.ps1</div>
-                  </button>
-                  <button
-                    onClick={() => downloadScript(`start-${safeName}.sh`, shScript)}
-                    className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all p-4 group"
-                  >
-                    <div className="h-10 w-10 rounded-md bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
-                      <Download className="h-5 w-5" />
-                    </div>
-                    <div className="text-sm font-semibold">macOS / Linux</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">start-{safeName}.sh</div>
-                  </button>
-                </div>
-
-                <details className="rounded-md border border-border bg-secondary/30 px-3 py-2">
-                  <summary className="text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground">
-                    Preview script contents
-                  </summary>
-                  <div className="mt-3 space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">PowerShell (.ps1)</label>
-                      <CopyField value={ps1Script} label="PowerShell script" multiline secret />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Bash (.sh)</label>
-                      <CopyField value={shScript} label="Bash script" multiline secret />
-                    </div>
-                  </div>
-                </details>
-
-                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
-                  <span className="text-amber-400 font-medium">Heads-up:</span> the script contains your bearer token in plain text — treat it like a password. Delete after running, or use the <span className="text-foreground">Reconnect</span> tab for a token-free flow.
-                </div>
-              </TabsContent>
-
               <TabsContent value="prompt" className="space-y-3 mt-4">
                 <p className="text-xs text-muted-foreground">
                   <span className="text-foreground font-medium">First-time setup.</span> Paste this once into the agent's system prompt — token is baked in so it self-onboards. For day-to-day re-pastes, use the <span className="text-foreground font-medium">Reconnect</span> tab (no secrets).
