@@ -54,6 +54,18 @@ type Preset = {
 
 const PRESETS: Preset[] = [
   {
+    id: "methora",
+    name: "Methora",
+    url: "https://methora.lovable.app/functions/v1/methora-mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Methora personal access token",
+    tokenHint:
+      "The skills studio. Generate a PAT at methora.lovable.app → Settings → API Keys (Pro/Team). Adds skills_create, skills_list, skills_get, skills_run, skills_publish to every connected agent.",
+    docsUrl: "https://methora.lovable.app",
+    tokenPlaceholder: "lit_pat_…",
+  },
+  {
     id: "deepwiki",
     name: "DeepWiki",
     url: "https://mcp.deepwiki.com/mcp",
