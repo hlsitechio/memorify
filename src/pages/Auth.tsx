@@ -21,8 +21,11 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, loading } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const wsHandle = searchParams.get("ws");
+  const wsCode = searchParams.get("code");
+  const [mode, setMode] = useState<"signin" | "signup">(wsHandle ? "signin" : "signin");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -35,10 +38,17 @@ export default function Auth() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        const cleaned = username.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+        if (cleaned.length < 3 || cleaned.length > 24) {
+          throw new Error("Username must be 3-24 characters (letters, digits, underscore)");
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: { username: cleaned },
+          },
         });
         if (error) throw error;
         toast.success("Check your email to verify your account.");
