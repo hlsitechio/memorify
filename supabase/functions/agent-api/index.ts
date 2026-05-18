@@ -918,13 +918,14 @@ const COMMANDS: Cmd[] = [
       const format = String(p?.format ?? "markdown");
       const maxChars = Math.min(Math.max(Number(p?.max_chars ?? 20000), 500), 200000);
       const ua = "Mozilla/5.0 (compatible; MemorifyBot/1.0; +https://memorify.dev)";
+      await assertSafeUrl(url);
       if (format === "markdown") {
         // r.jina.ai is a free clean-markdown reader proxy (no key)
         const res = await fetch(`https://r.jina.ai/${url}`, { headers: { "User-Agent": ua, "X-Return-Format": "markdown" } });
         const text = await res.text();
         return { url, status: res.status, format, content: text.slice(0, maxChars), truncated: text.length > maxChars };
       }
-      const res = await fetch(url, { headers: { "User-Agent": ua, Accept: format === "json" ? "application/json" : "text/html,*/*" } });
+      const res = await safeFetch(url, { headers: { "User-Agent": ua, Accept: format === "json" ? "application/json" : "text/html,*/*" } });
       const ct = res.headers.get("content-type") ?? "";
       const raw = await res.text();
       let content: any = raw;
