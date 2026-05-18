@@ -17,11 +17,11 @@ async function mcpRpc(
   params: any,
   headers: Record<string, string>,
 ): Promise<{ body: any; sessionId: string | null }> {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
-  });
+  }, { httpsOnly: true });
   const text = await res.text();
   if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
   const sessionId = res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
