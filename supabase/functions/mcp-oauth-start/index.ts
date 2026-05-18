@@ -26,7 +26,7 @@ const randomString = (n = 32) => {
 const sha256 = async (s: string) => b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
 
 async function tryFetch(url: string): Promise<any | null> {
-  try { const r = await fetch(url); if (!r.ok) return null; return await r.json(); }
+  try { const r = await safeFetch(url, undefined, { httpsOnly: true }); if (!r.ok) return null; return await r.json(); }
   catch { return null; }
 }
 
