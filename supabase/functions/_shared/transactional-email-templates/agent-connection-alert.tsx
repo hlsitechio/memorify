@@ -15,6 +15,9 @@ interface Props {
   ipAddress?: string
   userAgent?: string
   manageUrl?: string
+  loginUrl?: string
+  revokeUrl?: string
+  accountHint?: string
 }
 
 const AgentConnectionAlert = ({
@@ -25,6 +28,9 @@ const AgentConnectionAlert = ({
   ipAddress,
   userAgent,
   manageUrl = 'https://memorify.dev/dashboard/agents',
+  loginUrl = 'https://memorify.dev/dashboard/agents',
+  revokeUrl,
+  accountHint,
 }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
@@ -47,13 +53,24 @@ const AgentConnectionAlert = ({
         </Section>
 
         <Text style={text}>
-          If this was you, no action is needed. If you don't recognize this connection,
-          revoke the agent's token immediately.
+          We recommend signing in to your account
+          {accountHint ? <> at <strong>memorify.dev/{accountHint}</strong></> : ''} to review this
+          connection. If you can't sign in right now, you can cancel this agent's
+          connection immediately using the second button below.
         </Text>
 
-        <Section style={{ textAlign: 'center', margin: '32px 0' }}>
-          <Button href={manageUrl} style={button}>Review agent</Button>
+        <Section style={{ textAlign: 'center', margin: '28px 0 12px' }}>
+          <Button href={loginUrl} style={primaryButton}>Sign in to review</Button>
         </Section>
+
+        {revokeUrl && (
+          <Section style={{ textAlign: 'center', margin: '0 0 24px' }}>
+            <Button href={revokeUrl} style={dangerButton}>Cancel this agent connection</Button>
+            <Text style={fineprint}>
+              This link revokes only this agent's access token. Your account stays safe.
+            </Text>
+          </Section>
+        )}
 
         <Hr style={hr} />
         <Text style={footer}>
@@ -84,6 +101,9 @@ export const template = {
     ipAddress: '203.0.113.42',
     userAgent: 'claude-code/1.4 (macOS)',
     manageUrl: 'https://memorify.dev/dashboard/agents',
+    loginUrl: 'https://memorify.dev/jane',
+    revokeUrl: 'https://example.com/revoke-preview',
+    accountHint: 'jane',
   },
 } satisfies TemplateEntry
 
@@ -95,6 +115,8 @@ const card = { background: '#fafafa', border: '1px solid #e4e4e7', borderRadius:
 const rowStyle = { fontSize: '13px', color: '#27272a', margin: '4px 0', display: 'block' }
 const rowLabel = { display: 'inline-block', width: '110px', color: '#71717a' }
 const rowValue: React.CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', color: '#0a0a0a' }
-const button = { backgroundColor: '#0a0a0a', color: '#ffffff', padding: '11px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, textDecoration: 'none', display: 'inline-block' }
+const primaryButton = { backgroundColor: '#0a0a0a', color: '#ffffff', padding: '11px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, textDecoration: 'none', display: 'inline-block' }
+const dangerButton = { backgroundColor: '#dc2626', color: '#ffffff', padding: '11px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, textDecoration: 'none', display: 'inline-block' }
+const fineprint = { fontSize: '12px', color: '#71717a', margin: '10px 0 0' }
 const hr = { borderColor: '#e4e4e7', margin: '28px 0 16px' }
 const footer = { fontSize: '12px', color: '#a1a1aa', margin: 0 }

@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.handle-email-suppression]
 verify_jwt = false
+
+[functions.agent-revoke]
+verify_jwt = false
