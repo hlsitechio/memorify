@@ -1,0 +1,10 @@
+# Memorify
+
+> One backend that any AI agent can plug into. Memory, tools, files, and connectors behind a single gateway — replace MCP juggling with one endpoint.
+
+Memorify is the motherboard for AI agents: a unified backend that exposes memory, documents, images, voices, skills, plugins, and external connectors through a single gateway so any agent can plug in without bespoke wiring.
+
+## Pages
+
+- [Home](/): Product overview, architecture, primitives, and waitlist.
+- [Sign in](/auth): Sign in to a Memorify workspace or create an account.
