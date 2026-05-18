@@ -11,6 +11,8 @@ interface Props {
   agentName?: string
   agentKind?: string
   workspaceName?: string
+  workspaceHandle?: string
+  workspaceCode?: string
   connectedAt?: string
   ipAddress?: string
   userAgent?: string
@@ -24,6 +26,8 @@ const AgentConnectionAlert = ({
   agentName = 'An AI agent',
   agentKind,
   workspaceName,
+  workspaceHandle,
+  workspaceCode,
   connectedAt,
   ipAddress,
   userAgent,
@@ -31,7 +35,9 @@ const AgentConnectionAlert = ({
   loginUrl = 'https://memorify.dev/dashboard/agents',
   revokeUrl,
   accountEmail,
-}: Props) => (
+}: Props) => {
+  const friendlyUrl = workspaceHandle ? `memorify.dev/ws/${workspaceHandle}` : null
+  return (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{agentName} just connected to your {SITE_NAME} workspace</Preview>
@@ -47,6 +53,8 @@ const AgentConnectionAlert = ({
           <Row label="Agent" value={agentName} />
           {agentKind && <Row label="Kind" value={agentKind} />}
           {workspaceName && <Row label="Workspace" value={workspaceName} />}
+          {friendlyUrl && <Row label="URL" value={friendlyUrl} />}
+          {workspaceCode && <Row label="Workspace ID" value={workspaceCode} />}
           {connectedAt && <Row label="When" value={connectedAt} />}
           {ipAddress && <Row label="IP address" value={ipAddress} />}
           {userAgent && <Row label="Client" value={userAgent} />}
@@ -54,9 +62,10 @@ const AgentConnectionAlert = ({
 
         <Text style={text}>
           We recommend signing in to your {SITE_NAME} account
-          {accountEmail ? <> (<strong>{accountEmail}</strong>)</> : ''} to review this
-          connection. If you can't sign in right now, you can cancel this agent's
-          connection immediately using the second button below.
+          {friendlyUrl ? <> at <strong>{friendlyUrl}</strong></> : ''}
+          {accountEmail ? <> (<strong>{accountEmail}</strong>)</> : ''} to
+          review this connection. If you can't sign in right now, you can
+          cancel this agent's connection immediately using the second button below.
         </Text>
 
         <Section style={{ textAlign: 'center', margin: '28px 0 12px' }}>
@@ -74,12 +83,14 @@ const AgentConnectionAlert = ({
 
         <Hr style={hr} />
         <Text style={footer}>
-          You're receiving this security alert because an AI agent connected to your {SITE_NAME} workspace.
+          You're receiving this security alert because an AI agent connected to your {SITE_NAME} workspace
+          {workspaceCode ? <> (<span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{workspaceCode}</span>)</> : ''}.
         </Text>
       </Container>
     </Body>
   </Html>
-)
+  )
+}
 
 const Row = ({ label, value }: { label: string; value: string }) => (
   <Text style={rowStyle}>
