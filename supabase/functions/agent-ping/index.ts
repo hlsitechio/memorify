@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
 
   // ---- GET = legacy status ping ----
   if (req.method === "GET") {
-    const r = await resolveAgent(token);
+    const r = await resolveAgent(token, {}, req);
     if ("error" in r) return json({ ok: false, error: r.error }, 401);
     return json({
       ok: true,
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
 
   // Legacy ping (non-JSON-RPC POST)
   if (!body?.jsonrpc) {
-    const r = await resolveAgent(token, body ?? {});
+    const r = await resolveAgent(token, body ?? {}, req);
     if ("error" in r) return json({ ok: false, error: r.error }, 401);
     return json({
       ok: true,
@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
 
   // ---- MCP JSON-RPC ----
   const { id, method, params } = body;
-  const r = await resolveAgent(token);
+  const r = await resolveAgent(token, {}, req);
   if ("error" in r) return rpcErr(id, -32001, r.error);
   const userId = r.agent.user_id;
   const agentName = r.agent.name;
