@@ -95,11 +95,11 @@ serve(async (req) => {
         token_endpoint_auth_method: "none",
       };
       console.log("[mcp-oauth-start] DCR at", meta.registration_endpoint, JSON.stringify(regBody));
-      const regRes = await fetch(meta.registration_endpoint, {
+      const regRes = await safeFetch(meta.registration_endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(regBody),
-      });
+      }, { httpsOnly: true });
       const regText = await regRes.text();
       console.log("[mcp-oauth-start] DCR response", regRes.status, regText.slice(0, 500));
       if (!regRes.ok) throw new Error(`Dynamic Client Registration failed [${regRes.status}]: ${regText.slice(0, 300)}`);
