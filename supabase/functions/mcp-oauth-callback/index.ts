@@ -23,7 +23,7 @@ p{font-size:14px;color:#9ca3af;margin:0 0 20px;line-height:1.5}
 button{background:#a5b4fc;color:#000;border:0;padding:8px 16px;border-radius:6px;font-weight:500;cursor:pointer}
 </style></head><body><div class="card">
 <h1>${status === "ok" ? "Connected" : "Connection failed"}</h1>
-<p>${message}</p>
+<p>${esc(message)}</p>
 <button onclick="window.close()">Close window</button>
 </div>
 <script>
