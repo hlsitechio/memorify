@@ -53,8 +53,8 @@ const AgentConnectionAlert = ({
         </Section>
 
         <Text style={text}>
-          We recommend signing in to your account
-          {accountHint ? <> at <strong>memorify.dev/{accountHint}</strong></> : ''} to review this
+          We recommend signing in to your {SITE_NAME} account
+          {accountEmail ? <> (<strong>{accountEmail}</strong>)</> : ''} to review this
           connection. If you can't sign in right now, you can cancel this agent's
           connection immediately using the second button below.
         </Text>
