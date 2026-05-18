@@ -5,6 +5,7 @@
 // insert into public.skills scoped to (user_id, workspace_id).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { safeFetch, assertSafeUrl } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
