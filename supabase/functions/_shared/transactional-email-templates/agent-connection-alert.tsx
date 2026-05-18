@@ -30,7 +30,7 @@ const AgentConnectionAlert = ({
   manageUrl = 'https://memorify.dev/dashboard/agents',
   loginUrl = 'https://memorify.dev/dashboard/agents',
   revokeUrl,
-  accountHint,
+  accountEmail,
 }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
