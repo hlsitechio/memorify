@@ -45,6 +45,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
+            <Route path="/ws/:handle" element={<WorkspaceHandle />} />
             <Route
               path="/dashboard"
               element={
