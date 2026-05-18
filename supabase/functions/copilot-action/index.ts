@@ -2,6 +2,7 @@
 // Authenticated via the user's JWT — every db call respects RLS.
 // Logs every command to the events table as an audit trail.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { safeFetch } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
