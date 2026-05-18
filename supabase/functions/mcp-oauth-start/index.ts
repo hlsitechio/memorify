@@ -68,6 +68,7 @@ serve(async (req) => {
 
     const { server_url, server_name, transport = "http", redirect_uri } = await req.json();
     if (!server_url || !server_name || !redirect_uri) throw new Error("server_url, server_name, redirect_uri required");
+    await assertSafeUrl(server_url, { httpsOnly: true });
 
     const meta = await discover(server_url);
     if (!meta) throw new Error(`Could not discover OAuth metadata for ${server_url}. The server may not support OAuth — use an API key instead.`);
