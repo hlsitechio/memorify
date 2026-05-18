@@ -17,7 +17,19 @@ serve(async (req) => {
     const { data: ures } = await supa.auth.getUser();
     if (!ures.user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { skill_id, input, model: modelOverride } = await req.json();
+    const { skill_id, input, model: modelOverrideRaw } = await req.json();
+    const ALLOWED_MODELS = new Set([
+      "google/gemini-3-flash-preview",
+      "google/gemini-3.1-pro-preview",
+      "google/gemini-2.5-flash",
+      "google/gemini-2.5-flash-lite",
+      "google/gemini-2.5-pro",
+      "openai/gpt-5-nano",
+      "openai/gpt-5-mini",
+      "openai/gpt-5",
+      "openai/gpt-5.2",
+    ]);
+    const modelOverride = modelOverrideRaw && ALLOWED_MODELS.has(modelOverrideRaw) ? modelOverrideRaw : undefined;
     const { data: skill, error } = await supa.from("skills").select("*").eq("id", skill_id).single();
     if (error || !skill) throw new Error("Skill not found");
 
