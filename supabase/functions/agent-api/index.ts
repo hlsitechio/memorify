@@ -967,6 +967,7 @@ const COMMANDS: Cmd[] = [
     run: async (_sb, _userId, p) => {
       const url = String(p?.url ?? "");
       if (!/^https?:\/\//i.test(url)) throw new Error("url must start with http(s)://");
+      await assertSafeUrl(url);
       const maxChars = Math.min(Math.max(Number(p?.max_chars ?? 30000), 500), 200000);
       const res = await fetch(`https://r.jina.ai/${url}`, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; MemorifyBot/1.0)", "X-Return-Format": "markdown" },
