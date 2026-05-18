@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { useAuth } from "@/hooks/useAuth";
 import { Nav } from "@/components/synapse/Nav";
 import { Hero } from "@/components/synapse/Hero";
