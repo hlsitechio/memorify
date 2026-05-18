@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { useAuth } from "@/hooks/useAuth";
 import { Nav } from "@/components/synapse/Nav";
 import { Hero } from "@/components/synapse/Hero";
@@ -22,6 +23,11 @@ const Index = () => {
   if (user) return <Navigate to="/dashboard" replace />;
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <Seo
+        title="Memorify — The motherboard for AI agents"
+        description="One backend any AI agent can plug into. Memory, tools, files, and connectors behind a single gateway. Replace MCP juggling with one endpoint."
+        path="/"
+      />
       <Nav />
       <Hero />
       <Problem />
