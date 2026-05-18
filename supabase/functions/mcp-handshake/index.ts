@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { safeFetch, assertSafeUrl } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,11 +15,11 @@ async function mcpRpc(
   params: any,
   headers: Record<string, string>,
 ): Promise<{ body: any; sessionId: string | null }> {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
-  });
+  }, { httpsOnly: true });
   const text = await res.text();
   const allHeaders: Record<string, string> = {};
   res.headers.forEach((v, k) => { allHeaders[k] = v; });
@@ -39,11 +40,11 @@ async function mcpRpc(
 
 async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
   // Notifications have no id; servers respond 202 with no body.
-  await fetch(url, {
+  await safeFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
-  }).then((r) => r.text()).catch(() => {});
+  }, { httpsOnly: true }).then((r) => r.text()).catch(() => {});
 }
 
 function getErrorMessage(err: unknown) {

@@ -3,6 +3,7 @@
 // Auth: user JWT (RLS scopes to the server's owner).
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { safeFetch } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,11 +17,11 @@ async function mcpRpc(
   params: any,
   headers: Record<string, string>,
 ): Promise<{ body: any; sessionId: string | null }> {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
-  });
+  }, { httpsOnly: true });
   const text = await res.text();
   if (!res.ok) throw new Error(`MCP ${method} [${res.status}]: ${text.slice(0, 400)}`);
   const sessionId = res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;
@@ -36,11 +37,11 @@ async function mcpRpc(
 }
 
 async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
-  await fetch(url, {
+  await safeFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
-  }).then((r) => r.text()).catch(() => {});
+  }, { httpsOnly: true }).then((r) => r.text()).catch(() => {});
 }
 
 serve(async (req) => {

@@ -14,6 +14,7 @@
 //           { "ok": false, "error": "..." }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { safeFetch, assertSafeUrl } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -290,7 +291,7 @@ const COMMANDS: Cmd[] = [
     params: { url: "string (required)", name: "string? (inferred from URL)" },
     run: async (sb, userId, p) => {
       if (!p?.url) throw new Error("url required");
-      const res = await fetch(p.url);
+      const res = await safeFetch(p.url);
       if (!res.ok) throw new Error(`fetch ${res.status}`);
       const buf = new Uint8Array(await res.arrayBuffer());
       const urlName = String(p.url).split("?")[0].split("/").pop() || "download";
@@ -917,13 +918,14 @@ const COMMANDS: Cmd[] = [
       const format = String(p?.format ?? "markdown");
       const maxChars = Math.min(Math.max(Number(p?.max_chars ?? 20000), 500), 200000);
       const ua = "Mozilla/5.0 (compatible; MemorifyBot/1.0; +https://memorify.dev)";
+      await assertSafeUrl(url);
       if (format === "markdown") {
         // r.jina.ai is a free clean-markdown reader proxy (no key)
         const res = await fetch(`https://r.jina.ai/${url}`, { headers: { "User-Agent": ua, "X-Return-Format": "markdown" } });
         const text = await res.text();
         return { url, status: res.status, format, content: text.slice(0, maxChars), truncated: text.length > maxChars };
       }
-      const res = await fetch(url, { headers: { "User-Agent": ua, Accept: format === "json" ? "application/json" : "text/html,*/*" } });
+      const res = await safeFetch(url, { headers: { "User-Agent": ua, Accept: format === "json" ? "application/json" : "text/html,*/*" } });
       const ct = res.headers.get("content-type") ?? "";
       const raw = await res.text();
       let content: any = raw;
@@ -965,6 +967,7 @@ const COMMANDS: Cmd[] = [
     run: async (_sb, _userId, p) => {
       const url = String(p?.url ?? "");
       if (!/^https?:\/\//i.test(url)) throw new Error("url must start with http(s)://");
+      await assertSafeUrl(url);
       const maxChars = Math.min(Math.max(Number(p?.max_chars ?? 30000), 500), 200000);
       const res = await fetch(`https://r.jina.ai/${url}`, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; MemorifyBot/1.0)", "X-Return-Format": "markdown" },

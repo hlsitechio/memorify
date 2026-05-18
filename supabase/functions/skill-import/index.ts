@@ -5,6 +5,7 @@
 // insert into public.skills scoped to (user_id, workspace_id).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { safeFetch, assertSafeUrl } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +38,7 @@ async function fetchAsText(rawUrl: string): Promise<{ text: string; finalUrl: st
   if (repo) {
     for (const br of ["main", "master"]) {
       const candidate = `https://raw.githubusercontent.com/${repo[1]}/${repo[2]}/${br}/README.md`;
-      const r = await fetch(candidate);
+      const r = await safeFetch(candidate);
       if (r.ok) {
         const t = await r.text();
         return { text: t, finalUrl: candidate };
@@ -45,7 +46,7 @@ async function fetchAsText(rawUrl: string): Promise<{ text: string; finalUrl: st
     }
   }
 
-  const res = await fetch(url, { headers: { "user-agent": "memorify-skill-import/1.0" } });
+  const res = await safeFetch(url, { headers: { "user-agent": "memorify-skill-import/1.0" } });
   if (!res.ok) throw new Error(`fetch ${res.status} for ${url}`);
   const ctype = res.headers.get("content-type") || "";
   const body = await res.text();

@@ -2,6 +2,7 @@
 // Authenticated via the user's JWT — every db call respects RLS.
 // Logs every command to the events table as an audit trail.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { safeFetch } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -279,7 +280,7 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
     case "documents.add_from_url": {
       if (!args.url) return { ok: false, error: "url required" };
       let res: Response;
-      try { res = await fetch(args.url); } catch (e: any) { return { ok: false, error: `fetch failed: ${e.message}` }; }
+      try { res = await safeFetch(args.url); } catch (e: any) { return { ok: false, error: `fetch failed: ${e.message}` }; }
       if (!res.ok) return { ok: false, error: `fetch ${res.status}` };
       const buf = new Uint8Array(await res.arrayBuffer());
       const urlName = args.url.split("?")[0].split("/").pop() || "download";

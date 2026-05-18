@@ -17,7 +17,15 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
 
-    const { prompt, model = "google/gemini-2.5-flash-image" } = await req.json();
+    const ALLOWED_MODELS = new Set([
+      "google/gemini-2.5-flash-image",
+      "google/gemini-3-pro-image-preview",
+      "google/gemini-3.1-flash-image-preview",
+    ]);
+    const body = await req.json();
+    const prompt: string = body?.prompt;
+    const requestedModel: string = body?.model || "google/gemini-2.5-flash-image";
+    const model = ALLOWED_MODELS.has(requestedModel) ? requestedModel : "google/gemini-2.5-flash-image";
     if (!prompt?.trim()) return new Response(JSON.stringify({ error: "prompt required" }), { status: 400, headers: corsHeaders });
 
     const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

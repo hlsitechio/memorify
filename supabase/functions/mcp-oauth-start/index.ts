@@ -8,6 +8,7 @@
 // Auth: user JWT
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { assertSafeUrl, safeFetch } from "../_shared/ssrf-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,7 +26,7 @@ const randomString = (n = 32) => {
 const sha256 = async (s: string) => b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
 
 async function tryFetch(url: string): Promise<any | null> {
-  try { const r = await fetch(url); if (!r.ok) return null; return await r.json(); }
+  try { const r = await safeFetch(url, undefined, { httpsOnly: true }); if (!r.ok) return null; return await r.json(); }
   catch { return null; }
 }
 
@@ -67,6 +68,7 @@ serve(async (req) => {
 
     const { server_url, server_name, transport = "http", redirect_uri } = await req.json();
     if (!server_url || !server_name || !redirect_uri) throw new Error("server_url, server_name, redirect_uri required");
+    await assertSafeUrl(server_url, { httpsOnly: true });
 
     const meta = await discover(server_url);
     if (!meta) throw new Error(`Could not discover OAuth metadata for ${server_url}. The server may not support OAuth — use an API key instead.`);
@@ -93,11 +95,11 @@ serve(async (req) => {
         token_endpoint_auth_method: "none",
       };
       console.log("[mcp-oauth-start] DCR at", meta.registration_endpoint, JSON.stringify(regBody));
-      const regRes = await fetch(meta.registration_endpoint, {
+      const regRes = await safeFetch(meta.registration_endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(regBody),
-      });
+      }, { httpsOnly: true });
       const regText = await regRes.text();
       console.log("[mcp-oauth-start] DCR response", regRes.status, regText.slice(0, 500));
       if (!regRes.ok) throw new Error(`Dynamic Client Registration failed [${regRes.status}]: ${regText.slice(0, 300)}`);

@@ -11,6 +11,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
+function esc(s: string) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 function htmlPage(status: "ok" | "error", message: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>MCP connect</title>
 <style>body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#eaeaea;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
@@ -20,7 +23,7 @@ p{font-size:14px;color:#9ca3af;margin:0 0 20px;line-height:1.5}
 button{background:#a5b4fc;color:#000;border:0;padding:8px 16px;border-radius:6px;font-weight:500;cursor:pointer}
 </style></head><body><div class="card">
 <h1>${status === "ok" ? "Connected" : "Connection failed"}</h1>
-<p>${message}</p>
+<p>${esc(message)}</p>
 <button onclick="window.close()">Close window</button>
 </div>
 <script>
