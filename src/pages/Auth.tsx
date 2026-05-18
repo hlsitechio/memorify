@@ -123,6 +123,13 @@ export default function Auth() {
             <p className="text-sm text-muted-foreground mt-1">
               {mode === "signin" ? "Sign in to your Memorify workspace" : "Start building with the agent memory layer"}
             </p>
+            {wsHandle && (
+              <div className="mt-3 rounded-md border border-border bg-card/50 px-3 py-2 text-xs">
+                <div className="text-muted-foreground">Opening workspace</div>
+                <div className="font-mono text-foreground">memorify.dev/ws/{wsHandle}</div>
+                {wsCode && <div className="font-mono text-muted-foreground mt-0.5">{wsCode}</div>}
+              </div>
+            )}
           </div>
 
           <Button variant="outline" className="w-full gap-2" onClick={handleGoogle}>
