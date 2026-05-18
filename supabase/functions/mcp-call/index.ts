@@ -37,11 +37,11 @@ async function mcpRpc(
 }
 
 async function mcpNotify(url: string, method: string, headers: Record<string, string>) {
-  await fetch(url, {
+  await safeFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, ...headers },
     body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }),
-  }).then((r) => r.text()).catch(() => {});
+  }, { httpsOnly: true }).then((r) => r.text()).catch(() => {});
 }
 
 serve(async (req) => {
