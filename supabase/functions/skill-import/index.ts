@@ -38,7 +38,7 @@ async function fetchAsText(rawUrl: string): Promise<{ text: string; finalUrl: st
   if (repo) {
     for (const br of ["main", "master"]) {
       const candidate = `https://raw.githubusercontent.com/${repo[1]}/${repo[2]}/${br}/README.md`;
-      const r = await fetch(candidate);
+      const r = await safeFetch(candidate);
       if (r.ok) {
         const t = await r.text();
         return { text: t, finalUrl: candidate };
