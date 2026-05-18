@@ -91,6 +91,30 @@ async function sendConnectionAlert(agent: any, req?: Request) {
   const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
   const idempotencyKey = `agent-connect-${agent.id}-${hourBucket}`;
 
+  // Sign a 7-day HMAC revoke link the user can click directly from the email.
+  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigBuf = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${agent.id}.${exp}`),
+  );
+  const sig = Array.from(new Uint8Array(sigBuf))
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const revokeUrl =
+    `${supabaseUrl}/functions/v1/agent-revoke?agent=${agent.id}&exp=${exp}&sig=${sig}`;
+
+  // Best-effort username for the login hint (email local-part).
+  const emailLocal = recipientEmail.split("@")[0];
+  const loginUrl = `https://memorify.dev/${emailLocal}`;
+
   await sb.functions.invoke("send-transactional-email", {
     body: {
       templateName: "agent-connection-alert",
@@ -104,6 +128,9 @@ async function sendConnectionAlert(agent: any, req?: Request) {
         ipAddress,
         userAgent,
         manageUrl: "https://memorify.dev/dashboard/agents",
+        loginUrl,
+        revokeUrl,
+        accountHint: emailLocal,
       },
     },
   });
