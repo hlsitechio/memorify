@@ -81,6 +81,11 @@ export default function Auth() {
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background text-foreground">
+      <Seo
+        title="Sign in or create your Memorify account"
+        description="Sign in to your Memorify workspace or create a new account to connect AI agents to your memory, tools, and files."
+        path="/auth"
+      />
       <section className="hidden lg:flex flex-col justify-between p-12 bg-card border-r border-border relative overflow-hidden">
         <video
           src={authVideo.url}
