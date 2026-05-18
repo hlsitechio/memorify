@@ -1,18 +1,10 @@
 /// <reference types="npm:@types/react@18.3.1" />
 
 import * as React from 'npm:react@18.3.1'
-
 import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Link,
-  Preview,
-  Text,
+  Body, Button, Container, Head, Heading, Hr, Html, Link, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
+import { styles as s, BRAND } from './_styles.ts'
 
 interface SignupEmailProps {
   siteName: string
@@ -21,37 +13,36 @@ interface SignupEmailProps {
   confirmationUrl: string
 }
 
-export const SignupEmail = ({
-  siteName,
-  siteUrl,
-  recipient,
-  confirmationUrl,
-}: SignupEmailProps) => (
+export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirm your email for {siteName}</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Heading style={h1}>Confirm your email</Heading>
-        <Text style={text}>
-          Thanks for signing up for{' '}
-          <Link href={siteUrl} style={link}>
-            <strong>{siteName}</strong>
-          </Link>
-          !
+    <Preview>Confirm your email to activate your {siteName} workspace</Preview>
+    <Body style={s.main}>
+      <Container style={s.container}>
+        <Text style={s.brandBar}>
+          <span style={s.brandDot} />
+          <span style={s.brandWord}>{BRAND.name}</span>
         </Text>
-        <Text style={text}>
-          Please confirm your email address (
-          <Link href={`mailto:${recipient}`} style={link}>
-            {recipient}
-          </Link>
-          ) by clicking the button below:
+
+        <Heading style={s.h1}>Confirm your email</Heading>
+        <Text style={s.text}>
+          Welcome to <Link href={siteUrl} style={s.link}><strong>{siteName}</strong></Link>. One last step —
+          confirm <strong>{recipient}</strong> so we can activate your workspace.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Verify Email
-        </Button>
-        <Text style={footer}>
-          If you didn't create an account, you can safely ignore this email.
+
+        <Section style={s.buttonRow}>
+          <Button href={confirmationUrl} style={s.buttonAccent}>Activate workspace</Button>
+        </Section>
+
+        <Text style={s.text}>
+          Or paste this link into your browser:<br />
+          <Link href={confirmationUrl} style={s.link}>{confirmationUrl}</Link>
+        </Text>
+
+        <Hr style={s.hr} />
+        <Text style={s.footer}>
+          You're receiving this because someone signed up for {siteName} with this address.
+          If it wasn't you, you can safely ignore this email.
         </Text>
       </Container>
     </Body>
@@ -59,28 +50,3 @@ export const SignupEmail = ({
 )
 
 export default SignupEmail
-
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px' }
-const h1 = {
-  fontSize: '22px',
-  fontWeight: 'bold' as const,
-  color: '#000000',
-  margin: '0 0 20px',
-}
-const text = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 25px',
-}
-const link = { color: 'inherit', textDecoration: 'underline' }
-const button = {
-  backgroundColor: '#000000',
-  color: '#ffffff',
-  fontSize: '14px',
-  borderRadius: '8px',
-  padding: '12px 20px',
-  textDecoration: 'none',
-}
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
