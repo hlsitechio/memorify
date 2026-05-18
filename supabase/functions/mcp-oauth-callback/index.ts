@@ -11,6 +11,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
+function esc(s: string) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 function htmlPage(status: "ok" | "error", message: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>MCP connect</title>
 <style>body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#eaeaea;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
