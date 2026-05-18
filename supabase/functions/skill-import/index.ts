@@ -46,7 +46,7 @@ async function fetchAsText(rawUrl: string): Promise<{ text: string; finalUrl: st
     }
   }
 
-  const res = await fetch(url, { headers: { "user-agent": "memorify-skill-import/1.0" } });
+  const res = await safeFetch(url, { headers: { "user-agent": "memorify-skill-import/1.0" } });
   if (!res.ok) throw new Error(`fetch ${res.status} for ${url}`);
   const ctype = res.headers.get("content-type") || "";
   const body = await res.text();
