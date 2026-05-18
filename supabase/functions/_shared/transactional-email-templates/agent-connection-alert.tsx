@@ -101,9 +101,9 @@ export const template = {
     ipAddress: '203.0.113.42',
     userAgent: 'claude-code/1.4 (macOS)',
     manageUrl: 'https://memorify.dev/dashboard/agents',
-    loginUrl: 'https://memorify.dev/jane',
+    loginUrl: 'https://memorify.dev/auth?email=jane%40example.com',
     revokeUrl: 'https://example.com/revoke-preview',
-    accountHint: 'jane',
+    accountEmail: 'jane@example.com',
   },
 } satisfies TemplateEntry
 
