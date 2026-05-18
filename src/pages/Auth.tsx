@@ -149,6 +149,28 @@ export default function Auth() {
             </TabsList>
             <TabsContent value={mode} className="mt-4">
               <form onSubmit={handleEmail} className="space-y-3">
+                {mode === "signup" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="username">Workspace handle</Label>
+                    <div className="flex items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
+                      <span className="px-2.5 text-xs text-muted-foreground font-mono select-none">memorify.dev/ws/</span>
+                      <Input
+                        id="username"
+                        required
+                        minLength={3}
+                        maxLength={24}
+                        pattern="[a-zA-Z0-9_]{3,24}"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                        placeholder="jane"
+                        className="border-0 focus-visible:ring-0 px-0"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      3-24 chars · letters, digits, underscore. This becomes your shareable workspace URL.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
