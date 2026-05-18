@@ -291,7 +291,7 @@ const COMMANDS: Cmd[] = [
     params: { url: "string (required)", name: "string? (inferred from URL)" },
     run: async (sb, userId, p) => {
       if (!p?.url) throw new Error("url required");
-      const res = await fetch(p.url);
+      const res = await safeFetch(p.url);
       if (!res.ok) throw new Error(`fetch ${res.status}`);
       const buf = new Uint8Array(await res.arrayBuffer());
       const urlName = String(p.url).split("?")[0].split("/").pop() || "download";
