@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import Unsubscribe from "./pages/Unsubscribe.tsx";
+import WorkspaceHandle from "./pages/WorkspaceHandle.tsx";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import DashboardHome from "./pages/dashboard/Home";
 import Memory from "./pages/dashboard/Memory";
