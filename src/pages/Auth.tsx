@@ -21,8 +21,11 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, loading } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const wsHandle = searchParams.get("ws");
+  const wsCode = searchParams.get("code");
+  const [mode, setMode] = useState<"signin" | "signup">(wsHandle ? "signin" : "signin");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -35,10 +38,17 @@ export default function Auth() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        const cleaned = username.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+        if (cleaned.length < 3 || cleaned.length > 24) {
+          throw new Error("Username must be 3-24 characters (letters, digits, underscore)");
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: { username: cleaned },
+          },
         });
         if (error) throw error;
         toast.success("Check your email to verify your account.");
@@ -113,6 +123,13 @@ export default function Auth() {
             <p className="text-sm text-muted-foreground mt-1">
               {mode === "signin" ? "Sign in to your Memorify workspace" : "Start building with the agent memory layer"}
             </p>
+            {wsHandle && (
+              <div className="mt-3 rounded-md border border-border bg-card/50 px-3 py-2 text-xs">
+                <div className="text-muted-foreground">Opening workspace</div>
+                <div className="font-mono text-foreground">memorify.dev/ws/{wsHandle}</div>
+                {wsCode && <div className="font-mono text-muted-foreground mt-0.5">{wsCode}</div>}
+              </div>
+            )}
           </div>
 
           <Button variant="outline" className="w-full gap-2" onClick={handleGoogle}>
@@ -132,6 +149,28 @@ export default function Auth() {
             </TabsList>
             <TabsContent value={mode} className="mt-4">
               <form onSubmit={handleEmail} className="space-y-3">
+                {mode === "signup" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="username">Workspace handle</Label>
+                    <div className="flex items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
+                      <span className="px-2.5 text-xs text-muted-foreground font-mono select-none">memorify.dev/ws/</span>
+                      <Input
+                        id="username"
+                        required
+                        minLength={3}
+                        maxLength={24}
+                        pattern="[a-zA-Z0-9_]{3,24}"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                        placeholder="jane"
+                        className="border-0 focus-visible:ring-0 px-0"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      3-24 chars · letters, digits, underscore. This becomes your shareable workspace URL.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />

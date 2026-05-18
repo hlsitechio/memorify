@@ -708,8 +708,10 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          username: string | null
           vault_password_hash: string | null
           vault_password_salt: string | null
+          workspace_code: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -723,8 +725,10 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          username?: string | null
           vault_password_hash?: string | null
           vault_password_salt?: string | null
+          workspace_code?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -738,8 +742,10 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          username?: string | null
           vault_password_hash?: string | null
           vault_password_salt?: string | null
+          workspace_code?: string | null
         }
         Relationships: []
       }
@@ -993,6 +999,7 @@ export type Database = {
           status: string
         }[]
       }
+      claim_username: { Args: { _handle: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1022,6 +1029,14 @@ export type Database = {
           read_ct: number
         }[]
       }
+      resolve_workspace_handle: {
+        Args: { _handle: string }
+        Returns: {
+          display_name: string
+          email: string
+          workspace_code: string
+        }[]
+      }
       rotate_agent_token: {
         Args: { _agent_id: string; _expires_in_days?: number }
         Returns: {
@@ -1030,10 +1045,12 @@ export type Database = {
           token_rotated_at: string
         }[]
       }
+      sanitize_username: { Args: { _raw: string }; Returns: string }
       set_agent_token_expiry: {
         Args: { _agent_id: string; _expires_in_days?: number }
         Returns: string
       }
+      workspace_code_for: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

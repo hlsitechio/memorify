@@ -73,6 +73,16 @@ async function sendConnectionAlert(agent: any, req?: Request) {
   const recipientEmail = userRes?.user?.email;
   if (!recipientEmail) return;
 
+  // Fetch workspace handle + encrypted workspace code from profile
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("username, workspace_code, display_name")
+    .eq("user_id", agent.user_id)
+    .maybeSingle();
+
+  const username = (profile as any)?.username as string | undefined;
+  const workspaceCode = (profile as any)?.workspace_code as string | undefined;
+
   const meta = (agent.metadata ?? {}) as Record<string, any>;
   const workspaceName =
     (meta.workspace_name as string | undefined) || `agent:${agent.id}`;
@@ -111,9 +121,10 @@ async function sendConnectionAlert(agent: any, req?: Request) {
   const revokeUrl =
     `${supabaseUrl}/functions/v1/agent-revoke?agent=${agent.id}&exp=${exp}&sig=${sig}`;
 
-  // Real login URL: /auth page with the user's verified account email pre-filled.
-  const loginUrl =
-    `https://memorify.dev/auth?email=${encodeURIComponent(recipientEmail)}`;
+  // Branded login URL: /ws/<username>. Fallback to email-prefilled /auth.
+  const loginUrl = username
+    ? `https://memorify.dev/ws/${encodeURIComponent(username)}`
+    : `https://memorify.dev/auth?email=${encodeURIComponent(recipientEmail)}`;
 
   await sb.functions.invoke("send-transactional-email", {
     body: {
@@ -124,6 +135,8 @@ async function sendConnectionAlert(agent: any, req?: Request) {
         agentName: agent.name || agent.kind || "An agent",
         agentKind: agent.kind,
         workspaceName,
+        workspaceHandle: username,
+        workspaceCode,
         connectedAt,
         ipAddress,
         userAgent,
