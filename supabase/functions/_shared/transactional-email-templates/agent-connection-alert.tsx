@@ -17,7 +17,7 @@ interface Props {
   manageUrl?: string
   loginUrl?: string
   revokeUrl?: string
-  accountHint?: string
+  accountEmail?: string
 }
 
 const AgentConnectionAlert = ({
