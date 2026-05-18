@@ -33,20 +33,80 @@ function admin() {
   );
 }
 
-async function resolveAgent(token: string, meta: Record<string, unknown> = {}) {
+async function resolveAgent(
+  token: string,
+  meta: Record<string, unknown> = {},
+  req?: Request,
+) {
   const sb = admin();
+  // Snapshot prior state BEFORE the RPC flips it to connected.
+  const { data: prior } = await sb
+    .from("agents")
+    .select("id, name, kind, user_id, status, last_seen_at, metadata")
+    .eq("token", token)
+    .maybeSingle();
+
   const { data, error } = await sb.rpc("agent_ping", { _token: token, _meta: meta });
   if (error) return { error: error.message };
   const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return { error: "invalid token" };
-  // Look up the owning user_id (service-role bypasses RLS).
-  const { data: agent } = await sb
-    .from("agents")
-    .select("id, name, user_id")
-    .eq("token", token)
-    .maybeSingle();
-  if (!agent) return { error: "invalid token" };
-  return { agent };
+  if (!row || !prior) return { error: "invalid token" };
+
+  // Fire-and-forget security alert when this is a "new" connection:
+  // either the agent was pending, or hasn't been seen for > 60 minutes.
+  const RECONNECT_WINDOW_MS = 60 * 60 * 1000;
+  const lastSeen = prior.last_seen_at ? new Date(prior.last_seen_at).getTime() : 0;
+  const isNewConnection =
+    prior.status !== "connected" || (Date.now() - lastSeen) > RECONNECT_WINDOW_MS;
+
+  if (isNewConnection) {
+    sendConnectionAlert(prior, req).catch((e) =>
+      console.error("agent connection alert failed", e),
+    );
+  }
+
+  return { agent: prior };
+}
+
+async function sendConnectionAlert(agent: any, req?: Request) {
+  const sb = admin();
+  const { data: userRes } = await sb.auth.admin.getUserById(agent.user_id);
+  const recipientEmail = userRes?.user?.email;
+  if (!recipientEmail) return;
+
+  const meta = (agent.metadata ?? {}) as Record<string, any>;
+  const workspaceName =
+    (meta.workspace_name as string | undefined) || `agent:${agent.id}`;
+
+  const ipAddress = req?.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req?.headers.get("cf-connecting-ip") || undefined;
+  const userAgent = req?.headers.get("user-agent") || undefined;
+
+  const connectedAt = new Date().toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }) + " UTC";
+
+  // Idempotency: one alert per agent per hour bucket.
+  const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
+  const idempotencyKey = `agent-connect-${agent.id}-${hourBucket}`;
+
+  await sb.functions.invoke("send-transactional-email", {
+    body: {
+      templateName: "agent-connection-alert",
+      recipientEmail,
+      idempotencyKey,
+      templateData: {
+        agentName: agent.name || agent.kind || "An agent",
+        agentKind: agent.kind,
+        workspaceName,
+        connectedAt,
+        ipAddress,
+        userAgent,
+        manageUrl: "https://memorify.dev/dashboard/agents",
+      },
+    },
+  });
 }
 
 // ---------- MCP tool definitions ----------
@@ -195,7 +255,7 @@ Deno.serve(async (req) => {
 
   // ---- GET = legacy status ping ----
   if (req.method === "GET") {
-    const r = await resolveAgent(token);
+    const r = await resolveAgent(token, {}, req);
     if ("error" in r) return json({ ok: false, error: r.error }, 401);
     return json({
       ok: true,
@@ -213,7 +273,7 @@ Deno.serve(async (req) => {
 
   // Legacy ping (non-JSON-RPC POST)
   if (!body?.jsonrpc) {
-    const r = await resolveAgent(token, body ?? {});
+    const r = await resolveAgent(token, body ?? {}, req);
     if ("error" in r) return json({ ok: false, error: r.error }, 401);
     return json({
       ok: true,
@@ -224,7 +284,7 @@ Deno.serve(async (req) => {
 
   // ---- MCP JSON-RPC ----
   const { id, method, params } = body;
-  const r = await resolveAgent(token);
+  const r = await resolveAgent(token, {}, req);
   if ("error" in r) return rpcErr(id, -32001, r.error);
   const userId = r.agent.user_id;
   const agentName = r.agent.name;
