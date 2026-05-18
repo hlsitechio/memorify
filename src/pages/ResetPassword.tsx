@@ -24,6 +24,11 @@ export default function ResetPassword() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground">
+      <Seo
+        title="Reset your Memorify password"
+        description="Choose a new password for your Memorify account."
+        path="/reset-password"
+      />
       <form onSubmit={handle} className="w-full max-w-sm space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Set a new password</h1>
         <div className="space-y-1.5">
