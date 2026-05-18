@@ -17,7 +17,7 @@ interface Props {
   manageUrl?: string
   loginUrl?: string
   revokeUrl?: string
-  accountHint?: string
+  accountEmail?: string
 }
 
 const AgentConnectionAlert = ({
@@ -30,7 +30,7 @@ const AgentConnectionAlert = ({
   manageUrl = 'https://memorify.dev/dashboard/agents',
   loginUrl = 'https://memorify.dev/dashboard/agents',
   revokeUrl,
-  accountHint,
+  accountEmail,
 }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
@@ -53,8 +53,8 @@ const AgentConnectionAlert = ({
         </Section>
 
         <Text style={text}>
-          We recommend signing in to your account
-          {accountHint ? <> at <strong>memorify.dev/{accountHint}</strong></> : ''} to review this
+          We recommend signing in to your {SITE_NAME} account
+          {accountEmail ? <> (<strong>{accountEmail}</strong>)</> : ''} to review this
           connection. If you can't sign in right now, you can cancel this agent's
           connection immediately using the second button below.
         </Text>
@@ -101,9 +101,9 @@ export const template = {
     ipAddress: '203.0.113.42',
     userAgent: 'claude-code/1.4 (macOS)',
     manageUrl: 'https://memorify.dev/dashboard/agents',
-    loginUrl: 'https://memorify.dev/jane',
+    loginUrl: 'https://memorify.dev/auth?email=jane%40example.com',
     revokeUrl: 'https://example.com/revoke-preview',
-    accountHint: 'jane',
+    accountEmail: 'jane@example.com',
   },
 } satisfies TemplateEntry
 

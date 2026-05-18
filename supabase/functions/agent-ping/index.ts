@@ -111,9 +111,9 @@ async function sendConnectionAlert(agent: any, req?: Request) {
   const revokeUrl =
     `${supabaseUrl}/functions/v1/agent-revoke?agent=${agent.id}&exp=${exp}&sig=${sig}`;
 
-  // Best-effort username for the login hint (email local-part).
-  const emailLocal = recipientEmail.split("@")[0];
-  const loginUrl = `https://memorify.dev/${emailLocal}`;
+  // Real login URL: /auth page with the user's verified account email pre-filled.
+  const loginUrl =
+    `https://memorify.dev/auth?email=${encodeURIComponent(recipientEmail)}`;
 
   await sb.functions.invoke("send-transactional-email", {
     body: {
@@ -130,7 +130,7 @@ async function sendConnectionAlert(agent: any, req?: Request) {
         manageUrl: "https://memorify.dev/dashboard/agents",
         loginUrl,
         revokeUrl,
-        accountHint: emailLocal,
+        accountEmail: recipientEmail,
       },
     },
   });
