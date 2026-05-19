@@ -1,8 +1,16 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /reset-password
+Disallow: /unsubscribe
+Disallow: /ws/
+Disallow: /dashboard
 
 User-agent: Bingbot
 Allow: /
+Disallow: /reset-password
+Disallow: /unsubscribe
+Disallow: /ws/
+Disallow: /dashboard
 
 User-agent: Twitterbot
 Allow: /
@@ -12,5 +20,9 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /reset-password
+Disallow: /unsubscribe
+Disallow: /ws/
+Disallow: /dashboard
 
 Sitemap: https://memorify.dev/sitemap.xml
