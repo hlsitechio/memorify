@@ -410,8 +410,23 @@ export function AgentsManager({ embedded = false }: { embedded?: boolean } = {})
   };
 
   const remove = async (id: string) => {
-    await supabase.from("agents").delete().eq("id", id);
+    // Optimistic UI — drop the row immediately so the user sees it gone.
+    setAllAgents((cur) => cur.filter((a) => a.id !== id));
     if (wizardId === id) setWizardId(null);
+    const { error, count } = await supabase
+      .from("agents")
+      .delete({ count: "exact" })
+      .eq("id", id);
+    if (error) {
+      toast.error(`Couldn't delete agent: ${error.message}`);
+      load();
+      return;
+    }
+    if (!count) {
+      toast.error("Agent wasn't deleted (permission denied). Please reload and try again.");
+      load();
+      return;
+    }
     toast.success("Agent removed");
     load();
   };
