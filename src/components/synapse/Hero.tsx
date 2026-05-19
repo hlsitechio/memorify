@@ -10,6 +10,9 @@ export const Hero = () => {
         muted
         loop
         playsInline
+        preload="metadata"
+        // @ts-expect-error - fetchPriority is valid HTML
+        fetchpriority="low"
         aria-hidden
         className="absolute inset-0 w-full h-full object-cover opacity-50 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black_30%,transparent_80%)]"
       />
