@@ -34,10 +34,10 @@ export const Hero = () => {
 
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center items-center">
             <a
-              href="#waitlist"
+              href="/auth"
               className="group inline-flex items-center gap-2 px-5 py-3 rounded-md bg-gradient-primary text-primary-foreground font-medium glow-primary hover:scale-[1.02] transition-transform"
             >
-              Get a gateway URL
+              Start for free
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </a>
             <a
@@ -45,7 +45,7 @@ export const Hero = () => {
               className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-secondary/60 hover:bg-secondary border border-border font-medium"
             >
               <Terminal className="w-4 h-4" />
-              Try the live endpoint
+              See it in action
             </a>
           </div>
 
