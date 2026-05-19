@@ -31,9 +31,9 @@ export const Nav = () => {
               <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
                 Sign in
               </Link>
-              <a href="#waitlist" className="text-sm font-medium px-4 py-2 rounded-md bg-foreground/[0.04] hover:bg-foreground/10 border border-border transition-colors">
-                Get early access
-              </a>
+              <Link to="/auth" className="text-sm font-medium px-4 py-2 rounded-md bg-foreground/[0.04] hover:bg-foreground/10 border border-border transition-colors">
+                Sign up
+              </Link>
             </>
           )}
         </div>
