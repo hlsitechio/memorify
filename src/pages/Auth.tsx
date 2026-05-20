@@ -122,7 +122,7 @@ export default function Auth() {
       </section>
 
       <section className="flex items-center justify-center p-6">
-        <div className="w-full max-w-sm space-y-6">
+        <div className="w-full max-w-sm space-y-6 glass-animated rounded-2xl p-8">
           <div className="lg:hidden flex items-center gap-2">
             <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
