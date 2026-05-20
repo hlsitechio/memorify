@@ -121,7 +121,7 @@ export default function Auth() {
         <p className="text-xs text-muted-foreground relative">© Memorify</p>
       </section>
 
-      <section className="flex items-center justify-center p-6">
+      <section className="flex items-center justify-center p-6 glass-animated">
         <div className="w-full max-w-sm space-y-6 glass-animated rounded-2xl p-8">
           <div className="lg:hidden flex items-center gap-2">
             <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
