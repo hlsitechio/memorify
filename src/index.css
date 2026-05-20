@@ -572,3 +572,28 @@ body.rgl-dragging * {
     scrollbar-color: hsl(var(--border)) transparent;
   }
 }
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.glass-animated {
+  background: linear-gradient(
+    135deg,
+    hsl(174 85% 55% / 0.18),
+    hsl(280 80% 60% / 0.18),
+    hsl(222 70% 50% / 0.18),
+    hsl(330 75% 60% / 0.18)
+  );
+  background-size: 400% 400%;
+  animation: gradient-shift 14s ease-in-out infinite;
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow: 0 20px 60px -20px hsl(0 0% 0% / 0.6);
+}
