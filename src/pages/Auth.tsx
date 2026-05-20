@@ -14,7 +14,10 @@ import authVideo from "@/assets/auth-bg.mp4.asset.json";
 
 const GoogleIcon = () => (
   <svg className="h-4 w-4" viewBox="0 0 24 24">
-    <path fill="#EA4335" d="M12 11v3.2h4.5c-.2 1.2-1.5 3.5-4.5 3.5-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.5 0 2.6.7 3.2 1.2l2.2-2.1C16 5.5 14.2 4.7 12 4.7 7.9 4.7 4.7 8 4.7 12s3.2 7.3 7.3 7.3c4.2 0 7-3 7-7.2 0-.5 0-.8-.1-1.1H12z"/>
+    <path
+      fill="#EA4335"
+      d="M12 11v3.2h4.5c-.2 1.2-1.5 3.5-4.5 3.5-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.5 0 2.6.7 3.2 1.2l2.2-2.1C16 5.5 14.2 4.7 12 4.7 7.9 4.7 4.7 8 4.7 12s3.2 7.3 7.3 7.3c4.2 0 7-3 7-7.2 0-.5 0-.8-.1-1.1H12z"
+    />
   </svg>
 );
 
@@ -39,7 +42,10 @@ export default function Auth() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const cleaned = username.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+        const cleaned = username
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_]+/g, "_");
         if (cleaned.length < 3 || cleaned.length > 24) {
           throw new Error("Username must be 3-24 characters (letters, digits, underscore)");
         }
@@ -66,7 +72,9 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/dashboard` });
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/dashboard`,
+    });
     if (result.error) toast.error("Google sign-in failed");
   };
 
@@ -105,7 +113,7 @@ export default function Auth() {
           <span className="font-semibold tracking-tight">Memorify</span>
         </Link>
         <div className="relative space-y-3 max-w-md">
-          <h2 className="text-3xl font-semibold tracking-tight">The memory layer for AI agents.</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">The memory layer for AI agents</h2>
           <p className="text-muted-foreground">
             Sign in to manage memories, connectors, real-time events, and observability — all in one place.
           </p>
@@ -144,8 +152,12 @@ export default function Auth() {
           </Button>
 
           <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or</span></div>
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-background px-2 text-muted-foreground">or</span>
+            </div>
           </div>
 
           <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
@@ -159,7 +171,9 @@ export default function Auth() {
                   <div className="space-y-1.5">
                     <Label htmlFor="username">Workspace handle</Label>
                     <div className="flex items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
-                      <span className="px-2.5 text-xs text-muted-foreground font-mono select-none">memorify.dev/ws/</span>
+                      <span className="px-2.5 text-xs text-muted-foreground font-mono select-none">
+                        memorify.dev/ws/
+                      </span>
                       <Input
                         id="username"
                         required
@@ -179,18 +193,36 @@ export default function Auth() {
                 )}
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
                     {mode === "signin" && (
-                      <button type="button" onClick={handleReset} className="text-xs text-muted-foreground hover:text-foreground">
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
                         Forgot?
                       </button>
                     )}
                   </div>
-                  <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <Input
+                    id="password"
+                    type="password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
                 <Button type="submit" className="w-full" disabled={busy}>
                   {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
