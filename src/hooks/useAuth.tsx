@@ -17,11 +17,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
+      setSession((prev) => (prev?.access_token === s?.access_token ? prev : s));
       setLoading(false);
     });
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      setSession((prev) => (prev?.access_token === data.session?.access_token ? prev : data.session));
       setLoading(false);
     });
     return () => sub.subscription.unsubscribe();
