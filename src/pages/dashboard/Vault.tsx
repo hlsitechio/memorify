@@ -29,11 +29,19 @@ type Secret = {
 
 const SCOPES = ["dev", "staging", "prod"] as const;
 
+// Vault unlock token is kept in module memory only — never in localStorage /
+// sessionStorage where an XSS payload could read it and decrypt secrets.
+// A page reload requires re-entering the vault password.
+let vaultUnlockToken = "";
+export function getVaultUnlockToken() { return vaultUnlockToken; }
+function setVaultUnlockToken(t: string) { vaultUnlockToken = t; }
+function clearVaultUnlockToken() { vaultUnlockToken = ""; }
+
 async function vault(action: string, body: Record<string, any> = {}) {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
   if (!token) throw new Error("Not signed in");
-  const unlock = sessionStorage.getItem("vault_unlock") || "";
+  const unlock = vaultUnlockToken;
   const r = await fetch(
     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vault`,
     {
@@ -50,7 +58,7 @@ async function vault(action: string, body: Record<string, any> = {}) {
   const j = await r.json();
   if (!j.ok) {
     if (j.locked) {
-      sessionStorage.removeItem("vault_unlock");
+      clearVaultUnlockToken();
       window.dispatchEvent(new Event("vault:locked"));
     }
     throw new Error(j.error || "Vault error");
@@ -74,7 +82,7 @@ export default function Vault() {
 
   // Password gate state
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
-  const [unlocked, setUnlocked] = useState<boolean>(!!sessionStorage.getItem("vault_unlock"));
+  const [unlocked, setUnlocked] = useState<boolean>(false);
   const [unlockPwd, setUnlockPwd] = useState("");
   const [unlocking, setUnlocking] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
@@ -110,7 +118,7 @@ export default function Vault() {
     setUnlocking(true);
     try {
       const r = await vault("unlock", { password: unlockPwd });
-      sessionStorage.setItem("vault_unlock", r.token);
+      setVaultUnlockToken(r.token);
       setUnlocked(true);
       setUnlockPwd("");
       toast.success("Vault unlocked");
@@ -119,7 +127,7 @@ export default function Vault() {
   };
 
   const lock = () => {
-    sessionStorage.removeItem("vault_unlock");
+    clearVaultUnlockToken();
     setUnlocked(false);
     setRevealed({});
     toast.success("Vault locked");
@@ -134,7 +142,7 @@ export default function Vault() {
         new_password: pwdNew,
         current_password: hasPassword ? pwdCurrent : undefined,
       });
-      sessionStorage.setItem("vault_unlock", r.token);
+      setVaultUnlockToken(r.token);
       setHasPassword(true);
       setUnlocked(true);
       setPwdOpen(false);
