@@ -1,17 +1,22 @@
 // Agent Gateway: a single endpoint that speaks {agent, action, input}
-// This is a public live demo. No auth required for the demo namespace.
+// Public live demo — protected by a token, per-token rate limit, and a
+// namespace whitelist so a token can't poison other agents' namespaces.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-agent-token",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+// Per-token: max 30 writes per minute (defense in depth for the public demo token).
+const RATE_LIMIT_PER_MIN = 30;
 
 type GatewayRequest = {
   agent: string;
@@ -67,6 +72,15 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!agent) return fail("unauthorized: invalid agent token", 401);
 
+  // Rate limit per token to prevent abuse via the public demo token.
+  const rl = rateLimit(`gateway:${token}`, RATE_LIMIT_PER_MIN, 60_000);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ status: "error", error: "rate limited", retry_after: rl.retryAfter }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
   let body: GatewayRequest;
   try {
     body = await req.json();
@@ -97,7 +111,15 @@ Deno.serve(async (req) => {
     }
 
     if (agentName === "memory") {
-      const namespace = (input.namespace as string) || `agent:${agent.id}`;
+      // Namespace whitelist: prevent cross-agent data poisoning. A token may
+      // only write/read in its own agent namespace or the shared "default".
+      const requested = (input.namespace as string | undefined) || `agent:${agent.id}`;
+      const allowed = new Set([`agent:${agent.id}`, "default"]);
+      if (!allowed.has(requested)) {
+        return failLog(`namespace not allowed: ${requested}`, 403);
+      }
+      const namespace = requested;
+
 
       if (action === "remember") {
         const content = input.content as string;

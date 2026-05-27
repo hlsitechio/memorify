@@ -11,10 +11,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
+// Allowed origins for postMessage back to the opener. Keeps OAuth tokens
+// from being leaked to a malicious page that opened this popup.
+const ALLOWED_OPENER_ORIGINS = [
+  "https://memorify.dev",
+  "https://www.memorify.dev",
+  "https://memorify1.lovable.app",
+];
+
 function esc(s: string) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 function htmlPage(status: "ok" | "error", message: string) {
+  const allowedOriginsJson = JSON.stringify(ALLOWED_OPENER_ORIGINS);
   return `<!doctype html><html><head><meta charset="utf-8"><title>MCP connect</title>
 <style>body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#eaeaea;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
 .card{max-width:420px;padding:32px;border:1px solid #222;border-radius:12px;text-align:center}
@@ -28,8 +37,20 @@ button{background:#a5b4fc;color:#000;border:0;padding:8px 16px;border-radius:6px
 </div>
 <script>
   if (window.opener) {
-    window.opener.postMessage({ type: "mcp-oauth", status: "${status}", message: ${JSON.stringify(message)} }, "*");
-    setTimeout(() => window.close(), 800);
+    var msg = { type: "mcp-oauth", status: "${status}", message: ${JSON.stringify(message)} };
+    // Send to each known origin instead of "*" — prevents token-exfil
+    // attacks from a malicious page that opened this popup.
+    var origins = ${allowedOriginsJson};
+    var preview = ["http://localhost:5173","http://localhost:8080","http://localhost:3000"];
+    origins.concat(preview).forEach(function(o){ try { window.opener.postMessage(msg, o); } catch(_){} });
+    // Also try a same-site lovable preview if the opener happens to be one.
+    try {
+      var openerOrigin = document.referrer ? new URL(document.referrer).origin : null;
+      if (openerOrigin && /\\.lovable\\.(app|dev)$/.test(new URL(openerOrigin).host)) {
+        window.opener.postMessage(msg, openerOrigin);
+      }
+    } catch(_){}
+    setTimeout(function(){ window.close(); }, 800);
   }
 </script>
 </body></html>`;
@@ -49,6 +70,10 @@ serve(async (req) => {
   try {
     const { data: row, error: stateErr } = await supa.from("mcp_oauth_states").select("*").eq("state", state).maybeSingle();
     if (stateErr || !row) throw new Error("Invalid or expired state");
+
+    // Consume the state immediately to prevent replay (deleted before token exchange,
+    // so even a re-submitted code can't be paired with a fresh server row).
+    await supa.from("mcp_oauth_states").delete().eq("state", state);
 
     // Exchange code → token
     const body = new URLSearchParams({
@@ -86,9 +111,6 @@ serve(async (req) => {
       },
     }).select().single();
     if (insErr) throw insErr;
-
-    // Cleanup state
-    await supa.from("mcp_oauth_states").delete().eq("state", state);
 
     // Fire-and-forget handshake to discover tools
     fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/mcp-handshake`, {

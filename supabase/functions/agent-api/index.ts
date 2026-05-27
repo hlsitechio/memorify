@@ -455,11 +455,19 @@ const COMMANDS: Cmd[] = [
       const data = await r.json();
       const output = data.choices?.[0]?.message?.content ?? "";
 
+      // Audit log: do not persist raw input/output (may contain PII/secrets).
       await sb.from("events").insert({
         user_id: userId,
         kind: "skill.run",
         source: `agent:${agent.id}`,
-        payload: { skill_id: skill.id, slug: skill.slug, input, output, agent_id: agent.id, agent_name: agent.name },
+        payload: {
+          skill_id: skill.id,
+          slug: skill.slug,
+          input_length: typeof input === "string" ? input.length : JSON.stringify(input ?? "").length,
+          output_length: typeof output === "string" ? output.length : 0,
+          agent_id: agent.id,
+          agent_name: agent.name,
+        },
       });
       return { skill: { id: skill.id, slug: skill.slug, name: skill.name }, output };
     },
@@ -1145,7 +1153,8 @@ Deno.serve(async (req) => {
         agent_name: agent.name,
         ok: true,
         duration_ms: latency,
-        params: action.startsWith("memory.") || action.startsWith("events.log") ? params : undefined,
+        // Log only param keys, never values (avoid persisting memory.content / secrets).
+        param_keys: params && typeof params === "object" ? Object.keys(params) : [],
       },
     }).then(() => {});
     admin().from("agent_calls").insert({

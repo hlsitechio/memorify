@@ -59,7 +59,13 @@ serve(async (req) => {
     const { server_id, tool, arguments: args } = await req.json();
     if (!server_id || !tool) throw new Error("server_id and tool required");
 
-    const { data: server, error } = await supa.from("mcp_servers").select("*").eq("id", server_id).single();
+    // Only select the columns we need — keeps stored OAuth refresh_token / client_secret
+    // out of any future log or error serialization.
+    const { data: server, error } = await supa
+      .from("mcp_servers")
+      .select("id, url, enabled, auth, name")
+      .eq("id", server_id)
+      .single();
     if (error || !server) throw new Error("Server not found");
     if (!server.enabled) throw new Error("Server disabled");
 
@@ -81,9 +87,6 @@ serve(async (req) => {
 
     const out = await mcpRpc(server.url, "tools/call", { name: tool, arguments: args ?? {} }, sessionHeaders);
     const result = out.body?.result ?? out.body;
-    return new Response(JSON.stringify({ ok: true, result }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
     return new Response(JSON.stringify({ ok: true, result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
