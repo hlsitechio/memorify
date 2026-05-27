@@ -23,6 +23,19 @@ export type CurrentWorkspace = {
 const KEY = "synapse:current_workspace";
 const EVT = "synapse:workspace-changed";
 
+function sameWorkspace(a: CurrentWorkspace | null, b: CurrentWorkspace | null) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.subtitle === b.subtitle &&
+    a.kind === b.kind &&
+    a.short === b.short &&
+    a.agentId === b.agentId
+  );
+}
+
 export function readCurrentWorkspace(): CurrentWorkspace | null {
   if (typeof window === "undefined") return null;
   try {
@@ -35,9 +48,48 @@ export function readCurrentWorkspace(): CurrentWorkspace | null {
 
 function writeLocal(ws: CurrentWorkspace | null) {
   if (typeof window === "undefined") return;
+  const current = readCurrentWorkspace();
+  if (sameWorkspace(current, ws)) return;
   if (ws) localStorage.setItem(KEY, JSON.stringify(ws));
   else localStorage.removeItem(KEY);
   window.dispatchEvent(new CustomEvent(EVT));
+}
+
+let remoteWorkspacePromise: Promise<CurrentWorkspace | null> | null = null;
+let remoteWorkspaceUserId: string | null = null;
+
+async function loadRemoteWorkspace() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    remoteWorkspacePromise = null;
+    remoteWorkspaceUserId = null;
+    return null;
+  }
+
+  if (remoteWorkspacePromise && remoteWorkspaceUserId === user.id) {
+    return remoteWorkspacePromise;
+  }
+
+  remoteWorkspaceUserId = user.id;
+  remoteWorkspacePromise = (async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("current_workspace_id, current_workspace_name, current_workspace_kind, current_workspace_subtitle, current_workspace_agent_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!data?.current_workspace_id) return null;
+
+    return {
+      id: data.current_workspace_id,
+      name: data.current_workspace_name ?? "Workspace",
+      kind: (data.current_workspace_kind as "user" | "agent") ?? "user",
+      subtitle: data.current_workspace_subtitle ?? undefined,
+      agentId: (data as any).current_workspace_agent_id ?? undefined,
+    } satisfies CurrentWorkspace;
+  })();
+
+  return remoteWorkspacePromise;
 }
 
 async function persistRemote(ws: CurrentWorkspace | null) {
@@ -82,26 +134,12 @@ export function useCurrentWorkspace() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("current_workspace_id, current_workspace_name, current_workspace_kind, current_workspace_subtitle, current_workspace_agent_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (cancelled || !data?.current_workspace_id) return;
-      const remote: CurrentWorkspace = {
-        id: data.current_workspace_id,
-        name: data.current_workspace_name ?? "Workspace",
-        kind: (data.current_workspace_kind as "user" | "agent") ?? "user",
-        subtitle: data.current_workspace_subtitle ?? undefined,
-        agentId: (data as any).current_workspace_agent_id ?? undefined,
-      };
-      // Override local if id differs OR we now have an agentId that local lacks
-      // (older cached entries didn't store agentId, which broke per-agent scoping).
+      const remote = await loadRemoteWorkspace();
+      if (cancelled || !remote) return;
       const local = readCurrentWorkspace();
-      if (!local || local.id !== remote.id || (remote.agentId && !local.agentId)) {
-        writeLocal({ ...local, ...remote });
+      const merged = local ? { ...local, ...remote } : remote;
+      if (!sameWorkspace(local, merged)) {
+        writeLocal(merged);
       }
     })();
     return () => { cancelled = true; };
