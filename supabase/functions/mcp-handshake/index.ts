@@ -21,9 +21,12 @@ async function mcpRpc(
     body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
   }, { httpsOnly: true });
   const text = await res.text();
-  const allHeaders: Record<string, string> = {};
-  res.headers.forEach((v, k) => { allHeaders[k] = v; });
-  console.log(`[mcp-handshake] ${method} -> ${res.status}`, JSON.stringify(allHeaders), text.slice(0, 200));
+  // Log status + safe headers only. Never log Authorization / Set-Cookie / Cookie —
+  // they may carry credentials from the upstream MCP server.
+  const SENSITIVE = new Set(["authorization", "cookie", "set-cookie", "proxy-authorization", "x-api-key"]);
+  const safeHeaders: Record<string, string> = {};
+  res.headers.forEach((v, k) => { safeHeaders[k] = SENSITIVE.has(k.toLowerCase()) ? "[redacted]" : v; });
+  console.log(`[mcp-handshake] ${method} -> ${res.status}`, JSON.stringify(safeHeaders));
   if (!res.ok) throw new Error(`MCP ${method} failed [${res.status}]: ${text.slice(0, 300)}`);
   const sessionId =
     res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id") ?? null;

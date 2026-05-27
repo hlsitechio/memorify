@@ -70,10 +70,27 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Validate the tools manifest from the browser. Each entry must be a
+    // well-formed OpenAI-style function definition with a string name and
+    // an object parameters schema. Caps total count and per-tool string size.
+    const MAX_TOOLS = 64;
+    const MAX_DESC = 2000;
+    const safeTools = Array.isArray(tools)
+      ? tools
+          .slice(0, MAX_TOOLS)
+          .filter((t: any) =>
+            t && t.type === "function" &&
+            t.function && typeof t.function.name === "string" &&
+            /^[a-zA-Z0-9_.-]{1,64}$/.test(t.function.name) &&
+            (t.function.description == null || (typeof t.function.description === "string" && t.function.description.length <= MAX_DESC)) &&
+            (t.function.parameters == null || (typeof t.function.parameters === "object" && !Array.isArray(t.function.parameters)))
+          )
+      : [];
+
     const payload = {
       model: "google/gemini-2.5-flash",
       messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-      tools: tools.length ? tools : undefined,
+      tools: safeTools.length ? safeTools : undefined,
     };
 
     const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

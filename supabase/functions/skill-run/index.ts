@@ -32,6 +32,9 @@ serve(async (req) => {
     const modelOverride = modelOverrideRaw && ALLOWED_MODELS.has(modelOverrideRaw) ? modelOverrideRaw : undefined;
     const { data: skill, error } = await supa.from("skills").select("*").eq("id", skill_id).single();
     if (error || !skill) throw new Error("Skill not found");
+    // Defense in depth: RLS already restricts SELECT to the owner, but verify
+    // explicitly before trusting skill.prompt as a system prompt.
+    if (skill.user_id !== ures.user.id) throw new Error("Skill not found");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -56,7 +59,18 @@ serve(async (req) => {
     const data = await r.json();
     const output = data.choices?.[0]?.message?.content ?? "";
 
-    await supa.from("events").insert({ user_id: ures.user.id, kind: "skill.run", source: skill.slug, payload: { skill_id, input, output } });
+    // Audit log: store only metadata, never raw input/output (may contain PII or secrets).
+    await supa.from("events").insert({
+      user_id: ures.user.id,
+      kind: "skill.run",
+      source: skill.slug,
+      payload: {
+        skill_id,
+        model: modelOverride || skill.model || "google/gemini-3-flash-preview",
+        input_length: typeof input === "string" ? input.length : JSON.stringify(input ?? "").length,
+        output_length: output.length,
+      },
+    });
     return new Response(JSON.stringify({ output }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
