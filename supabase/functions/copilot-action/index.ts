@@ -49,12 +49,17 @@ Deno.serve(async (req) => {
   }
 
   // Audit log — best-effort, never block on failure.
+  // For mcp.call, never persist the raw tool arguments (may contain secrets).
+  const auditArgs =
+    name === "mcp.call"
+      ? { server_id: args?.server_id, tool: args?.tool }
+      : args;
   try {
     await supabase.from("events").insert({
       user_id: userId,
       kind: `cmd.${name}`,
       source: "copilot",
-      payload: { args, ok: out.ok, ms: Date.now() - started, error: out.error ?? null },
+      payload: { args: auditArgs, ok: out.ok, ms: Date.now() - started, error: out.error ?? null },
     });
   } catch {/* ignore */}
 
@@ -427,8 +432,163 @@ async function dispatch(name: string, args: any, db: any, userId: string): Promi
       if (error) return { ok: false, error: error.message };
       return { ok: true, data: { namespace } };
     }
+
+    /* ───────── mcp (Copilot-only — see src/copilot/actions/mcp.ts) ───────── */
+    case "mcp.servers.list": {
+      const { data, error } = await db.from("mcp_servers")
+        .select("id,name,url,transport,enabled,last_handshake_at,last_error,created_at,updated_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "mcp.servers.get": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data: server, error: e1 } = await db.from("mcp_servers")
+        .select("id,name,url,transport,enabled,last_handshake_at,last_error,created_at,updated_at")
+        .eq("id", args.id).eq("user_id", userId).single();
+      if (e1) return { ok: false, error: e1.message };
+      const { data: tools } = await db.from("mcp_tools")
+        .select("id,name,description,enabled,input_schema,created_at")
+        .eq("mcp_server_id", args.id).order("name", { ascending: true });
+      return { ok: true, data: { ...server, tools: tools ?? [] } };
+    }
+    case "mcp.servers.add": {
+      if (!args.name || !args.url) return { ok: false, error: "name and url required" };
+      const url = String(args.url).trim();
+      if (!/^https:\/\//i.test(url)) return { ok: false, error: "url must be https://" };
+      const transport = args.transport === "sse" ? "sse" : "http";
+      const auth = (args.auth && typeof args.auth === "object") ? args.auth : {};
+      const { data: server, error } = await db.from("mcp_servers").insert({
+        user_id: userId,
+        name: String(args.name),
+        url,
+        transport,
+        auth,
+        enabled: args.enabled === false ? false : true,
+      }).select().single();
+      if (error) return { ok: false, error: error.message };
+      // Best-effort handshake unless explicitly disabled.
+      if (args.sync !== false) {
+        try {
+          await invokeEdge("mcp-handshake", { server_id: server.id }, db);
+        } catch { /* surface in last_error on the row */ }
+      }
+      return { ok: true, data: server };
+    }
+    case "mcp.servers.update": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const patch: Record<string, unknown> = {};
+      if (typeof args.name === "string") patch.name = args.name;
+      if (typeof args.url === "string") {
+        if (!/^https:\/\//i.test(args.url)) return { ok: false, error: "url must be https://" };
+        patch.url = args.url;
+      }
+      if (args.transport === "http" || args.transport === "sse") patch.transport = args.transport;
+      if (args.auth && typeof args.auth === "object") patch.auth = args.auth;
+      if (!Object.keys(patch).length) return { ok: false, error: "nothing to update" };
+      const { data, error } = await db.from("mcp_servers").update(patch)
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "mcp.servers.rename": {
+      if (!args.id || !args.name) return { ok: false, error: "id and name required" };
+      const { data, error } = await db.from("mcp_servers").update({ name: args.name })
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "mcp.servers.toggle": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data, error } = await db.from("mcp_servers").update({ enabled: !!args.enabled })
+        .eq("id", args.id).eq("user_id", userId).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "mcp.servers.delete": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { error } = await db.from("mcp_servers").delete()
+        .eq("id", args.id).eq("user_id", userId);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data: { id: args.id } };
+    }
+    case "mcp.tools.list": {
+      // RLS on mcp_tools scopes by mcp_servers.user_id, so no extra filter needed.
+      let qb = db.from("mcp_tools")
+        .select("id,mcp_server_id,name,description,enabled,input_schema,created_at")
+        .order("name", { ascending: true });
+      if (args.server_id) qb = qb.eq("mcp_server_id", args.server_id);
+      if (args.enabled_only) qb = qb.eq("enabled", true);
+      const { data, error } = await qb;
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "mcp.tools.toggle": {
+      if (!args.id) return { ok: false, error: "id required" };
+      const { data, error } = await db.from("mcp_tools").update({ enabled: !!args.enabled })
+        .eq("id", args.id).select().single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, data };
+    }
+    case "mcp.sync": {
+      if (!args.server_id) return { ok: false, error: "server_id required" };
+      // Verify ownership (RLS already enforces, but fail fast & clearly).
+      const { data: srv, error: e1 } = await db.from("mcp_servers")
+        .select("id").eq("id", args.server_id).eq("user_id", userId).single();
+      if (e1 || !srv) return { ok: false, error: "server not found" };
+      try {
+        const out = await invokeEdge("mcp-handshake", { server_id: args.server_id }, db);
+        return { ok: true, data: out };
+      } catch (e: any) {
+        return { ok: false, error: e?.message ?? "handshake failed" };
+      }
+    }
+    case "mcp.call": {
+      if (!args.server_id || !args.tool) return { ok: false, error: "server_id and tool required" };
+      // Pre-validate: server enabled + tool enabled.
+      const { data: srv, error: e1 } = await db.from("mcp_servers")
+        .select("id,enabled").eq("id", args.server_id).eq("user_id", userId).single();
+      if (e1 || !srv) return { ok: false, error: "server not found" };
+      if (!srv.enabled) return { ok: false, error: "server is disabled" };
+      const { data: tool } = await db.from("mcp_tools").select("enabled")
+        .eq("mcp_server_id", args.server_id).eq("name", args.tool).maybeSingle();
+      if (tool && tool.enabled === false) return { ok: false, error: "tool is disabled" };
+      try {
+        const out = await invokeEdge("mcp-call", {
+          server_id: args.server_id,
+          tool: args.tool,
+          arguments: args.arguments ?? {},
+        }, db);
+        // Strip raw arguments from audit (handled by the wrapper); we return result as-is to UI.
+        return { ok: true, data: out };
+      } catch (e: any) {
+        return { ok: false, error: e?.message ?? "mcp call failed" };
+      }
+    }
+    case "mcp.oauth.start": {
+      if (!args.name || !args.url) return { ok: false, error: "name and url required" };
+      if (!/^https:\/\//i.test(args.url)) return { ok: false, error: "url must be https://" };
+      try {
+        const out = await invokeEdge("mcp-oauth-start", {
+          name: args.name,
+          url: args.url,
+          transport: args.transport === "sse" ? "sse" : "http",
+        }, db);
+        return { ok: true, data: out };
+      } catch (e: any) {
+        return { ok: false, error: e?.message ?? "oauth start failed" };
+      }
+    }
   }
   return { ok: false, error: `unknown server command: ${name}` };
+}
+
+// Invoke a sibling edge function with the same user JWT (RLS preserved).
+async function invokeEdge(fn: string, body: unknown, db: any): Promise<unknown> {
+  const { data, error } = await db.functions.invoke(fn, { body });
+  if (error) throw new Error(error.message ?? `${fn} failed`);
+  return data;
 }
 
 function mimeFromName(name: string): string | null {
