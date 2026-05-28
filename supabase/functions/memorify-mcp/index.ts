@@ -183,19 +183,13 @@ const TOOLS: ToolDef[] = [
       properties: { server_id: { type: "string" } },
     },
   },
-  {
-    name: "mcp_sync",
-    description: "Re-discover tools for a connected MCP server.",
-    action: "mcp.sync",
-    inputSchema: {
-      type: "object",
-      properties: { server_id: { type: "string" } },
-      required: ["server_id"],
-    },
-  },
+  // mcp_sync / mcp_add_server / mcp_update_server / mcp_toggle_server /
+  // mcp_delete_server / mcp_toggle_tool are intentionally OMITTED.
+  // See the SECURITY POLICY at the top of this file. They are Copilot-only,
+  // reachable via copilot-action with a user JWT — not via agent tokens.
   {
     name: "mcp_call",
-    description: "Call a tool on a connected MCP server (transparent proxy).",
+    description: "Call a tool on a connected, enabled MCP server (transparent proxy).",
     action: "mcp.call",
     inputSchema: {
       type: "object",
@@ -205,69 +199,6 @@ const TOOLS: ToolDef[] = [
         arguments: { type: "object" },
       },
       required: ["server_id", "tool"],
-    },
-  },
-  {
-    name: "mcp_add_server",
-    description: "Connect a new MCP server to this Synapse workspace. Auto-handshakes and discovers tools.",
-    action: "mcp.add_server",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        url: { type: "string" },
-        transport: { type: "string", enum: ["http", "sse"] },
-        auth: { type: "object", description: "{ bearer?: string, headers?: object }" },
-        enabled: { type: "boolean" },
-      },
-      required: ["name", "url"],
-    },
-  },
-  {
-    name: "mcp_update_server",
-    description: "Update an MCP server (name, url, transport, auth, enabled).",
-    action: "mcp.update_server",
-    inputSchema: {
-      type: "object",
-      properties: {
-        server_id: { type: "string" },
-        name: { type: "string" },
-        url: { type: "string" },
-        transport: { type: "string" },
-        auth: { type: "object" },
-        enabled: { type: "boolean" },
-      },
-      required: ["server_id"],
-    },
-  },
-  {
-    name: "mcp_toggle_server",
-    description: "Enable or disable a connected MCP server.",
-    action: "mcp.toggle_server",
-    inputSchema: {
-      type: "object",
-      properties: { server_id: { type: "string" }, enabled: { type: "boolean" } },
-      required: ["server_id", "enabled"],
-    },
-  },
-  {
-    name: "mcp_delete_server",
-    description: "Disconnect and delete an MCP server.",
-    action: "mcp.delete_server",
-    inputSchema: {
-      type: "object",
-      properties: { server_id: { type: "string" } },
-      required: ["server_id"],
-    },
-  },
-  {
-    name: "mcp_toggle_tool",
-    description: "Enable or disable a specific MCP tool.",
-    action: "mcp.toggle_tool",
-    inputSchema: {
-      type: "object",
-      properties: { tool_id: { type: "string" }, enabled: { type: "boolean" } },
-      required: ["tool_id", "enabled"],
     },
   },
   {
