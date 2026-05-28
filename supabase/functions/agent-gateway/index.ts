@@ -90,6 +90,17 @@ Deno.serve(async (req) => {
 
   const { agent: agentName, action, input = {} } = body ?? {};
   if (!agentName || !action) return fail("missing 'agent' or 'action'");
+
+  // SECURITY: MCP configuration is Copilot-only. Even though this gateway
+  // doesn't currently route any mcp.* actions, reject them up-front so any
+  // future regression in the catalog can't expose them via an agent token.
+  if (
+    agentName === "mcp" ||
+    /^(add_server|update_server|toggle_server|delete_server|toggle_tool|sync)$/.test(action) &&
+      agentName === "mcp"
+  ) {
+    return fail("mcp.* actions are reserved for the in-app Copilot", 403);
+  }
   const startedAt = Date.now();
   const logCall = (status: "ok" | "error", err?: string) => {
     supabase.from("agent_calls").insert({
