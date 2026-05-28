@@ -18,6 +18,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ⚠️  Source of truth for the Copilot's identity, rules, and Methora context
+// lives in `src/copilot/COPILOT.md`. If you edit SYSTEM_PROMPT or
+// METHORA_CONTEXT below, mirror the change there (and vice-versa).
 const METHORA_CONTEXT = `
 ## Methora context (always loaded)
 
