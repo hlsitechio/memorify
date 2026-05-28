@@ -49,12 +49,17 @@ Deno.serve(async (req) => {
   }
 
   // Audit log — best-effort, never block on failure.
+  // For mcp.call, never persist the raw tool arguments (may contain secrets).
+  const auditArgs =
+    name === "mcp.call"
+      ? { server_id: args?.server_id, tool: args?.tool }
+      : args;
   try {
     await supabase.from("events").insert({
       user_id: userId,
       kind: `cmd.${name}`,
       source: "copilot",
-      payload: { args, ok: out.ok, ms: Date.now() - started, error: out.error ?? null },
+      payload: { args: auditArgs, ok: out.ok, ms: Date.now() - started, error: out.error ?? null },
     });
   } catch {/* ignore */}
 
