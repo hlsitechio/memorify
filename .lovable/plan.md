@@ -1,156 +1,88 @@
+## Goal
 
-# Synapse — Finish-the-Dashboard Plan
+Give the in-app Copilot full control of the user's MCP servers (list, inspect tools, add, toggle, sync, call, delete, OAuth) while making sure these commands are **not** reachable from `memorify-mcp` or `agent-gateway` — i.e. no external agent / token / API key can trigger them.
 
-Goal: zero placeholders, zero hardcoded mock data anywhere in `/dashboard/*`. Every widget, page and tab pulls live data, and every "Coming Soon" page becomes a real feature.
+## Why a separate surface
 
----
+Today MCP control is partially reachable via `memorify-mcp` (`mcp_servers`, `mcp_add_server`, `mcp_toggle_server`, `mcp_delete_server`, `mcp_call`, etc.) using an **agent token**. That's powerful but risky: any leaked agent token can rewire the user's MCP fleet. The new Copilot pack stays inside the user's authenticated browser session and goes through `copilot-action` (JWT + RLS + audit). External agents keep the read-mostly subset; the destructive surface gets locked down.
 
-## Phase 1 — Analytics & Activity Pipeline (foundation)
+## Scope
 
-This unlocks 4+ widgets at once. Without it, `AnalyticsWidget`, `SkillsResumeWidget`, `UsageWidget`, `RecentActivityWidget` and `PluginsSummaryWidget` stay fake forever.
+### 1. New command pack — `src/copilot/actions/mcp.ts`
 
-**1.1 Create `agent_calls` table**
-- Columns: `user_id`, `agent_id` (nullable), `kind` (`memory`/`skill`/`mcp`/`connector`/`api`), `name`, `status` (`ok`/`error`), `latency_ms`, `tokens_in`, `tokens_out`, `cost_cents`, `metadata jsonb`
-- Index on `(user_id, created_at desc)` and `(user_id, kind, created_at desc)`
-- RLS: own-row only
+All `scope: "server"`, routed to `/dashboard/mcp`. Handlers added in `copilot-action/index.ts`.
 
-**1.2 Wire every backend touchpoint to log a call**
-- `agent-gateway` — log every `agent.action`
-- `agent-api` — log every action
-- `synapse-mcp` / `agent-ping` MCP tool calls
-- `skill-run` — log + tokens + cost
-- `mcp-call` — log per tool invocation
+| Command | Purpose | Destructive |
+|---|---|---|
+| `mcp.servers.list` | List user's MCP servers (id, name, url, enabled, last_handshake_at, last_error) | no |
+| `mcp.servers.get` | Fetch one server with its cached tools | no |
+| `mcp.servers.add` | Insert a server (name, url, transport, auth — bearer / headers / oauth-pending) | no |
+| `mcp.servers.update` | Patch name/url/auth/transport | no |
+| `mcp.servers.toggle` | Enable/disable a server | no |
+| `mcp.servers.rename` | Rename a server | no |
+| `mcp.servers.delete` | Permanently delete (confirm-first) | **yes** |
+| `mcp.tools.list` | List cached `mcp_tools` for a server (or all) | no |
+| `mcp.tools.toggle` | Enable/disable a single tool | no |
+| `mcp.sync` | Invoke existing `mcp-handshake` for one server to refresh tool catalog + update `last_handshake_at`/`last_error` | no |
+| `mcp.call` | Proxy to existing `mcp-call` edge function for one tool with arguments | **yes** (mutating tools); always require explicit user intent |
+| `mcp.oauth.start` | Invoke existing `mcp-oauth-start` and return `authUrl` for the user to open | no |
+| `mcp.flash` | Briefly highlight a row in the MCP page UI (client scope) | no |
 
-**1.3 Replace fake widgets with real queries**
-- `AnalyticsWidget` → 12-bucket time-series of `agent_calls` (last 12h)
-- `SkillsResumeWidget` → `select name, count(*) from agent_calls where kind='skill' group by name order by count desc limit 4` + live status from `skills` table
-- `UsageWidget` → real tokens / storage (sum of `documents.size`+`voices.size`+`images.size`) / requests
-- `RecentActivityWidget` → query `events` table directly (already exists, 5-min fix)
-- `PluginsSummaryWidget` → real `plugins` rows + their last activity from `agent_calls`
-- `ProjectInfoWidget` → real plan info or remove until billing
+`mcp.flash` is client-scope (uses `registerFlash` like `plugins.flash`). Everything else is server-scope.
 
----
+### 2. `copilot-action` dispatcher additions
 
-## Phase 2 — Vault (real, no longer placeholder)
+Add a `mcp.*` switch block. Each case:
+- runs as the authenticated user (RLS already filters `mcp_servers`/`mcp_tools` by `user_id`)
+- for `sync`, `call`, `oauth.start` → calls the existing edge functions (`mcp-handshake`, `mcp-call`, `mcp-oauth-start`) by forwarding the user's JWT; no service-role escalation
+- writes an `events` audit row (already automatic via the dispatcher wrapper) — for `mcp.call` we log only `{ server_id, tool, ok, ms }`, never the raw arguments (consistent with the prior redaction pass)
 
-**2.1 `vault_secrets` table**
-- `user_id`, `name` (unique per user), `value_encrypted` (bytea), `scope` (`dev`/`staging`/`prod`), `last_used_at`, `last_used_by_agent_id`, `metadata`
-- Encrypt at rest using `pgsodium` or app-level AES-GCM with a project key from `LOVABLE_API_KEY`-derived KDF
-- RLS: own-row only
+### 3. Lockdown of `memorify-mcp` (external surface)
 
-**2.2 Vault edge function**
-- `vault.set` / `vault.get` / `vault.list` / `vault.delete` / `vault.rotate`
-- `vault.get` always logs a read into `events` (audit) and bumps `last_used_at`
-- Never returns plaintext to client list views — only returns plaintext from explicit `vault.reveal` (gated)
+`memorify-mcp` is the JSON-RPC server reachable with an **agent token**. Today it exposes destructive MCP-management tools. Remove or gate them so external agents can't rewire the user's connectors:
 
-**2.3 Vault UI** (`/dashboard/vault`)
-- Drag-drop `.env` file → auto-imports all KEY=VALUE pairs (per Core memory: ultra easy)
-- Single-field "name + value" inline add
-- Per-row scope toggle, copy-reference button (`{{vault.MY_KEY}}`)
-- Reveal requires re-confirm
-- Audit log panel: who/when read each secret
+- **Remove from the public tool list**: `mcp_add_server`, `mcp_update_server`, `mcp_toggle_server`, `mcp_delete_server`, `mcp_toggle_tool`, `mcp_sync`.
+- **Keep (read-only / call-only)**: `mcp_servers` (list), `mcp_tools` (list), `mcp_call` (invoke a tool on an already-connected server the user enabled).
+- Reason: agents should be able to *use* the user's MCP fleet, not *reconfigure* it. Configuration belongs to the human + Copilot in the dashboard.
 
-**2.4 Wire vault references**
-- `skills.prompt` and `connectors.config` resolve `{{vault.NAME}}` server-side at run time
-- Never expose plaintext to the frontend during resolution
+Add a comment block at the top of `memorify-mcp/index.ts` documenting the policy so this doesn't regress.
 
----
+### 4. `agent-gateway` — no change needed
 
-## Phase 3 — VPS Agent Runtime
+It already routes through `memorify-mcp` semantics, so removing destructive tools there closes the gateway surface too. Add an assertion at the gateway entry that rejects any tool name starting with `mcp_add_`, `mcp_update_`, `mcp_toggle_`, `mcp_delete_`, `mcp_sync` even if they ever leak back into the catalog — defense in depth.
 
-The "no more Docker / no more GitHub Actions" solution.
+### 5. System prompt hint for the Copilot
 
-**3.1 Agent runtime package**
-- New folder `runtime/` (separate from web app) containing a tiny Deno/Node script: `synapse-agent.ts`
-- Behavior: on start → `agent-api/bootstrap` → loop polling `agent-api/tasks` (long-poll 25s)
-- Local tool execution sandbox (shell + whitelisted commands from agent's `skills`)
-- Heartbeats every 30s → updates `agents.last_seen_at`
+Add one line to the Copilot system prompt: *"Use `mcp.*` commands to manage and call the user's MCP servers. These commands only work inside this dashboard — external agents cannot use them."* This nudges the model to actually pick them up.
 
-**3.2 One-line installer** served from edge function `install-agent`
-```bash
-curl -fsSL https://<project>.supabase.co/functions/v1/install-agent | SYNAPSE_TOKEN=xxx bash
+### 6. Audit + safety rules
+
+- `mcp.servers.delete` and `mcp.call` are marked `destructive: true` so the Copilot's existing confirmation flow kicks in.
+- `mcp.servers.add` validates `url` is `https://` only (reuse `safeFetch` policy in the handshake path; no additional client-side relax).
+- `mcp.call` rejects calls to a disabled server or a disabled tool before forwarding.
+- Every command logged to `events` with `source: "copilot"` and `kind: "cmd.mcp.*"`.
+
+## Files touched
+
+```text
+src/copilot/actions/mcp.ts             (new — command defs)
+src/copilot/useRegisterCoreCommands.ts (register mcpCommands)
+supabase/functions/copilot-action/index.ts   (add mcp.* dispatch cases)
+supabase/functions/memorify-mcp/index.ts     (remove destructive tools + policy comment)
+supabase/functions/agent-gateway/index.ts    (deny-list for destructive mcp_* tool names)
 ```
-- Drops `/etc/systemd/system/synapse-agent.service`
-- Writes token to `/etc/synapse/agent.env` (chmod 600)
-- `systemctl enable --now synapse-agent`
 
-**3.3 Agents UI additions**
-- New "VPS / Server" tab in agent connect wizard
-- Shows the one-liner with token baked in
-- Status pill turns green when first heartbeat arrives
+No DB migration — `mcp_servers` / `mcp_tools` already exist with RLS.
 
-**3.4 Task queue table `agent_tasks`**
-- `agent_id`, `kind`, `payload`, `status` (`pending`/`running`/`done`/`error`), `result`, `claimed_at`
-- RLS by user_id
+## Out of scope
 
----
+- Building a new MCP server. We're only adding *commands the Copilot can run against existing MCP plumbing*.
+- Refactoring `Mcp.tsx` page (separate refactor task).
+- Voices/Images/Vault/Skills action packs (next round; not needed for this security ask).
 
-## Phase 4 — Connector Handshakes (no more "create row, hope for the best")
+## Acceptance
 
-For each connector kind, real auth + health check + tool discovery:
-
-- **http** — ping URL, store latency, mark `active`/`error`
-- **slack** — OAuth start/callback (already have OAuth infra from MCP), list channels
-- **github** — PAT validation via `/user`, list repos
-- **postgres** — connection string test, list tables
-- **stripe** — key test via `/v1/account`
-- **notion** — OAuth, list databases
-- **gmail** — Google OAuth, scopes preview
-
-Each connector kind gets a small drawer UI (per memory: one-click, drag-drop, AI-assisted) that:
-- Auto-detects kind from pasted URL/token
-- Shows live test result before saving
-- Pulls the secret from Vault by reference (no raw secrets in `connectors.config`)
-
----
-
-## Phase 5 — Per-Agent Analytics
-
-- New widget `AgentLeaderboardWidget` (top agents by call volume / latency / errors)
-- Agent detail drawer in `/dashboard/agents` showing:
-  - 7-day call chart from `agent_calls`
-  - Tools used breakdown
-  - Memory growth over time
-  - Recent errors
-
----
-
-## Phase 6 — Skills & Plugins polish
-
-- Skills page: real "calls" + "p95 latency" columns from `agent_calls`
-- Plugin activity feed (per plugin) from `agent_calls`
-- Skill cost preview before run (uses model pricing table)
-
----
-
-## Phase 7 — Cleanup pass
-
-- Delete `ComingSoon` component
-- Delete all hardcoded arrays in `widgets/index.tsx`
-- Add `data-testid` to widgets so QA can verify "no fake data left"
-- Update README
-
----
-
-## Suggested execution order
-
-1. **Phase 1** (analytics pipeline) — biggest unlock
-2. **Phase 2** (Vault) — needed before Phase 4
-3. **Phase 3** (VPS agent) — your immediate pain point, standalone
-4. **Phase 4** (connector handshakes) — depends on Vault
-5. **Phase 5 + 6** (per-agent + skills polish) — depends on Phase 1
-6. **Phase 7** (cleanup)
-
-Phases 1, 2, 3 can be tackled in parallel sessions — they don't share files.
-
----
-
-## Technical notes
-
-- All new tables: RLS `auth.uid() = user_id`, `created_at`/`updated_at` defaults, `set_updated_at` trigger
-- All new edge functions: `verify_jwt = false` + in-code JWT/agent-token validation (matches existing pattern)
-- Vault encryption: app-level AES-GCM with key derived from `SUPABASE_SERVICE_ROLE_KEY` via HKDF — keeps secrets unreadable even from raw DB dump
-- VPS runtime: Deno single-file binary, no Docker, no Node dep — `curl | bash` installs in <10s
-- Analytics writes: fire-and-forget (`waitUntil` style) so they never block user-facing latency
-
-Tell me which phase to start with and I'll build it out.
+1. From Copilot chat: "list my MCP servers", "add `https://mcp.notion.com/mcp` named Notion", "sync server X", "call tool Y on server X with {...}", "disable server Z", "delete server Z" — all work via `copilot-action`.
+2. From an external agent token hitting `memorify-mcp`: `mcp_add_server`, `mcp_delete_server`, `mcp_toggle_server`, `mcp_toggle_tool`, `mcp_sync`, `mcp_update_server` → returns `unknown tool`.
+3. `agent-gateway` rejects the same tool names defensively even if the catalog regresses.
+4. `events` table shows `cmd.mcp.*` rows with no raw tool arguments in the payload.
