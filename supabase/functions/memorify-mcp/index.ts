@@ -7,6 +7,16 @@
 // Implements: initialize, tools/list, tools/call, ping
 // Tool implementations are delegated to the agent-api function so we have a
 // single source of truth for the actual logic.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// SECURITY POLICY — MCP management is OFF-LIMITS to external agents.
+// External agents can DISCOVER (mcp_servers, mcp_tools) and CALL already-
+// enabled tools (mcp_call). They CANNOT add, update, toggle, delete, sync,
+// or rewrite servers/tools. Those actions are Copilot-only and go through
+// copilot-action (user JWT + RLS). agent-api also enforces this server-side
+// via COPILOT_ONLY_ACTIONS as defense in depth.
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
