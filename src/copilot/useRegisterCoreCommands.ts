@@ -8,6 +8,7 @@ import { widgetCommands } from "./actions/widgets";
 import { agentCommands } from "./actions/agents";
 import { documentCommands } from "./actions/documents";
 import { memoryCommands } from "./actions/memory";
+import { mcpCommands } from "./actions/mcp";
 
 export function useRegisterCoreCommands() {
   useEffect(() => {
@@ -18,6 +19,7 @@ export function useRegisterCoreCommands() {
       ...agentCommands,
       ...documentCommands,
       ...memoryCommands,
+      ...mcpCommands,
     ]);
     return unreg;
   }, []);
