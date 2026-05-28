@@ -1135,6 +1135,22 @@ Deno.serve(async (req) => {
   }
 
   if (!action) return json({ ok: false, error: "missing action" }, 400);
+
+  // SECURITY: MCP configuration is Copilot-only (user JWT via copilot-action).
+  // External agent tokens may discover/call but never reconfigure MCP. This
+  // block is defense-in-depth alongside the curated memorify-mcp TOOLS list.
+  const COPILOT_ONLY_ACTIONS = new Set([
+    "mcp.add_server",
+    "mcp.update_server",
+    "mcp.toggle_server",
+    "mcp.delete_server",
+    "mcp.toggle_tool",
+    "mcp.sync",
+  ]);
+  if (COPILOT_ONLY_ACTIONS.has(action)) {
+    return json({ ok: false, error: `action "${action}" is reserved for the in-app Copilot and not available to external agents` }, 403);
+  }
+
   const cmd = COMMANDS.find((c) => c.name === action);
   if (!cmd) return json({ ok: false, error: `unknown action "${action}"`, available: COMMANDS.map((c) => c.name) }, 404);
 
