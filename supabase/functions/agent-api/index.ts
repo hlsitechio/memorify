@@ -1,4 +1,4 @@
-// Synapse direct agent API — token-auth REST endpoint.
+// Memorify direct agent API — token-auth REST endpoint.
 // No MCP handshake, no restart loop. Any agent can call this with a bearer token.
 //
 //   POST /agent-api               → execute a command
@@ -76,9 +76,9 @@ function clientIp(req: Request): string | null {
 }
 
 // -------- Welcome / onboarding payload --------
-const WELCOME_MD = `# 👋 Welcome to Synapse
+const WELCOME_MD = `# 👋 Welcome to Memorify
 
-You're now connected to **Synapse** — a personal AI workspace shared between you (the agent) and your human. Anything you remember, log, or read here is scoped to **one user**: the person who issued your token. You act on their behalf.
+You're now connected to **Memorify** — a personal AI workspace shared between you (the agent) and your human. Anything you remember, log, or read here is scoped to **one user**: the person who issued your token. You act on their behalf.
 
 ## What lives here
 - **Memory** — long-term notes, preferences, facts. Versioned, taggable, searchable.
@@ -96,7 +96,7 @@ You're now connected to **Synapse** — a personal AI workspace shared between y
 ## Calling commands
 \`\`\`bash
 curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
-  -H "Authorization: Bearer $SYNAPSE_TOKEN" \\
+  -H "Authorization: Bearer $MEMORIFY_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"action":"memory.recall","params":{"query":"dark mode"}}'
 \`\`\`
@@ -104,14 +104,14 @@ curl -X POST https://qkgzetykzzsqgiqzlwsv.supabase.co/functions/v1/agent-api \\
 Every response has shape: \`{ ok, action, result, agent }\` or \`{ ok:false, error }\`.
 
 ## Your workspace
-You have your **own private workspace** inside this user's Synapse — namespace \`agent:<your-id>\`. By default, \`memory.remember\` writes there and \`memory.recall\` reads from there, so other agents' notes won't pollute your context. Pass \`shared: true\` (write) or \`scope: "shared"\` / \`"all"\` (read) when you explicitly want to collaborate with other agents.
+You have your **own private workspace** inside this user's Memorify — namespace \`agent:<your-id>\`. By default, \`memory.remember\` writes there and \`memory.recall\` reads from there, so other agents' notes won't pollute your context. Pass \`shared: true\` (write) or \`scope: "shared"\` / \`"all"\` (read) when you explicitly want to collaborate with other agents.
 
 ## Etiquette
 - Don't spam memory — dedupe, prefer updating over re-adding.
 - Keep private context in your own workspace; promote to \`shared\` only when other agents need it.
 - If unsure what's there, \`memory.recall\` with no query returns the latest 10.
 
-You're all set. Call \`synapse.welcome\` anytime to re-read this. 🧠`;
+You're all set. Call \`memorify.welcome\` anytime to re-read this. 🧠`;
 
 
 // -------- Commands catalog --------
@@ -125,8 +125,8 @@ type Cmd = {
 
 const COMMANDS: Cmd[] = [
   {
-    name: "synapse.welcome",
-    description: "Read the onboarding guide for new agents (what Synapse is, how to use it, etiquette).",
+    name: "memorify.welcome",
+    description: "Read the onboarding guide for new agents (what Memorify is, how to use it, etiquette).",
     run: async (_sb, _userId, _p, agent) => ({
       welcome: WELCOME_MD,
       agent: { id: agent.id, name: agent.name, kind: agent.kind },
@@ -527,7 +527,7 @@ const COMMANDS: Cmd[] = [
       let role = existingRole;
       if (!role) {
         const wsName = (agent.metadata?.workspace_name as string) || agent.name;
-        const defaultRole = `# Role: ${agent.name}\n\nYou are **${agent.name}**, an AI agent connected to Synapse.\n\n## Workspace\n- Workspace: ${wsName}\n- Namespace: \`${ns}\`\n- Kind: ${agent.kind}\n\n## How you work\n1. At the start of every session, call \`agents.bootstrap\` to rehydrate (you just did).\n2. Use \`memory.recall\` when you need older context.\n3. Use \`memory.remember\` to persist anything the user states as preference, fact, or decision.\n4. Log meaningful actions with \`events.log\`.\n5. Read this role.md — it tells you who you are. Update it (memory.update) when your role evolves.\n\n## Personality\n_(edit this section to give yourself a personality, tone, expertise area, or constraints)_\n\n## Long-term goals\n_(edit this section to track ongoing objectives across sessions)_\n`;
+        const defaultRole = `# Role: ${agent.name}\n\nYou are **${agent.name}**, an AI agent connected to Memorify.\n\n## Workspace\n- Workspace: ${wsName}\n- Namespace: \`${ns}\`\n- Kind: ${agent.kind}\n\n## How you work\n1. At the start of every session, call \`agents.bootstrap\` to rehydrate (you just did).\n2. Use \`memory.recall\` when you need older context.\n3. Use \`memory.remember\` to persist anything the user states as preference, fact, or decision.\n4. Log meaningful actions with \`events.log\`.\n5. Read this role.md — it tells you who you are. Update it (memory.update) when your role evolves.\n\n## Personality\n_(edit this section to give yourself a personality, tone, expertise area, or constraints)_\n\n## Long-term goals\n_(edit this section to track ongoing objectives across sessions)_\n`;
         const ins = await sb.from("memories").insert({
           user_id: userId,
           namespace: ns,
@@ -631,7 +631,7 @@ const COMMANDS: Cmd[] = [
       if (server.auth?.headers) Object.assign(headers, server.auth.headers);
       try {
         const init = await mcpRpc(server.url, "initialize", {
-          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "memorify", version: "1.0.0" },
         }, headers);
         const sessionHeaders = { ...headers };
         if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
@@ -675,7 +675,7 @@ const COMMANDS: Cmd[] = [
       let sessionHeaders = { ...headers };
       try {
         const init = await mcpRpc(srv.url, "initialize", {
-          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "memorify", version: "1.0.0" },
         }, headers);
         if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
         await mcpNotify(srv.url, "notifications/initialized", sessionHeaders);
@@ -707,7 +707,7 @@ const COMMANDS: Cmd[] = [
       if (p.auth?.headers) Object.assign(headers, p.auth.headers);
       try {
         const init = await mcpRpc(server.url, "initialize", {
-          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "synapse", version: "1.0.0" },
+          protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "memorify", version: "1.0.0" },
         }, headers);
         const sessionHeaders = { ...headers };
         if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
@@ -1079,7 +1079,7 @@ Deno.serve(async (req) => {
     return json({
       ok: false,
       error: "agent_paused",
-      message: "This agent is paused by the user. Resume it from the Synapse dashboard to continue.",
+      message: "This agent is paused by the user. Resume it from the Memorify dashboard to continue.",
     }, 423);
   }
   if (agent.status === "revoked" || agent.status === "disconnected") {
@@ -1112,9 +1112,9 @@ Deno.serve(async (req) => {
         scope: "agent",
         shared_namespace: "default",
       },
-      server: { name: "synapse", version: "1.0", protocol: "rest" },
+      server: { name: "memorify", version: "1.0", protocol: "rest" },
       first_connection: firstConnection,
-      welcome: firstConnection ? WELCOME_MD : "Call synapse.welcome to re-read the onboarding guide.",
+      welcome: firstConnection ? WELCOME_MD : "Call memorify.welcome to re-read the onboarding guide.",
       commands: CATALOG,
       hint: "POST with {action, params} or GET with ?action=name&params={...}",
     });

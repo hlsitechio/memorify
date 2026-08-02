@@ -1,8 +1,8 @@
-// Synapse MCP server — exposes Synapse to external AI clients (Claude, Cursor, n8n…)
+// Memorify MCP server — exposes Memorify to external AI clients (Claude, Cursor, n8n…)
 // over the JSON-RPC Streamable HTTP transport.
 //
 // Auth: Bearer <agent-token>  (same token as agent-api)
-// Endpoint: https://<project>.functions.supabase.co/synapse-mcp
+// Endpoint: https://<project>.functions.supabase.co/memorify-mcp
 //
 // Implements: initialize, tools/list, tools/call, ping
 // Tool implementations are delegated to the agent-api function so we have a
@@ -42,7 +42,7 @@ type ToolDef = {
 const TOOLS: ToolDef[] = [
   {
     name: "whoami",
-    description: "Return info about the connected Synapse agent + workspace.",
+    description: "Return info about the connected Memorify agent + workspace.",
     action: "whoami",
     inputSchema: { type: "object", properties: {} },
   },
@@ -170,7 +170,7 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "mcp_servers",
-    description: "List MCP servers connected to this Synapse workspace.",
+    description: "List MCP servers connected to this Memorify workspace.",
     action: "mcp.servers",
     inputSchema: { type: "object", properties: {} },
   },
@@ -296,7 +296,7 @@ serve(async (req) => {
   if (req.method === "GET") {
     return new Response(
       JSON.stringify({
-        name: "synapse-mcp",
+        name: "memorify-mcp",
         version: "1.0.0",
         protocol: "mcp",
         transport: "streamable-http",
@@ -332,7 +332,7 @@ serve(async (req) => {
       return new Response(JSON.stringify(rpc(id, {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "synapse", version: "1.0.0" },
+        serverInfo: { name: "memorify", version: "1.0.0" },
       })), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

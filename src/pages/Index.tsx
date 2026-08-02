@@ -1,15 +1,15 @@
 import { Navigate } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { useAuth } from "@/hooks/useAuth";
-import { Nav } from "@/components/synapse/Nav";
-import { Hero } from "@/components/synapse/Hero";
-import { Problem } from "@/components/synapse/Problem";
-import { Architecture } from "@/components/synapse/Architecture";
-import { Protocol } from "@/components/synapse/Protocol";
-import { Primitives } from "@/components/synapse/Primitives";
-import { LiveDemo } from "@/components/synapse/LiveDemo";
-import { Waitlist } from "@/components/synapse/Waitlist";
-import { Footer } from "@/components/synapse/Footer";
+import { Nav } from "@/components/memorify/Nav";
+import { Hero } from "@/components/memorify/Hero";
+import { Problem } from "@/components/memorify/Problem";
+import { Architecture } from "@/components/memorify/Architecture";
+import { Protocol } from "@/components/memorify/Protocol";
+import { Primitives } from "@/components/memorify/Primitives";
+import { LiveDemo } from "@/components/memorify/LiveDemo";
+import { Waitlist } from "@/components/memorify/Waitlist";
+import { Footer } from "@/components/memorify/Footer";
 
 const Index = () => {
   const { user, loading } = useAuth();

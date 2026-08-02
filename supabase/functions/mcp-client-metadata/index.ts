@@ -1,4 +1,4 @@
-// Public Client ID Metadata Document for Synapse MCP client.
+// Public Client ID Metadata Document for Memorify MCP client.
 // Lovable (and any OAuth server supporting client_id_metadata_document) accepts
 // the URL of this document AS the client_id — no Dynamic Client Registration needed.
 // Spec: draft-ietf-oauth-client-id-metadata-document
@@ -13,8 +13,8 @@ serve((req) => {
 
   const doc = {
     client_id: selfUrl,
-    client_name: "Synapse",
-    client_uri: "https://synapse.lovable.app",
+    client_name: "Memorify",
+    client_uri: "https://memorify.dev",
     redirect_uris: [redirectUri],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],

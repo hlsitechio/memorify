@@ -122,7 +122,7 @@ serve(async (req) => {
       body: JSON.stringify({ server_id: server.id, _service: true }),
     }).catch(() => {});
 
-    return new Response(htmlPage("ok", `${row.server_name} is now connected to Synapse. You can close this window.`), {
+    return new Response(htmlPage("ok", `${row.server_name} is now connected to Memorify. You can close this window.`), {
       headers: { "Content-Type": "text/html" },
     });
   } catch (e) {

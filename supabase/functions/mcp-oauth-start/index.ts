@@ -88,7 +88,7 @@ serve(async (req) => {
       client_id = cimdUrl;
     } else if (meta.registration_endpoint) {
       const regBody: Record<string, unknown> = {
-        client_name: "Synapse",
+        client_name: "Memorify",
         redirect_uris: [redirect_uri],
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],

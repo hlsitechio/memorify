@@ -1,4 +1,4 @@
-// Synapse MCP server + agent ping endpoint.
+// Memorify MCP server + agent ping endpoint.
 // - GET  ?token=...           → legacy status ping (also flips status to connected)
 // - POST (JSON-RPC body)      → MCP Streamable HTTP (initialize / tools/list / tools/call)
 // - POST {client:"manual"}    → legacy ping (kept for backward compat)
@@ -154,7 +154,7 @@ const TOOLS = [
   {
     name: "memory_remember",
     description:
-      "Store a memory in the user's Synapse workspace. Use for facts, preferences, decisions, or anything worth recalling later.",
+      "Store a memory in the user's Memorify workspace. Use for facts, preferences, decisions, or anything worth recalling later.",
     inputSchema: {
       type: "object",
       properties: {
@@ -168,7 +168,7 @@ const TOOLS = [
   },
   {
     name: "memory_recall",
-    description: "Search memories in the user's Synapse workspace by substring across content/tags/category.",
+    description: "Search memories in the user's Memorify workspace by substring across content/tags/category.",
     inputSchema: {
       type: "object",
       properties: {
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       agent: { id: r.agent.id, name: r.agent.name, status: "connected" },
-      server: { name: "synapse", version: "1", protocol: "mcp+http" },
+      server: { name: "memorify", version: "1", protocol: "mcp+http" },
       tools: TOOLS.map((t) => t.name),
     });
   }
@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       agent: { id: r.agent.id, name: r.agent.name, status: "connected" },
-      server: { name: "synapse", version: "1" },
+      server: { name: "memorify", version: "1" },
     });
   }
 
@@ -334,7 +334,7 @@ Deno.serve(async (req) => {
       case "initialize":
         return rpcOk(id, {
           protocolVersion: "2024-11-05",
-          serverInfo: { name: "synapse", version: "1.0.0" },
+          serverInfo: { name: "memorify", version: "1.0.0" },
           capabilities: { tools: { listChanged: false } },
         });
 
@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
             name,
             status: "ok",
             latency_ms: Date.now() - startedAt,
-            metadata: { source: "synapse-mcp" },
+            metadata: { source: "memorify-mcp" },
           }).then(() => {});
           return rpcOk(id, result);
         } catch (e: any) {
@@ -371,7 +371,7 @@ Deno.serve(async (req) => {
             name,
             status: "error",
             latency_ms: Date.now() - startedAt,
-            metadata: { source: "synapse-mcp", error: e?.message },
+            metadata: { source: "memorify-mcp", error: e?.message },
           }).then(() => {});
           return rpcOk(id, { ...text(`Error: ${e.message}`), isError: true });
         }

@@ -78,7 +78,7 @@ serve(async (req) => {
       const init = await mcpRpc(server.url, "initialize", {
         protocolVersion: "2025-03-26",
         capabilities: {},
-        clientInfo: { name: "synapse", version: "1.0.0" },
+        clientInfo: { name: "memorify", version: "1.0.0" },
       }, headers);
 
       // Streamable HTTP servers (Notion, etc.) return a session id we must echo back.

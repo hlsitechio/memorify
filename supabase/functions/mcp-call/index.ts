@@ -79,7 +79,7 @@ serve(async (req) => {
       const init = await mcpRpc(server.url, "initialize", {
         protocolVersion: "2025-03-26",
         capabilities: {},
-        clientInfo: { name: "synapse", version: "1.0.0" },
+        clientInfo: { name: "memorify", version: "1.0.0" },
       }, headers);
       if (init.sessionId) sessionHeaders["Mcp-Session-Id"] = init.sessionId;
       await mcpNotify(server.url, "notifications/initialized", sessionHeaders);

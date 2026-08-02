@@ -1570,7 +1570,7 @@ exec ${launchCli}
                       </p>
                     </div>
                     <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
-                      <span className="text-primary font-medium">Verify:</span> run <code className="text-foreground">codex mcp list</code> — you should see <code className="text-foreground">memorify</code> with all Synapse tools (memory_*, documents_*, web_*).
+                      <span className="text-primary font-medium">Verify:</span> run <code className="text-foreground">codex mcp list</code> — you should see <code className="text-foreground">memorify</code> with all Memorify tools (memory_*, documents_*, web_*).
                     </div>
                   </>
                 ) : (
