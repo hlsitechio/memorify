@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,10 +71,14 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/dashboard`,
+    // Supabase-native OAuth (no Lovable `/~oauth` broker — that only exists on
+    // Lovable hosting). Redirects to Google via the Supabase auth endpoint and
+    // back to /dashboard; supabase-js detects the session from the callback URL.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/dashboard` },
     });
-    if (result.error) toast.error("Google sign-in failed");
+    if (error) toast.error("Google sign-in failed");
   };
 
   const handleReset = async () => {
