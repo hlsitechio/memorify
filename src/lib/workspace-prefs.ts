@@ -13,7 +13,7 @@ export type WorkspacePrefs = {
   accent: HSL | null;
 };
 
-const cacheKey = (ws: string) => `synapse:ws_prefs:${ws}`;
+const cacheKey = (ws: string) => `memorify:ws_prefs:${ws}`;
 
 export function readPrefsCache(workspaceId: string): WorkspacePrefs | null {
   try {

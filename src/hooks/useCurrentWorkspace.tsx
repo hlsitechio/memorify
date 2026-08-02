@@ -20,8 +20,8 @@ export type CurrentWorkspace = {
   agentId?: string;    // full agent UUID when kind === "agent" (drives data scoping)
 };
 
-const KEY = "synapse:current_workspace";
-const EVT = "synapse:workspace-changed";
+const KEY = "memorify:current_workspace";
+const EVT = "memorify:workspace-changed";
 
 function sameWorkspace(a: CurrentWorkspace | null, b: CurrentWorkspace | null) {
   if (a === b) return true;

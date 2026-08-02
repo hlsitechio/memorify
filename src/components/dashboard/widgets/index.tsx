@@ -616,8 +616,8 @@ export function ClockWidget({ onRemove }: RProps) {
 }
 
 export function NotesWidget({ onRemove }: RProps) {
-  const [text, setText] = useState<string>(() => localStorage.getItem("synapse:notes") || "");
-  useEffect(() => { localStorage.setItem("synapse:notes", text); }, [text]);
+  const [text, setText] = useState<string>(() => localStorage.getItem("memorify:notes") || "");
+  useEffect(() => { localStorage.setItem("memorify:notes", text); }, [text]);
   return (
     <WidgetShell title="Notes" icon={StickyNote} onRemove={onRemove}>
       <textarea
@@ -633,10 +633,10 @@ export function NotesWidget({ onRemove }: RProps) {
 type Task = { id: string; t: string; done: boolean };
 export function TasksWidget({ onRemove }: RProps) {
   const [tasks, setTasks] = useState<Task[]>(() => {
-    try { return JSON.parse(localStorage.getItem("synapse:tasks") || "[]"); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem("memorify:tasks") || "[]"); } catch { return []; }
   });
   const [input, setInput] = useState("");
-  useEffect(() => { localStorage.setItem("synapse:tasks", JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem("memorify:tasks", JSON.stringify(tasks)); }, [tasks]);
   const add = () => {
     const t = input.trim();
     if (!t) return;
@@ -687,7 +687,7 @@ type BM = { id: string; label: string; url: string };
 export function BookmarksWidget({ onRemove }: RProps) {
   const [items, setItems] = useState<BM[]>(() => {
     try {
-      const raw = localStorage.getItem("synapse:bookmarks");
+      const raw = localStorage.getItem("memorify:bookmarks");
       if (raw) return JSON.parse(raw);
     } catch {}
     return [
@@ -697,7 +697,7 @@ export function BookmarksWidget({ onRemove }: RProps) {
   });
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
-  useEffect(() => { localStorage.setItem("synapse:bookmarks", JSON.stringify(items)); }, [items]);
+  useEffect(() => { localStorage.setItem("memorify:bookmarks", JSON.stringify(items)); }, [items]);
   const add = () => {
     if (!label.trim() || !url.trim()) return;
     setItems((cur) => [...cur, { id: crypto.randomUUID(), label: label.trim(), url: url.trim() }]);

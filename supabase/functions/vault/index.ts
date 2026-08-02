@@ -34,7 +34,7 @@ async function getKey(): Promise<CryptoKey> {
       const ikm = enc.encode(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const baseKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveKey"]);
       return crypto.subtle.deriveKey(
-        { name: "HKDF", hash: "SHA-256", salt: enc.encode("synapse-vault-v1"), info: enc.encode("aes-gcm-256") },
+        { name: "HKDF", hash: "SHA-256", salt: enc.encode("memorify-vault-v1"), info: enc.encode("aes-gcm-256") },
         baseKey,
         { name: "AES-GCM", length: 256 },
         false,

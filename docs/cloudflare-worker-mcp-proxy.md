@@ -54,7 +54,7 @@ Cloudflare crée le DNS + SSL automatiquement (~1 min). `memorify.dev` doit êtr
 curl https://mcp.memorify.dev -H "Authorization: Bearer <ton-token>"
 ```
 
-Doit renvoyer `{"name":"synapse-mcp",...}`.
+Doit renvoyer `{"name":"memorify-mcp",...}`.
 
 ## 4. C'est tout
 

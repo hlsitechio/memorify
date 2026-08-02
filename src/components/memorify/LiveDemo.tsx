@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 const GATEWAY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-gateway`;
 // Public demo agent token — intentionally exposed; only allows memory ops in the demo namespace.
-const DEMO_TOKEN = "public_demo_token_synapse_landing";
+const DEMO_TOKEN = "public_demo_token_memorify_landing";
 
 type Memory = { id: string; content: string; tags: string[]; created_at: string };
 

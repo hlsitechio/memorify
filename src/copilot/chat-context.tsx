@@ -24,7 +24,7 @@ export type Msg = {
 };
 
 const MAX_TURNS = 5;
-const STORAGE_KEY = "synapse.copilot.chat.v1";
+const STORAGE_KEY = "memorify.copilot.chat.v1";
 
 type Persisted = { messages: Msg[]; pending: boolean };
 

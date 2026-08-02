@@ -19,13 +19,13 @@ export function DashboardUIProvider({ children }: { children: ReactNode }) {
   const [pageMeta, setPageMeta] = useState<PageMeta>(null);
   const [chatOpen, setChatOpenState] = useState<boolean>(() => {
     try {
-      const v = localStorage.getItem("synapse.copilot.open");
+      const v = localStorage.getItem("memorify.copilot.open");
       return v === null ? true : v === "1";
     } catch { return true; }
   });
   const setChatOpen = useCallback((v: boolean) => {
     setChatOpenState(v);
-    try { localStorage.setItem("synapse.copilot.open", v ? "1" : "0"); } catch {}
+    try { localStorage.setItem("memorify.copilot.open", v ? "1" : "0"); } catch {}
   }, []);
 
   const openCmd = useCallback((q = "") => setCmd({ open: true, initialQuery: q }), []);

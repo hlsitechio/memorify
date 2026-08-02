@@ -33,7 +33,7 @@ project_id = "qkgzetykzzsqgiqzlwsv"
     verify_jwt = true
   [functions.skills-receive]
     verify_jwt = false
-  [functions.synapse-mcp]
+  [functions.memorify-mcp]
     verify_jwt = false
   [functions.vault]
     verify_jwt = false
