@@ -16,7 +16,6 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
-    "@netlify/database": "^1.1.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -51,7 +50,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
-    "drizzle-orm": "^1.0.0-beta.22",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
@@ -82,7 +80,6 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
-    "drizzle-kit": "^1.0.0-beta.22",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
