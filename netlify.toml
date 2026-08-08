@@ -9,9 +9,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  # Ensure production-mode Vite (no sourcemaps, minified)
-  NODE_ENV = "production"
-  # Do not expose context in client unless intentionally set
+  # CRITICAL: do NOT set NODE_ENV=production here.
+  # npm skips devDependencies when NODE_ENV=production, so vite is missing
+  # and `npm run build` fails with: sh: 1: vite: not found (exit 127).
+  # `vite build` already produces a production bundle on its own.
+  NPM_CONFIG_PRODUCTION = "false"
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "true"
 
 # ── Context: production only (no branch deploys / previews) ─
