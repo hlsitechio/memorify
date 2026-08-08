@@ -66,10 +66,21 @@ netlify deploy --prod --dir=dist --no-build
 
 ## DNS (custom domain)
 
+Full RDAP/WHOIS snapshot: [docs/DOMAIN_memorify.dev.md](docs/DOMAIN_memorify.dev.md).
+
+As of 2026-08-08, public nameservers are still **Name.com**:
+
+```text
+ns1hwy.name.com
+ns2fln.name.com
+```
+
 Canonical Netlify DNS records: see backup / `Netlify_DNS` CSV.  
-Nameservers at name.com must become:
+To enable `memorify.dev` + auto SSL, nameservers at name.com must become:
 
 - `dns1.p04.nsone.net`
 - `dns2.p04.nsone.net`
 - `dns3.p04.nsone.net`
 - `dns4.p04.nsone.net`
+
+Domain expires **2027-05-15** (Name.com). Registrant: Hubert Larose Surprenant / methoraai.
