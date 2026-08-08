@@ -1,24 +1,60 @@
-# Netlify config for Memorify (Vite/React SPA). Backend stays on Supabase.
+# Netlify config for Memorify — frontend (Vite SPA) + backend (Deno Edge Functions)
+# No Supabase. No Lovable. Just Netlify + Neon.
+
+# ── Frontend build (Vite SPA) ──────────────────────────────
 [build]
   command = "npm run build"
   publish = "dist"
+  edge_functions = "netlify/edge-functions"
 
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA fallback — let react-router handle client-side routes (deep links, refresh).
+# ── Edge Functions config ─────────────────────────────────
+# Edge functions run on Deno — same runtime as our backend.
+# Env vars (NEON_DATABASE_URL, MEMORIFY_AGENT_TOKEN_SECRET, CLERK_*) 
+# are set via Netlify dashboard or CLI — not in this file.
+
+# ── SPA fallback ──────────────────────────────────────────
+# Let react-router handle client-side routes (deep links, refresh).
+# But DON'T intercept /api/* or /mcp — those go to edge functions.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/edge-functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/mcp"
+  to = "/.netlify/edge-functions/mcp"
+  status = 200
+
+[[redirects]]
+  from = "/mcp/*"
+  to = "/.netlify/edge-functions/mcp/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
-# Never cache the HTML shell so new deploys are picked up immediately.
+# ── Security headers ──────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+
+# Never cache the HTML shell
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# Vite fingerprints assets — safe to cache them hard.
+# Vite fingerprints assets — cache them hard
 [[headers]]
   for = "/assets/*"
   [headers.values]

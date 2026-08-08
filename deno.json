@@ -1,0 +1,28 @@
+{
+  "name": "memorify-backend",
+  "version": "0.1.0",
+  "exports": "./backend/main.ts",
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read --watch backend/main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read backend/main.ts",
+    "check": "deno check backend/",
+    "lint": "deno lint backend/",
+    "test": "deno test backend/",
+    "db:push": "deno run --allow-net --allow-env --allow-read backend/db/push_schema.ts"
+  },
+  "imports": {
+    "@/": "./backend/",
+    "postgres": "jsr:@npr/postgres@0.19.3",
+    "std/": "jsr:@std/"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "semiColons": true
+  }
+}

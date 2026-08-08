@@ -1,0 +1,10 @@
+import { loadEnv } from "./backend/lib/env.ts";
+loadEnv("./backend/.env.local");
+import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+const dsn = (Deno.env.get("NEON_DATABASE_URL") ?? "").replace(/&channel_binding=require/g, "");
+const p = new Pool(dsn, 1, true);
+const c = await p.connect();
+await c.queryObject("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+c.release();
+await p.end();
+console.log("✓ Schema dropped, ready for fresh push");
