@@ -10,29 +10,27 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# ── Edge Functions config ─────────────────────────────────
+# ── Edge Functions declaration ────────────────────────────
 # Edge functions run on Deno — same runtime as our backend.
 # Env vars (NEON_DATABASE_URL, MEMORIFY_AGENT_TOKEN_SECRET, CLERK_*) 
-# are set via Netlify dashboard or CLI — not in this file.
+# are set via Netlify CLI: netlify env:set
+
+[[edge_functions]]
+  function = "api"
+  path = "/api/*"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/mcp"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/mcp/*"
 
 # ── SPA fallback ──────────────────────────────────────────
 # Let react-router handle client-side routes (deep links, refresh).
-# But DON'T intercept /api/* or /mcp — those go to edge functions.
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/edge-functions/api/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/mcp"
-  to = "/.netlify/edge-functions/mcp"
-  status = 200
-
-[[redirects]]
-  from = "/mcp/*"
-  to = "/.netlify/edge-functions/mcp/:splat"
-  status = 200
-
+# edge_functions take priority over redirects, so /api/* and /mcp hit the
+# functions first, everything else falls through to the SPA.
 [[redirects]]
   from = "/*"
   to = "/index.html"
