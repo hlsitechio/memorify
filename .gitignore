@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+**/*.pem
+**/*.key
+**/credentials.json
+**/service-account*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -23,5 +34,17 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local Netlify folder
+# Local Netlify / DB tooling
 .netlify
+db/
+netlify/database/
+drizzle.config.ts
+
+# Source maps (local leftovers)
+*.map
+**/*.js.map
+**/*.css.map
+
+# OS / junk
+Thumbs.db
+desktop.ini

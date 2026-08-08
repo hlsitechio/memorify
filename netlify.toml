@@ -1,5 +1,5 @@
 # Netlify config for Memorify — frontend (Vite SPA) + backend (Deno Edge Functions)
-# No Supabase. No Lovable. Just Netlify + Neon.
+# Proprietary. Source maps disabled. Secrets via Netlify env only.
 
 # ── Frontend build (Vite SPA) ──────────────────────────────
 [build]
@@ -9,12 +9,19 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Ensure production-mode Vite (no sourcemaps, minified)
+  NODE_ENV = "production"
+  # Do not expose context in client unless intentionally set
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "true"
 
-# ── Edge Functions declaration ────────────────────────────
-# Edge functions run on Deno — same runtime as our backend.
-# Env vars (NEON_DATABASE_URL, MEMORIFY_AGENT_TOKEN_SECRET, CLERK_*) 
-# are set via Netlify CLI: netlify env:set
+# ── Context: production only (no branch deploys / previews) ─
+[context.deploy-preview]
+  command = "echo 'Deploy previews disabled for proprietary repo' && exit 1"
 
+[context.branch-deploy]
+  command = "echo 'Branch deploys disabled — main only' && exit 1"
+
+# ── Edge Functions ────────────────────────────────────────
 [[edge_functions]]
   function = "api"
   path = "/api/*"
@@ -27,10 +34,20 @@
   function = "mcp"
   path = "/mcp/*"
 
+# ── Block source maps on the CDN (belt + suspenders) ──────
+[[redirects]]
+  from = "/*.map"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/assets/*.map"
+  to = "/404.html"
+  status = 404
+  force = true
+
 # ── SPA fallback ──────────────────────────────────────────
-# Let react-router handle client-side routes (deep links, refresh).
-# edge_functions take priority over redirects, so /api/* and /mcp hit the
-# functions first, everything else falls through to the SPA.
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -45,15 +62,23 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Discourage scrapers / archive bots on app surfaces
+    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# Never cache the HTML shell
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# Vite fingerprints assets — cache them hard
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+# Never serve maps even if present
+[[headers]]
+  for = "/*.map"
+  [headers.values]
+    Cache-Control = "no-store"

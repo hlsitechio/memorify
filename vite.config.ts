@@ -1,9 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
+// Production builds never emit source maps — keeps original TS/TSX off the CDN.
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -12,11 +11,27 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react()],
+  build: {
+    sourcemap: false,
+    minify: "esbuild",
+    cssMinify: true,
+  },
+  esbuild: {
+    drop: mode === "production" ? ["debugger"] : [],
+    legalComments: "none",
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
+    dedupe: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "@tanstack/react-query",
+      "@tanstack/query-core",
+    ],
   },
 }));
