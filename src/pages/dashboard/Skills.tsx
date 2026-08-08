@@ -27,7 +27,7 @@ type Skill = {
   source?: any;
 };
 
-const METHORA_STUDIO_URL = "https://methora.lovable.app/studio";
+const METHORA_STUDIO_URL = "https://memorify.dev/studio";
 
 const MODELS = [
   "google/gemini-3-flash-preview",

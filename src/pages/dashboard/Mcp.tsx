@@ -56,13 +56,13 @@ const PRESETS: Preset[] = [
   {
     id: "methora",
     name: "Methora",
-    url: "https://methora.lovable.app/functions/v1/methora-mcp",
+    url: "https://memorify.dev/api/v1",
     transport: "http",
     needsToken: true,
     tokenLabel: "Methora personal access token",
     tokenHint:
-      "The skills studio. Generate a PAT at methora.lovable.app → Settings → API Keys (Pro/Team). Adds skills_create, skills_list, skills_get, skills_run, skills_publish to every connected agent.",
-    docsUrl: "https://methora.lovable.app",
+      "The skills studio. Generate a PAT at memorify.dev → Settings → API Keys (Pro/Team). Adds skills_create, skills_list, skills_get, skills_run, skills_publish to every connected agent.",
+    docsUrl: "https://memorify.dev",
     tokenPlaceholder: "lit_pat_…",
   },
   {
@@ -97,16 +97,16 @@ const PRESETS: Preset[] = [
     oauth: true,
   },
   {
-    id: "lovable",
-    name: "Lovable",
-    url: "https://mcp.lovable.dev",
+    id: "memorify",
+    name: "Memorify",
+    url: "https://memorify.dev/mcp",
     transport: "http",
     needsToken: true,
-    tokenLabel: "Lovable bearer token (JWT)",
+    tokenLabel: "Memorify agent token (mem_live_…)",
     tokenHint:
-      "Two options — either works as a Bearer token: (1) Project token — open your Lovable preview, copy __lovable_token=eyJ… from the URL (valid ~7 days, scoped to this project). (2) User token — in DevTools → Network → filter Fetch/XHR → click any request to api.lovable.dev → Request Headers → copy the value after 'Authorization: Bearer ' (valid ~1 hour, full account access). Paste either eyJ… value below.",
-    docsUrl: "https://docs.lovable.dev/integrations/lovable-mcp-server",
-    tokenPlaceholder: "eyJhbGciOi…",
+      "Generate an agent token in your Memorify dashboard → Settings → Agents. Paste the mem_live_… token here.",
+    docsUrl: "https://memorify.dev/docs",
+    tokenPlaceholder: "mem_live_eyJhbGciOi…",
   },
   {
     id: "notion",

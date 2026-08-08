@@ -1,0 +1,113 @@
+MEMORIFY PROPRIETARY LICENSE
+
+Copyright (c) 2026 Hubert Larose Surprenant / hlsitechio
+All rights reserved.
+
+Contact: hlarosesurprenant@gmail.com
+
+========================================================================
+
+1. DEFINITIONS
+
+   "Software" refers to the Memorify project, including all source code,
+   documentation, configuration files, and associated materials provided
+   in this repository.
+
+   "Licensor" refers to Hubert Larose Surprenant / hlsitechio, the
+   copyright holder and owner of the Software.
+
+   "Licensee" refers to any individual or entity that obtains a copy of
+   the Software.
+
+   "Commercial License" refers to a separate, written agreement with the
+   Licensor that grants rights beyond those provided in this License.
+
+2. GRANT OF LIMITED RIGHTS
+
+   Subject to the terms and conditions of this License, the Licensor
+   grants the Licensee a limited, non-exclusive, non-transferable,
+   revocable right to:
+
+     (a) Fork or clone the Software repository solely for personal,
+         non-commercial evaluation and review purposes;
+
+     (b) Review and modify the source code for such personal evaluation;
+
+     (c) Submit pull requests, issues, and contributions back to the
+         upstream repository maintained by the Licensor.
+
+   All contributions submitted to the upstream repository shall, upon
+   acceptance, become the property of the Licensor and may be used by the
+   Licensor without restriction or compensation.
+
+3. PROHIBITED USES
+
+   The Licensee shall NOT, under any circumstances, without prior written
+   authorization from the Licensor:
+
+     (a) Deploy, host, or operate the Software, or any derivative
+         thereof, in a production environment, or use the Software for
+         any commercial purpose, without first obtaining a Commercial
+         License;
+
+     (b) Redistribute, sublicense, publish, transmit, or otherwise make
+         the Software, or any portion thereof, available to any third
+         party in source or compiled form;
+
+     (c) Remove, alter, or obscure any copyright, trademark, or other
+         proprietary notices contained within the Software;
+
+     (d) Use the Software, in whole or in part, in connection with the
+         development or operation of a product or service that competes
+         with Memorify;
+
+     (e) Use the Software, in whole or in part, to train, fine-tune,
+         evaluate, or improve any artificial intelligence or machine
+         learning model, system, or dataset, whether for internal,
+         commercial, or research purposes.
+
+4. INTELLECTUAL PROPERTY
+
+   The Software is and remains the exclusive property of the Licensor.
+   No ownership or intellectual property rights are transferred to the
+   Licensee under this License, except for the limited rights expressly
+   granted herein. All rights not expressly granted are reserved by the
+   Licensor.
+
+5. COMMERCIAL LICENSING
+
+   To obtain a Commercial License for production use, commercial
+   deployment, or any use beyond the limited rights granted in Section 2,
+   contact the Licensor at hlarosesurprenant@gmail.com.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY
+   CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. TERMINATION
+
+   This License is effective until terminated. The Licensor may
+   terminate this License at any time, for any reason, including but
+   not limited to breach of any term herein. Upon termination, the
+   Licensee shall immediately cease all use of the Software and destroy
+   all copies in their possession or control.
+
+8. GOVERNING LAW
+
+   This License shall be governed by and construed in accordance with
+   the applicable laws of the Licensor's jurisdiction, without regard to
+   conflict of law principles.
+
+9. ENTIRE AGREEMENT
+
+   This License constitutes the entire agreement between the Licensor
+   and the Licensee with respect to the Software and supersedes all
+   prior or contemporaneous understandings regarding such subject
+   matter. Any amendment or modification of this License must be in
+   writing and signed by the Licensor.

@@ -692,7 +692,7 @@ export function BookmarksWidget({ onRemove }: RProps) {
     } catch {}
     return [
       { id: "1", label: "Docs", url: "/dashboard/docs" },
-      { id: "2", label: "Lovable", url: "https://lovable.dev" },
+      ,
     ];
   });
   const [label, setLabel] = useState("");

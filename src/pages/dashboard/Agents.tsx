@@ -1160,7 +1160,7 @@ Your memory, files, skills and event log persist across sessions in Memorify.
 
 **Memorify** is your runtime brain — persistent memory, documents, voices, vaults, skills, MCP fan-out. Every tool the user has wired (Methora, Notion, GitHub, …) reaches you through Memorify's single MCP endpoint.
 
-**Methora** (https://methora.lovable.app) is the skill-authoring studio. It plugs into Memorify as one more MCP server, exposing \`methora.skills_create / list / get / run / publish\`. When the user says "make me a skill" → call \`methora.skills_create\`. Skills authored in Methora land back inside Memorify via \`skills-receive\` and are immediately runnable.
+**Methora** (https://memorify.dev) is the skill-authoring studio. It plugs into Memorify as one more MCP server, exposing \`methora.skills_create / list / get / run / publish\`. When the user says "make me a skill" → call \`methora.skills_create\`. Skills authored in Methora land back inside Memorify via \`skills-receive\` and are immediately runnable.
 
 ## Your identity (already provisioned)
 - Agent ID:     ${agentId}
