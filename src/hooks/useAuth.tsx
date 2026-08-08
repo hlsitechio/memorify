@@ -1,40 +1,77 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, ReactNode } from "react";
+import {
+  useAuth as useClerkAuth,
+  useUser,
+  useClerk,
+} from "@clerk/react";
+
+/**
+ * Compatibility auth layer: Clerk under the hood, same useAuth() surface
+ * the dashboard already expects (user / loading / signOut).
+ * Supabase auth is no longer used here.
+ */
+type AuthUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+};
 
 type AuthCtx = {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: { access_token?: string } | null;
   loading: boolean;
   signOut: () => Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({
+  user: null,
+  session: null,
+  loading: true,
+  signOut: async () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isLoaded, isSignedIn, userId, getToken } = useClerkAuth();
+  const { user: clerkUser } = useUser();
+  const { signOut: clerkSignOut } = useClerk();
 
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession((prev) => (prev?.access_token === s?.access_token ? prev : s));
-      setLoading(false);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession((prev) => (prev?.access_token === data.session?.access_token ? prev : data.session));
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  const loading = !isLoaded;
+
+  const user: AuthUser | null =
+    isLoaded && isSignedIn && userId
+      ? {
+          id: userId,
+          email: clerkUser?.primaryEmailAddress?.emailAddress ?? null,
+          user_metadata: {
+            username:
+              clerkUser?.username ??
+              clerkUser?.fullName ??
+              clerkUser?.firstName ??
+              undefined,
+            full_name: clerkUser?.fullName ?? undefined,
+            avatar_url: clerkUser?.imageUrl ?? undefined,
+          },
+        }
+      : null;
+
+  // Lightweight session shim so older callers expecting session.access_token
+  // can still call getToken when they migrate. Not a Supabase session.
+  const session =
+    user != null
+      ? {
+          access_token: undefined as string | undefined,
+          getToken,
+        }
+      : null;
 
   return (
     <Ctx.Provider
       value={{
-        user: session?.user ?? null,
+        user,
         session,
         loading,
         signOut: async () => {
-          await supabase.auth.signOut();
+          await clerkSignOut({ redirectUrl: "/" });
         },
       }}
     >

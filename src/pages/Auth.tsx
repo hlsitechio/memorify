@@ -1,244 +1,98 @@
-import { useState, useEffect } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Show,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@clerk/react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { Zap } from "lucide-react";
 import { Seo } from "@/components/Seo";
+import { Zap } from "lucide-react";
 import authVideo from "@/assets/auth-bg.mp4.asset.json";
 
-const GoogleIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24">
-    <path
-      fill="#EA4335"
-      d="M12 11v3.2h4.5c-.2 1.2-1.5 3.5-4.5 3.5-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.5 0 2.6.7 3.2 1.2l2.2-2.1C16 5.5 14.2 4.7 12 4.7 7.9 4.7 4.7 8 4.7 12s3.2 7.3 7.3 7.3c4.2 0 7-3 7-7.2 0-.5 0-.8-.1-1.1H12z"
-    />
-  </svg>
-);
-
+/**
+ * Auth page — Clerk Account Portal / modal buttons.
+ * Replaces Supabase email+password / Google OAuth UI.
+ */
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, loading } = useAuth();
   const wsHandle = searchParams.get("ws");
-  const wsCode = searchParams.get("code");
-  const [mode, setMode] = useState<"signin" | "signup">(wsHandle ? "signin" : "signin");
-  const [email, setEmail] = useState(searchParams.get("email") ?? "");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate("/dashboard", { replace: true });
-  }, [user, loading, navigate]);
-
-  const handleEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      if (mode === "signup") {
-        const cleaned = username
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9_]+/g, "_");
-        if (cleaned.length < 3 || cleaned.length > 24) {
-          throw new Error("Username must be 3-24 characters (letters, digits, underscore)");
-        }
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: { username: cleaned },
-          },
-        });
-        if (error) throw error;
-        toast.success("Check your email to verify your account.");
+    if (!loading && user) {
+      if (wsHandle) {
+        navigate(`/ws/${wsHandle}${window.location.search}`, { replace: true });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
-    } catch (err: any) {
-      toast.error(err.message ?? "Auth failed");
-    } finally {
-      setBusy(false);
     }
-  };
-
-  const handleGoogle = async () => {
-    // Supabase-native OAuth (no Lovable `/~oauth` broker — that only exists on
-    // Lovable hosting). Redirects to Google via the Supabase auth endpoint and
-    // back to /dashboard; supabase-js detects the session from the callback URL.
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
-    if (error) toast.error("Google sign-in failed");
-  };
-
-  const handleReset = async () => {
-    if (!email) return toast.error("Enter your email first");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("Password reset email sent.");
-  };
+  }, [user, loading, navigate, wsHandle]);
 
   return (
-    <main className="min-h-screen grid lg:grid-cols-2 bg-background text-foreground">
-      <Seo
-        title="Sign in or create your Memorify account"
-        description="Sign in to your Memorify workspace or create a new account to connect AI agents to your memory, tools, and files."
-        path="/auth"
-      />
-      <section className="hidden lg:flex flex-col justify-between p-12 bg-card border-r border-border relative overflow-hidden">
-        <video
-          src={authVideo.url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          aria-hidden
-          className="absolute inset-0 w-full h-full object-cover opacity-50 pointer-events-none"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-background/60 to-background/90 pointer-events-none" />
-        <div className="absolute inset-0 bg-mesh opacity-30 pointer-events-none" />
-        <Link to="/" className="flex items-center gap-2 relative">
-          <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
-            <Zap className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-semibold tracking-tight">Memorify</span>
-        </Link>
-        <div className="relative space-y-3 max-w-md">
-          <h2 className="text-3xl font-semibold tracking-tight">The memory layer for AI agents</h2>
-          <p className="text-muted-foreground">
-            Sign in to manage memories, connectors, real-time events, and observability — all in one place.
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground relative">© Memorify</p>
-      </section>
+    <>
+      <Seo title="Sign in — Memorify" description="Sign in to Memorify" />
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
+        {authVideo?.url ? (
+          <video
+            className="absolute inset-0 h-full w-full object-cover opacity-40"
+            autoPlay
+            muted
+            loop
+            playsInline
+            src={authVideo.url}
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
 
-      <section className="flex items-center justify-center p-6 glass-animated">
-        <div className="w-full max-w-sm space-y-6 bg-background rounded-2xl p-8 border border-border">
-          <div className="lg:hidden flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
+        <div className="relative z-10 w-full max-w-md mx-4 rounded-2xl border border-border/60 bg-card/90 p-8 shadow-xl">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center">
+              <Zap className="h-5 w-5 text-primary" />
             </div>
-            <span className="font-semibold tracking-tight">Memorify</span>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight">Memorify</h1>
+              <p className="text-sm text-muted-foreground">Agent motherboard</p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {mode === "signin" ? "Welcome back" : "Create your account"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {mode === "signin" ? "Sign in to your Memorify workspace" : "Start building with the agent memory layer"}
+          <Show when="signed-out">
+            <p className="text-sm text-muted-foreground mb-6">
+              Sign in or create an account to open your workspace.
+              {wsHandle ? (
+                <span className="block mt-1 text-foreground">
+                  Invite workspace: <code className="text-xs">{wsHandle}</code>
+                </span>
+              ) : null}
             </p>
-            {wsHandle && (
-              <div className="mt-3 rounded-md border border-border bg-card/50 px-3 py-2 text-xs">
-                <div className="text-muted-foreground">Opening workspace</div>
-                <div className="font-mono text-foreground">memorify.dev/ws/{wsHandle}</div>
-                {wsCode && <div className="font-mono text-muted-foreground mt-0.5">{wsCode}</div>}
-              </div>
-            )}
-          </div>
-
-          <Button variant="outline" className="w-full gap-2" onClick={handleGoogle}>
-            <GoogleIcon />
-            Continue with Google
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-background px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-
-          <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Sign up</TabsTrigger>
-            </TabsList>
-            <TabsContent value={mode} className="mt-4">
-              <form onSubmit={handleEmail} className="space-y-3">
-                {mode === "signup" && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="username">Workspace handle</Label>
-                    <div className="flex items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
-                      <span className="px-2.5 text-xs text-muted-foreground font-mono select-none">
-                        memorify.dev/ws/
-                      </span>
-                      <Input
-                        id="username"
-                        required
-                        minLength={3}
-                        maxLength={24}
-                        pattern="[a-zA-Z0-9_]{3,24}"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                        placeholder="jane"
-                        className="border-0 focus-visible:ring-0 px-0"
-                      />
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      3-24 chars · letters, digits, underscore. This becomes your shareable workspace URL.
-                    </p>
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    {mode === "signin" && (
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Forgot?
-                      </button>
-                    )}
-                  </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+            <div className="flex flex-col gap-3">
+              <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+                <Button className="w-full" size="lg">
+                  Sign in
                 </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              </SignInButton>
+              <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                <Button className="w-full" size="lg" variant="outline">
+                  Create account
+                </Button>
+              </SignUpButton>
+            </div>
+          </Show>
 
-          <p className="text-xs text-muted-foreground text-center">
-            By continuing you agree to our terms of service and privacy policy.
-          </p>
+          <Show when="signed-in">
+            <div className="flex flex-col items-center gap-4 py-4">
+              <p className="text-sm text-muted-foreground">You are signed in</p>
+              <UserButton afterSignOutUrl="/" />
+              <Button onClick={() => navigate("/dashboard")} className="w-full">
+                Go to dashboard
+              </Button>
+            </div>
+          </Show>
         </div>
-      </section>
-    </main>
+      </div>
+    </>
   );
 }
