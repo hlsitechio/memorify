@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getMcpUrl } from "@/lib/mcp-url";
 
 type Agent = {
   id: string;
@@ -1029,8 +1030,8 @@ function WorkspaceStats({ agentId, workspaceName, onRenameWorkspace }: {
 
 function ConnectWizard({ agent, onClose }: { agent: Agent | null; onClose: () => void }) {
   const open = !!agent;
-  const mcpHttpUrl = "https://mcp.memorify.dev";
-  const apiUrl = mcpHttpUrl; // public, white-labelled MCP endpoint
+  const mcpHttpUrl = getMcpUrl();
+  const apiUrl = mcpHttpUrl; // same-origin /mcp on Netlify (not Deno Deploy)
   const token = agent?.token ?? "";
 
   const curlWhoami =

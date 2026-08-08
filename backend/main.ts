@@ -1,4 +1,6 @@
-// main.ts — Memorify backend entry point (Deno Deploy)
+// main.ts — LOCAL-ONLY Deno.serve entry (offline / deno task dev).
+// Production = Netlify Edge Functions (netlify/edge-functions/{api,mcp}.ts)
+// + Neon via NEON_DATABASE_URL. Deno Deploy is NOT used.
 // Routes:
 //   GET  /          → health check
 //   POST /v1        → agent gateway {agent, action, input}

@@ -9,6 +9,7 @@ import {
   StickyNote, ListTodo, Bookmark, Plus, Trash2, Calendar, Copy, Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getMcpUrl } from "@/lib/mcp-url";
 
 type RProps = { onRemove?: () => void };
 
@@ -68,7 +69,7 @@ export function WelcomeWidget({ onRemove }: RProps) {
       .then(({ data }) => setAgent(data as any));
   }, [isAgent, ws?.agentId]);
 
-  const mcpUrl = "https://mcp.memorify.dev";
+  const mcpUrl = getMcpUrl();
   const workspaceName = (agent?.metadata as any)?.workspace_name as string | undefined;
   const wsIdForAgent = agent ? workspaceIdForAgent(agent.id) : "";
 

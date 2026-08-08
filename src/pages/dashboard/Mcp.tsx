@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getMcpUrl } from "@/lib/mcp-url";
 
 type McpServer = {
   id: string;
@@ -411,8 +412,8 @@ export default function Mcp() {
   const [testOutput, setTestOutput] = useState<string>("");
   const [testRunning, setTestRunning] = useState(false);
 
-  // Memorify-as-MCP connect card
-  const MCP_URL = "https://mcp.memorify.dev";
+  // Memorify-as-MCP connect card (same-origin /mcp on Netlify — not Deno Deploy)
+  const MCP_URL = getMcpUrl();
   const [connectOpen, setConnectOpen] = useState(false);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [keyName, setKeyName] = useState("ChatGPT");
