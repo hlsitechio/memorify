@@ -1,14 +1,14 @@
-// Persistent Copilot chat state. Lives at the DashboardLayout level so it
-// survives tab switches, and persists to localStorage so a page reload
-// doesn't lose the conversation or cancel work in progress.
+// Copilot chat state lives at the DashboardLayout level so it survives tab
+// switches. Supports SSE streaming from OpenRouter with live token display.
 
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode,
+  createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode,
 } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth as useClerkAuth, useOrganization } from "@clerk/react";
 import { toast } from "sonner";
 import { getCommand, getManifest } from "./registry";
 import { useCopilotBus } from "./bus";
+import { readCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 
 type ToolCall = { id: string; name: string; arguments: any };
 type ChipState = "running" | "ok" | "error" | "blocked";
@@ -21,46 +21,71 @@ export type Msg = {
   content: string;
   tool_call_id?: string;
   chips?: Chip[];
+  streaming?: boolean;
+};
+
+export type SessionMeta = {
+  id: string;
+  title: string;
+  reviewed?: boolean;
+  created_at?: string;
+  updated_at?: string;
 };
 
 const MAX_TURNS = 5;
-const STORAGE_KEY = "memorify.copilot.chat.v1";
+function apiErrorMessage(data: any, fallback: string): string {
+  if (typeof data?.detail === "string" && data.detail) return data.detail;
+  if (typeof data?.error === "string" && data.error) return data.error;
+  return fallback;
+}
 
-type Persisted = { messages: Msg[]; pending: boolean };
-
-function loadPersisted(): Persisted {
+function fallbackToolSummary(msgs: Msg[], error: string): Msg | null {
+  const toolMessages = msgs.filter((m) => m.role === "tool");
+  if (!toolMessages.length) return null;
+  const last = toolMessages[toolMessages.length - 1];
+  let parsed: any = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { messages: [], pending: false };
-    const p = JSON.parse(raw);
-    return { messages: Array.isArray(p.messages) ? p.messages : [], pending: !!p.pending };
+    parsed = JSON.parse(last.content);
   } catch {
-    return { messages: [], pending: false };
+    parsed = last.content;
   }
+  return {
+    role: "assistant",
+    content: `I ran the tool, but OpenRouter failed while summarizing the result: ${error}\n\nRaw result:\n\`\`\`json\n${JSON.stringify(parsed, null, 2).slice(0, 6000)}\n\`\`\``,
+  };
 }
 
 type Ctx = {
   messages: Msg[];
   loading: boolean;
+  streamingText: string;
+  isStreaming: boolean;
   send: (text: string) => void;
   confirmChip: (msgIdx: number, chipId: string, accept: boolean) => void;
   clear: () => void;
+  sessions: SessionMeta[];
+  sessionsLoading: boolean;
+  loadSession: (id: string) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
+  refreshSessions: () => Promise<void>;
+  currentSessionId: string | null;
+  uploadFile: (file: File) => Promise<{ ok: boolean; docId?: string; name?: string; error?: string; rag?: any }>;
 };
 
 const ChatCtx = createContext<Ctx | null>(null);
 
 export function CopilotChatProvider({ children }: { children: ReactNode }) {
   const { runCommand } = useCopilotBus();
-  const [messages, setMessages] = useState<Msg[]>(() => loadPersisted().messages);
+  const { getToken, orgId } = useClerkAuth();
+  const { organization } = useOrganization();
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
-  const resumedRef = useRef(false);
-
-  // Persist messages + a "pending" flag (true while a runLoop is in flight).
-  const persist = useCallback((msgs: Msg[], pending: boolean) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages: msgs, pending }));
-    } catch {}
-  }, []);
+  const [streamingText, setStreamingText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const sessionIdRef = useRef<string | null>(null);
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const buildApiMessages = (msgs: Msg[]) =>
     msgs.map((m) => {
@@ -80,25 +105,315 @@ export function CopilotChatProvider({ children }: { children: ReactNode }) {
       return { role: m.role, content: m.content };
     });
 
+  // ── Auto-save session to DB ──────────────────────────────────────
+  const persistSession = useCallback(async (msgs: Msg[]) => {
+    if (msgs.length < 2) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const ws = readCurrentWorkspace();
+      const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
+      const res = await fetch("/api/copilot/action", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+        },
+        body: JSON.stringify({
+          name: "copilot.session.save",
+          args: {
+            id: sessionIdRef.current,
+            messages: msgs,
+            tool_calls: msgs.flatMap((m) => m.chips ?? []).map((c) => ({ name: c.name, args: c.args })),
+            title: msgs.find((m) => m.role === "user")?.content?.slice(0, 80) || "Untitled",
+          },
+          workspace_id: workspaceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok && data?.data?.id) {
+        sessionIdRef.current = data.data.id;
+        setCurrentSessionId(data.data.id);
+      }
+    } catch {
+      // Silent
+    }
+  }, [getToken, orgId, organization?.id]);
+
+  // ── Self-improvement review ──────────────────────────────────────
+  const runSelfReview = useCallback(async (sessionId: string) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const ws = readCurrentWorkspace();
+      const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
+      const res = await fetch("/api/copilot/action", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+        },
+        body: JSON.stringify({
+          name: "copilot.session.review",
+          args: { id: sessionId },
+          workspace_id: workspaceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok && data?.data?.memory_id) {
+        toast.success("💾 Self-improvement review: saved conversation as memory.", { duration: 4000 });
+      }
+    } catch {
+      // Silent
+    }
+  }, [getToken, orgId, organization?.id]);
+
+  // ── Session list / load / delete ──────────────────────────────────
+  const refreshSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const ws = readCurrentWorkspace();
+      const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
+      const res = await fetch("/api/copilot/action", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+        },
+        body: JSON.stringify({
+          name: "copilot.session.list",
+          args: { limit: 50 },
+          workspace_id: workspaceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok && Array.isArray(data.data)) {
+        setSessions(data.data as SessionMeta[]);
+      }
+    } catch {
+      // Silent
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [getToken, orgId, organization?.id]);
+
+  const loadSession = useCallback(async (id: string) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const ws = readCurrentWorkspace();
+      const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
+      const res = await fetch("/api/copilot/action", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+        },
+        body: JSON.stringify({
+          name: "copilot.session.load",
+          args: { id },
+          workspace_id: workspaceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok && data?.data) {
+        const session = data.data;
+        const loadedMsgs: Msg[] = Array.isArray(session.messages) ? session.messages : [];
+        setMessages(loadedMsgs);
+        sessionIdRef.current = session.id;
+        setCurrentSessionId(session.id);
+        setStreamingText("");
+      }
+    } catch {
+      // Silent
+    }
+  }, [getToken, orgId, organization?.id]);
+
+  const deleteSession = useCallback(async (id: string) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const ws = readCurrentWorkspace();
+      const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
+      const res = await fetch("/api/copilot/action", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+        },
+        body: JSON.stringify({
+          name: "copilot.session.delete",
+          args: { id },
+          workspace_id: workspaceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok) {
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+        if (currentSessionId === id) {
+          setMessages([]);
+          sessionIdRef.current = null;
+          setCurrentSessionId(null);
+        }
+      }
+    } catch {
+      // Silent
+    }
+  }, [getToken, orgId, organization?.id, currentSessionId]);
+
+  // ── File upload (multipart/form-data → /api/copilot/upload) ──────
+  const uploadFile = useCallback(async (file: File): Promise<{ ok: boolean; docId?: string; name?: string; error?: string; rag?: any }> => {
+    try {
+      const token = await getToken();
+      if (!token) return { ok: false, error: "No Clerk session token" };
+      const ws = readCurrentWorkspace();
+      const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/copilot/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+        },
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) {
+        return { ok: false, error: data?.detail || data?.error || `HTTP ${res.status}` };
+      }
+
+      return {
+        ok: true,
+        docId: data?.data?.id,
+        name: data?.data?.name,
+        rag: data?.data?.rag,
+      };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? "Upload failed" };
+    }
+  }, [getToken, orgId, organization?.id]);
+
+  // ── SSE Stream reader ────────────────────────────────────────────
+  const streamChat = useCallback(async (
+    apiMessages: any[],
+    tools: any[],
+    workspaceId: string | undefined,
+    token: string,
+  ): Promise<{ content: string; tool_calls: ToolCall[] }> => {
+    const res = await fetch("/api/copilot/chat", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
+      },
+      body: JSON.stringify({ messages: apiMessages, tools }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(apiErrorMessage(errData, `Copilot HTTP ${res.status}: ${errData?.detail || errData?.error || ""}`));
+    }
+
+    // Check if we got SSE or JSON fallback
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/event-stream")) {
+      // Non-streaming fallback (error or edge function didn't stream)
+      const data = await res.json().catch(() => ({}));
+      if (data?.error) throw new Error(apiErrorMessage(data, "Copilot failed"));
+      return {
+        content: data.content || "",
+        tool_calls: data.tool_calls || [],
+      };
+    }
+
+    // Read SSE stream
+    setIsStreaming(true);
+    setStreamingText("");
+    let fullContent = "";
+    let collectedCalls: ToolCall[] = [];
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const jsonStr = trimmed.slice(6);
+          if (jsonStr === "[DONE]") continue;
+
+          try {
+            const evt = JSON.parse(jsonStr);
+            if (evt.type === "content" && evt.text) {
+              fullContent += evt.text;
+              setStreamingText(fullContent);
+            } else if (evt.type === "done") {
+              fullContent = evt.content || fullContent;
+              collectedCalls = evt.tool_calls || [];
+              setStreamingText(fullContent);
+            } else if (evt.type === "error") {
+              throw new Error(evt.error || "Stream error");
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message !== "Stream error") {
+              // skip malformed json
+            } else {
+              throw parseErr;
+            }
+          }
+        }
+      }
+    } finally {
+      setIsStreaming(false);
+    }
+
+    return { content: fullContent, tool_calls: collectedCalls };
+  }, []);
+
   const runLoop = useCallback(async (initial: Msg[]) => {
     let working = initial;
     setLoading(true);
-    persist(working, true);
     try {
       for (let turn = 0; turn < MAX_TURNS; turn++) {
-        const { data, error } = await supabase.functions.invoke("agent-chat", {
-          body: { messages: buildApiMessages(working), tools: getManifest() },
-        });
-        if (error) throw error;
-        if ((data as any)?.error) throw new Error((data as any).error);
+        const token = await getToken();
+        if (!token) throw new Error("No Clerk session token");
+        const ws = readCurrentWorkspace();
+        const workspaceId = organization?.id || orgId || (ws?.kind === "agent" ? ws.id : ws?.id);
 
-        const calls: ToolCall[] = (data as any).tool_calls ?? [];
-        const content: string = (data as any).content ?? "";
+        const { content, tool_calls: calls } = await streamChat(
+          buildApiMessages(working),
+          getManifest(),
+          workspaceId,
+          token,
+        );
 
         if (!calls.length) {
           working = [...working, { role: "assistant", content: content || "Done." }];
           setMessages(working);
-          persist(working, false);
+          setStreamingText("");
+          await persistSession(working);
+          if (sessionIdRef.current) await runSelfReview(sessionIdRef.current);
           return;
         }
 
@@ -112,7 +427,7 @@ export function CopilotChatProvider({ children }: { children: ReactNode }) {
         const assistantMsg: Msg = { role: "assistant", content, chips };
         working = [...working, assistantMsg];
         setMessages(working);
-        persist(working, true);
+        setStreamingText("");
 
         const toRun = calls.filter((c) => !getCommand(c.name)?.destructive);
         const blocked = calls.filter((c) => getCommand(c.name)?.destructive);
@@ -139,42 +454,31 @@ export function CopilotChatProvider({ children }: { children: ReactNode }) {
           });
           working = [...working, ...toolMsgs];
           setMessages(working);
-          persist(working, true);
         }
 
         if (blocked.length) {
-          persist(working, false);
+          await persistSession(working);
           return;
         }
       }
-      persist(working, false);
+      await persistSession(working);
+      if (sessionIdRef.current) await runSelfReview(sessionIdRef.current);
     } catch (e: any) {
-      toast.error(e?.message ?? "Copilot failed");
-      const next = [...working, { role: "assistant", content: "Sorry — I hit an error. Try again." } as Msg];
+      const message = e?.message ?? "Copilot failed";
+      toast.error(message);
+      const fallback = fallbackToolSummary(working, message);
+      const next = [
+        ...working,
+        fallback ?? ({ role: "assistant", content: `Sorry, I hit an error: ${message}` } as Msg),
+      ];
       setMessages(next);
-      persist(next, false);
+      setStreamingText("");
+      await persistSession(next);
     } finally {
       setLoading(false);
+      setIsStreaming(false);
     }
-  }, [runCommand, persist]);
-
-  // Resume any work that was in flight when the page reloaded.
-  useEffect(() => {
-    if (resumedRef.current) return;
-    resumedRef.current = true;
-    const { messages: persisted, pending } = loadPersisted();
-    if (!pending || !persisted.length) return;
-    const last = persisted[persisted.length - 1];
-    // Resume only if last message is a user prompt or tool result waiting
-    // for the model to act. Don't resume if we're sitting on a blocked chip.
-    const hasBlocked = persisted.some(
-      (m) => m.role === "assistant" && m.chips?.some((c) => c.state === "blocked")
-    );
-    if (hasBlocked) return;
-    if (last.role === "user" || last.role === "tool") {
-      runLoop(persisted);
-    }
-  }, [runLoop]);
+  }, [runCommand, getToken, orgId, organization?.id, persistSession, runSelfReview, streamChat]);
 
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -205,7 +509,6 @@ export function CopilotChatProvider({ children }: { children: ReactNode }) {
       chips: msg.chips!.map((c) => (c.id === chipId ? { ...c, state: "running" } : c)),
     };
     setMessages(next);
-    persist(next, true);
     const out = await runCommand(chip.name, chip.args);
     next = [...next];
     next[msgIdx] = {
@@ -220,16 +523,18 @@ export function CopilotChatProvider({ children }: { children: ReactNode }) {
     });
     setMessages(next);
     runLoop(next);
-  }, [messages, runCommand, runLoop, persist]);
+  }, [messages, runCommand, runLoop]);
 
   const clear = useCallback(() => {
     setMessages([]);
-    persist([], false);
-  }, [persist]);
+    setStreamingText("");
+    sessionIdRef.current = null;
+    setCurrentSessionId(null);
+  }, []);
 
   const value = useMemo(
-    () => ({ messages, loading, send, confirmChip, clear }),
-    [messages, loading, send, confirmChip, clear]
+    () => ({ messages, loading, streamingText, isStreaming, send, confirmChip, clear, sessions, sessionsLoading, loadSession, deleteSession, refreshSessions, currentSessionId, uploadFile }),
+    [messages, loading, streamingText, isStreaming, send, confirmChip, clear, sessions, sessionsLoading, loadSession, deleteSession, refreshSessions, currentSessionId, uploadFile]
   );
 
   return <ChatCtx.Provider value={value}>{children}</ChatCtx.Provider>;

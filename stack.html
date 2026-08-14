@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Memorify — Full Stack (2026-08-08)</title>
+<style>
+  :root{
+    --bg:#0b0d12;--fg:#e7ecf3;--muted:#8a93a6;--line:#1c2230;
+    --a:#7aa2ff;--b:#9d7aff;--c:#7affc6;--d:#ffb86b;--e:#ff7a93;
+    --warn:#ffd166;--ok:#7affc6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 ui-sans-serif,system-ui,Segoe UI,Inter,Roboto;
+       background-image:radial-gradient(1200px 600px at 10% -10%,rgba(122,162,255,.12),transparent 60%),
+                        radial-gradient(1000px 600px at 100% 0%,rgba(157,122,255,.10),transparent 55%);
+       min-height:100vh}
+  header{padding:32px 28px 8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  h1{margin:0;font-size:22px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);
+        border-radius:999px;font-size:11px;color:var(--muted);background:#0f1320}
+  .pill.ok{color:var(--ok);border-color:rgba(122,255,198,.25)}
+  .pill.warn{color:var(--warn);border-color:rgba(255,209,102,.25)}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;padding:18px 28px 36px}
+  .card{border:1px solid var(--line);background:#0f1320;border-radius:12px;padding:14px 16px;position:relative}
+  .card::before{content:"";position:absolute;left:0;top:0;height:3px;width:36px;border-radius:0 4px 4px 0;background:var(--a)}
+  .card-h{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
+  .card-l{margin:0;padding-left:18px;color:#cfd6e3;font-size:13px}
+  .card-l li{margin:4px 0}
+  .col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-5{grid-column:span 5}
+  .col-6{grid-column:span 6}.col-7{grid-column:span 7}.col-8{grid-column:span 8}
+  .col-9{grid-column:span 9}.col-12{grid-column:span 12}
+  @media (max-width:1000px){.col-3,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9{grid-column:span 12}}
+  .b-a{border-top-color:var(--a)}.b-b{border-top-color:var(--b)}.b-c{border-top-color:var(--c)}
+  .b-d{border-top-color:var(--d)}.b-e{border-top-color:var(--e)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#bcd0ff}
+  .legend{display:flex;gap:8px;flex-wrap:wrap}
+  footer{padding:8px 28px 32px;color:var(--muted);font-size:12px}
+  .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .flow .step{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#0f1320;font-size:12px}
+  .flow .step h4{margin:0 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  .arrow{text-align:center;color:var(--muted);font-size:18px;line-height:1;margin:6px 0}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Memorify — Full Stack</h1>
+    <div class="sub">2026-08-08 · production · https://memorify.dev</div>
+  </div>
+  <div class="legend">
+    <span class="pill ok">▲ apex CN=memorify.dev · Let's Encrypt</span>
+    <span class="pill ok">pk_live_ active</span>
+    <span class="pill warn">Memorify_Hermes · prod verified</span>
+    <span class="pill ok">SECURITY FIRST</span>
+  </div>
+</header>
+
+<div class="grid">
+
+    <div class="card col-4 b-a">
+      <div class="card-h">User</div>
+      <ul class="card-l"><li>Browser (Chromium)</li><li>Playwright headed admin</li><li>Clerk Account Portal</li></ul>
+    </div>
+    <div class="card col-4 b-a">
+      <div class="card-h">Edge / CDN</div>
+      <ul class="card-l"><li>Netlify Edge (Deno)</li><li>force_ssl · HSTS · CSP</li><li>NO Deno Deploy</li></ul>
+    </div>
+    <div class="card col-4 b-b">
+      <div class="card-h">Auth</div>
+      <ul class="card-l"><li>Clerk Memorify_Hermes (prod)</li><li>pk_live + sk_live (env only)</li><li>JWT RS256 verified (Web Crypto)</li></ul>
+    </div>
+    <div class="card col-4 b-b">
+      <div class="card-h">Frontend</div>
+      <ul class="card-l"><li>Vite + React SPA</li><li>manualChunks · 500 kB cap</li><li>NPM_CONFIG_PRODUCTION=false</li></ul>
+    </div>
+    <div class="card col-4 b-c">
+      <div class="card-h">API surface (live)</div>
+      <ul class="card-l"><li>GET /api/health — status + endpoint list</li><li>POST /api/bootstrap — Clerk → Neon identity mirror</li><li>GET/PATCH /api/agents — list/update access_level (Roles)</li><li>POST /api/v1 — agent gateway · live access_level enforcement</li><li>/mcp — same-origin MCP server</li></ul>
+    </div>
+    <div class="card col-4 b-c">
+      <div class="card-h">Gateway enforcement (live)</div>
+      <ul class="card-l"><li>verify JWT (RS256, issuer = clerk.memorify.dev)</li><li>load agent row → access_level</li><li>classify(agent.action) → read | write | admin</li><li>allow? proceed : 403 with agent_id, workspace_id, access_level, action</li><li>Unknown actions default to admin (fail closed)</li></ul>
+    </div>
+    <div class="card col-4 b-d">
+      <div class="card-h">DB — Neon Postgres</div>
+      <ul class="card-l"><li>project memorify · AWS us-east-2 · PG 18</li><li>workspace_id = Clerk org_id on every row</li><li>Schema pushed via deno task db:push</li><li>Free plan · compute idle → wakes on demand</li></ul>
+    </div>
+    <div class="card col-4 b-d">
+      <div class="card-h">Tables (19)</div>
+      <ul class="card-l"><li>Identity: app_users · workspaces · workspace_members · identity_events</li><li>Agents: agents (token_hash, access_level) · agent_calls</li><li>Content: memories · memory_versions · documents · images · voices</li><li>Tooling: skills · plugins · connectors · mcp_servers · mcp_tools</li><li>Secrets/auth: api_keys · vault_secrets · events</li></ul>
+    </div>
+    <div class="card col-12 b-e">
+      <div class="card-h">Data flow — single request, top to bottom</div>
+      <div class="flow">
+        <div class="step"><h4>1. Browser</h4>User signs in via Clerk → session JWT</div>
+        <div class="step"><h4>2. SPA</h4>Vite bundle loads /assets/index-*.js · ProtectedRoute calls useNeonBootstrap</div>
+        <div class="step"><h4>3. Edge</h4>POST /api/bootstrap with Clerk JWT → RS256 verify</div>
+        <div class="step"><h4>4. Neon</h4>UPSERT app_users, workspaces, workspace_members, audit identity_events</div>
+        <div class="step"><h4>5. Mirror</h4>Neon rows back to UI as “Mirrored in Neon”</div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="flow">
+        <div class="step"><h4>1. Agent</h4>POST /api/v1 with mem_live_… token</div>
+        <div class="step"><h4>2. Verify</h4>JWT + DB row → current access_level</div>
+        <div class="step"><h4>3. Enforce</h4>classify action · allow/deny (fail closed)</div>
+        <div class="step"><h4>4. Run</h4>execute on Neon (scoped to workspace_id)</div>
+        <div class="step"><h4>5. Audit</h4>200 or 403 with IDs for debugging</div>
+      </div>
+    </div>
+    <div class="card col-4 b-a">
+      <div class="card-h">Stack lock (do not change)</div>
+      <ul class="card-l"><li>Canonical path: G:\memorify only</li><li>CLI deploy: netlify deploy --dir=dist --prod --no-build</li><li>MCP = same-origin /mcp (not a separate URL)</li><li>Secrets: Netlify env + backend/.env.local (never VITE_)</li></ul>
+    </div>
+    <div class="card col-4 b-e">
+      <div class="card-h">Removed / unrelated</div>
+      <ul class="card-l"><li>Memorify API · Clerk · Neon · Netlify Edge</li><li>G:\memorify_LEGACY_20260808 = archive + BACKUPS</li><li>G:\memorify-backend = leftover (delete when unlocked)</li><li>G:\memory-mcp = unrelated Claude Code memory tool</li></ul>
+    </div>
+</div>
+
+<footer>Memorify · SECURITY FIRST · Hubert · 2026-08-08</footer>
+</body>
+</html>

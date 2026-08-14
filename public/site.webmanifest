@@ -1,0 +1,27 @@
+{
+  "name": "Memorify",
+  "short_name": "Memorify",
+  "description": "One backend that any AI agent can plug into. Memory, tools, files, and connectors behind a single gateway.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity", "developer", "utilities"],
+  "screenshots": [],
+  "shortcuts": []
+}

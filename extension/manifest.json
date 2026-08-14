@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Memorify Clipper",
+  "version": "0.1.0",
+  "description": "Capture web content, NotebookLM sessions, and AI chats directly to Memorify memory.",
+  "permissions": ["activeTab", "storage", "scripting", "contextMenus", "cookies"],
+  "host_permissions": [
+    "https://memorify.dev/*",
+    "https://clerk.memorify.dev/*",
+    "https://notebook.google.com/*",
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/extractor.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

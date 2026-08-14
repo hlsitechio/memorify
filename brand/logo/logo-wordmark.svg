@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" fill="none">
+  <rect width="1200" height="360" fill="#05070B"/>
+  <!-- Mark: circuit M -->
+  <g transform="translate(80,78)">
+    <rect x="0" y="0" width="160" height="160" rx="28" fill="url(#grad)"/>
+    <path d="M40 118 L40 52 L80 100 L120 52 L120 118" stroke="#04110E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="40" cy="48" r="6" fill="#04110E"/>
+    <circle cx="120" cy="48" r="6" fill="#04110E"/>
+    <circle cx="40" cy="122" r="6" fill="#04110E"/>
+    <circle cx="120" cy="122" r="6" fill="#04110E"/>
+    <circle cx="80" cy="100" r="5" fill="#04110E"/>
+    <!-- side traces -->
+    <path d="M18 70 H8 M18 90 H8 M142 70 H152 M142 90 H152" stroke="#04110E" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <text x="280" y="175" fill="#F2FFFC" font-family="Inter, system-ui, sans-serif" font-size="92" font-weight="650" letter-spacing="-2">Memorify</text>
+  <text x="284" y="230" fill="#2EE6C8" font-family="JetBrains Mono, ui-monospace, monospace" font-size="22" letter-spacing="2">THE MOTHERBOARD FOR AI AGENTS</text>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="160" y2="160">
+      <stop stop-color="#2EE6C8"/>
+      <stop offset="1" stop-color="#5CF0D8"/>
+    </linearGradient>
+  </defs>
+</svg>

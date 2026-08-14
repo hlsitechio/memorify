@@ -22,8 +22,8 @@ const WIDGET_BY_ID = Object.fromEntries(WIDGET_CATALOG.map((w) => [w.id, w]));
 export default function DashboardHome() {
   const { user } = useAuth();
   const [ws] = useCurrentWorkspace();
-  // Workspace key — falls back to "user:<uid>" when no agent picked.
-  const wsKey = ws?.id ?? (user ? `user:${user.id}` : "user:anon");
+  // Workspace key comes from Clerk org or the in-memory agent selection.
+  const wsKey = ws?.id ?? (user ? `org:${user.id}` : "org:anon");
 
   const defaultLayout = useMemo<Layout[]>(
     () => DEFAULT_VISIBLE_IDS.map((id) => ({ i: id, ...WIDGET_BY_ID[id].default })),
@@ -132,7 +132,7 @@ export default function DashboardHome() {
           <>
             <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
               <DialogTrigger asChild>
-                <Button variant="default" size="sm" className="gap-2">
+                <Button variant="border-glow" size="sm" className="gap-2">
                   <Plus className="h-3.5 w-3.5" /> Add widget
                 </Button>
               </DialogTrigger>
@@ -164,13 +164,15 @@ export default function DashboardHome() {
                                   key={w.id}
                                   onClick={() => (installed ? removeWidget(w.id) : addWidget(w.id))}
                                   className={cn(
-                                    "group text-left rounded-lg border bg-card p-3 flex items-start gap-3 transition-colors",
-                                    installed ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-secondary/40"
+                                    "group text-left rounded-lg border bg-card p-3 flex items-start gap-3 transition-all duration-base",
+                                    installed
+                                      ? "border-primary/40 bg-primary/5 shadow-glow-subtle"
+                                      : "border-border hover:border-primary/50 hover:bg-primary/5 hover:shadow-glow-subtle"
                                   )}
                                 >
                                   <div className={cn(
-                                    "h-8 w-8 shrink-0 rounded-md flex items-center justify-center",
-                                    installed ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"
+                                    "h-8 w-8 shrink-0 rounded-md flex items-center justify-center transition-colors",
+                                    installed ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                   )}>
                                     <Icon className="h-4 w-4" />
                                   </div>
@@ -198,7 +200,7 @@ export default function DashboardHome() {
                 </div>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="sm" onClick={reset} className="gap-2">
+            <Button variant="border-subtle" size="sm" onClick={reset} className="gap-2">
               <RotateCcw className="h-3.5 w-3.5" /> Reset layout
             </Button>
           </>

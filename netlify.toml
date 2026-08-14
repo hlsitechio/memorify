@@ -23,7 +23,68 @@
 [context.branch-deploy]
   command = "echo 'Branch deploys disabled — main only' && exit 1"
 
+# ── Build Plugins ───────────────────────────────────────────
+[[plugins]]
+  package = "@netlify/plugin-csp-nonce"
+  [plugins.inputs]
+    reportOnly = false
+    unsafeEval = false
+    unsafeInline = false
+    strictDynamic = true
+    self = true
+    reportUri = "/api/csp-report"
+    excludedPath = ["/api/*", "/mcp*", "/.well-known/*"]
+
 # ── Edge Functions ────────────────────────────────────────
+# More specific routes first (bootstrap before /api/*).
+[[edge_functions]]
+  function = "bootstrap-agent"
+  path = "/api/bootstrap-agent"
+
+[[edge_functions]]
+  function = "migrate-oauth"
+  path = "/api/migrate-oauth"
+
+[[edge_functions]]
+  function = "migrate-scopes"
+  path = "/api/migrate-scopes"
+
+[[edge_functions]]
+  function = "api"
+  path = "/api/stripe/webhook"
+
+[[edge_functions]]
+  function = "migrate-neon-auth"
+  path = "/api/migrate-neon-auth"
+
+[[edge_functions]]
+  function = "agent-jwt"
+  path = "/api/agent-jwt"
+
+[[edge_functions]]
+  function = "migrate-roles"
+  path = "/api/migrate-roles"
+
+[[edge_functions]]
+  function = "migrate-fix-roles"
+  path = "/api/migrate-fix-roles"
+
+[[edge_functions]]
+  function = "migrate-embeddings"
+  path = "/api/migrate-embeddings"
+
+[[edge_functions]]
+  function = "csp-report"
+  path = "/api/csp-report"
+
+[[edge_functions]]
+  function = "agent-jwt-refresh"
+  path = "/api/agent-jwt-refresh"
+
+[[edge_functions]]
+  function = "admin"
+  path = "/api/admin/*"
+
 [[edge_functions]]
   function = "api"
   path = "/api/*"
@@ -35,6 +96,26 @@
 [[edge_functions]]
   function = "mcp"
   path = "/mcp/*"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/.well-known/oauth-protected-resource"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/.well-known/oauth-authorization-server"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/mcp/.well-known/oauth-protected-resource"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/mcp/.well-known/oauth-authorization-server"
+
+[[edge_functions]]
+  function = "csp-report"
+  path = "/api/csp-report"
 
 # ── Block source maps on the CDN (belt + suspenders) ──────
 [[redirects]]
@@ -48,6 +129,13 @@
   to = "/404.html"
   status = 404
   force = true
+
+# ── Assets pass-through (before SPA fallback) ─────────────
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+  force = false
 
 # ── SPA fallback ──────────────────────────────────────────
 [[redirects]]
@@ -84,3 +172,9 @@
   for = "/*.map"
   [headers.values]
     Cache-Control = "no-store"
+
+[[headers]]
+  for = "/site.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=0, must-revalidate"

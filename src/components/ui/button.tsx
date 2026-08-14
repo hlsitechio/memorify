@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -15,6 +15,13 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // New: border + glow variants
+        "border-glow": "border border-primary/50 bg-transparent text-primary hover:bg-primary/10 hover:border-primary shadow-glow-subtle hover:shadow-glow transition-all duration-base",
+        "border-glow-destructive": "border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10 hover:border-destructive shadow-destructive/20 hover:shadow-destructive/40 transition-all duration-base",
+        "border-glow-success": "border border-success/50 bg-transparent text-success hover:bg-success/10 hover:border-success shadow-success/20 hover:shadow-success/40 transition-all duration-base",
+        "border-glow-warning": "border border-warning/50 bg-transparent text-warning hover:bg-warning/10 hover:border-warning shadow-warning/20 hover:shadow-warning/40 transition-all duration-base",
+        // Subtle border only (no glow)
+        "border-subtle": "border border-border bg-background text-foreground hover:bg-secondary hover:border-primary/50 transition-all duration-base",
       },
       size: {
         default: "h-10 px-4 py-2",

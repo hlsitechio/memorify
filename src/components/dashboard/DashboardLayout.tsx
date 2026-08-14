@@ -24,12 +24,15 @@ import {
   ArrowLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  Share2,
+  ShieldCheck,
+  Wifi,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@//lib/utils";
 import { DashboardUIProvider, useDashboardUI } from "./DashboardUIContext";
 import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { CommandPalette } from "./CommandPalette";
-import { AIChatSidebar } from "./AIChatSidebar";
+import { CopilotSidebar } from "./CopilotSidebar";
 import { Button } from "@/components/ui/button";
 import { CopilotBusProvider } from "@/copilot/bus";
 import { useRegisterCoreCommands } from "@/copilot/useRegisterCoreCommands";
@@ -42,6 +45,10 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   {
     label: "Workspace",
     items: [{ to: "/dashboard", label: "Home", icon: Home, end: true }],
+  },
+  {
+    label: "Chat",
+    items: [{ to: "/dashboard/copilot", label: "Copilot", icon: Bot }],
   },
   {
     label: "Build",
@@ -57,6 +64,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
     label: "Knowledge",
     items: [
       { to: "/dashboard/memory", label: "Memory", icon: Database },
+      { to: "/dashboard/mind-map", label: "Mind Map", icon: Share2 },
       { to: "/dashboard/documents", label: "Documents", icon: FileText },
       { to: "/dashboard/images", label: "Images", icon: ImageIcon },
       { to: "/dashboard/voices", label: "Voices", icon: Mic },
@@ -78,7 +86,10 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
   },
   {
     label: "Project",
-    items: [{ to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound }],
+    items: [
+      { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
+      { to: "/dashboard/admin", label: "Admin", icon: Settings },
+    ],
   },
 ];
 
@@ -155,7 +166,7 @@ function DocsNav({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function MainNav({ collapsed }: { collapsed: boolean }) {
+function MainNav({ collapsed, onToggleChat }: { collapsed: boolean; onToggleChat: () => void }) {
   return (
     <nav className="flex-1 p-2 space-y-3 overflow-y-auto no-scrollbar">
       {sections.map((section) => (
@@ -165,26 +176,46 @@ function MainNav({ collapsed }: { collapsed: boolean }) {
               {section.label}
             </div>
           )}
-          {section.items.map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
-              title={collapsed ? it.label : undefined}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center rounded-md text-sm transition-colors",
-                  collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-                )
-              }
-            >
-              <it.icon className="h-4 w-4" />
-              {!collapsed && it.label}
-            </NavLink>
-          ))}
+          {section.items.map((it) => {
+            // Special handling for Copilot - open chat sidebar instead of navigating
+            if (it.to === "/dashboard/copilot") {
+              return (
+                <button
+                  key={it.to}
+                  onClick={onToggleChat}
+                  className={cn(
+                    "flex items-center rounded-md text-sm transition-colors w-full",
+                    collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
+                    "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  )}
+                  title={collapsed ? it.label : undefined}
+                >
+                  <it.icon className="h-4 w-4" />
+                  {!collapsed && it.label}
+                </button>
+              );
+            }
+            return (
+              <NavLink
+                key={it.to}
+                to={it.to}
+                end={it.end}
+                title={collapsed ? it.label : undefined}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center rounded-md text-sm transition-colors",
+                    collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+                  )
+                }
+              >
+                <it.icon className="h-4 w-4" />
+                {!collapsed && it.label}
+              </NavLink>
+            );
+          })}
         </div>
       ))}
     </nav>
@@ -201,14 +232,9 @@ function DashboardLayoutInner() {
   const wsTitle = inDocs ? "Memorify" : currentWs?.name || "Memorify";
   const wsSubtitle = inDocs
     ? "Documentation"
-    : currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Personal workspace");
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("sidebar:collapsed") === "1";
-  });
-  useEffect(() => {
-    localStorage.setItem("sidebar:collapsed", collapsed ? "1" : "0");
-  }, [collapsed]);
+    : currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Org workspace");
+  const [collapsed, setCollapsed] = useState<boolean>(false);
+  const { chatOpen } = useDashboardUI();
   useRegisterCoreCommands();
 
   // Per-workspace theme: when the user switches agent/workspace, load that
@@ -232,103 +258,116 @@ function DashboardLayoutInner() {
       <aside
         className={cn(
           "shrink-0 border-r border-border bg-card flex flex-col transition-[width] duration-300 ease-out",
-          collapsed ? "w-14" : "w-60",
+          collapsed ? "w-14" : "w-72",
         )}
       >
-        <div
-          className={cn("h-14 flex items-center border-b border-border", collapsed ? "px-1.5 justify-center" : "px-2")}
-        >
-          {inDocs ? (
-            <>
-              <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground mx-1">
-                <Zap className="h-4 w-4" />
-              </div>
-              {!collapsed && (
-                <div className="flex-1 min-w-0 ml-2">
-                  <div className="text-sm font-semibold tracking-tight truncate">{wsTitle}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{wsSubtitle}</div>
-                </div>
-              )}
-            </>
-          ) : (
-            <WorkspaceSwitcher collapsed={collapsed} />
-          )}
-        </div>
-
-        <div key={inDocs ? "docs" : "main"} className="flex-1 min-h-0 flex flex-col animate-nav-swap">
-          {inDocs ? <DocsNav collapsed={collapsed} /> : <MainNav collapsed={collapsed} />}
-        </div>
-
-        <div className="p-2 border-t border-border space-y-1">
-          {!inDocs && (
-            <NavLink
-              to="/dashboard/docs"
-              title={collapsed ? "Docs" : undefined}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center rounded-md text-sm transition-colors",
-                  collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-                )
-              }
+        {chatOpen && !collapsed ? (
+          <CopilotSidebar />
+        ) : (
+          <>
+            <div
+              className={cn("h-14 flex items-center border-b border-border", collapsed ? "px-1.5 justify-center" : "px-2")}
             >
-              <BookOpen className="h-4 w-4" />
-              {!collapsed && "Docs"}
-            </NavLink>
-          )}
-          <NavLink
-            to="/dashboard/settings"
-            title={collapsed ? "Settings" : undefined}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center rounded-md text-sm transition-colors",
-                collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
-                isActive
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-              )
-            }
-          >
-            <Settings className="h-4 w-4" />
-            {!collapsed && "Settings"}
-          </NavLink>
-          <button
-            onClick={() => setCollapsed((v) => !v)}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={cn(
-              "flex items-center rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors w-full",
-              collapsed ? "justify-center h-9" : "gap-2.5 px-2.5 py-2",
-            )}
-          >
-            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            {!collapsed && "Collapse"}
-          </button>
-          <button
-            onClick={async () => {
-              await signOut();
-              navigate("/");
-            }}
-            className={cn(
-              "w-full flex items-center rounded-md hover:bg-secondary/60 transition-colors text-left group",
-              collapsed ? "justify-center py-2" : "gap-2 px-2 py-2",
-            )}
-            title={collapsed ? `${user?.email ?? ""} — Sign out` : "Sign out"}
-          >
-            <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground shrink-0">
-              {initial}
+              {inDocs ? (
+                <>
+                  <div className="h-7 w-7 rounded-md bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground mx-1">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  {!collapsed && (
+                    <div className="flex-1 min-w-0 ml-2">
+                      <div className="text-sm font-semibold tracking-tight truncate">{wsTitle}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{wsSubtitle}</div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <WorkspaceSwitcher collapsed={collapsed} />
+              )}
             </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <div className="text-xs truncate">{user?.email}</div>
-                <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <LogOut className="h-3 w-3" /> Sign out
+
+            <div key={inDocs ? "docs" : "main"} className="flex-1 min-h-0 flex flex-col animate-nav-swap">
+              {inDocs ? <DocsNav collapsed={collapsed} /> : <MainNav collapsed={collapsed} onToggleChat={toggleChat} />}
+            </div>
+
+            <div className="p-2 border-t border-border space-y-1">
+              {!inDocs && (
+                <NavLink
+                  to="/dashboard/docs"
+                  title={collapsed ? "Docs" : undefined}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center rounded-md text-sm transition-colors",
+                      collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+                    )
+                  }
+                >
+                  <BookOpen className="h-4 w-4" />
+                  {!collapsed && "Docs"}
+                </NavLink>
+              )}
+              <NavLink
+                to="/dashboard/settings"
+                title={collapsed ? "Settings" : undefined}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center rounded-md text-sm transition-colors",
+                    collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-2.5 px-2.5 py-2",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+                  )
+                }
+              >
+                <Settings className="h-4 w-4" />
+                {!collapsed && "Settings"}
+              </NavLink>
+              <button
+                onClick={() => setCollapsed((v) => !v)}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className={cn(
+                  "flex items-center rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors w-full",
+                  collapsed ? "justify-center h-9" : "gap-2.5 px-2.5 py-2",
+                )}
+              >
+                {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                {!collapsed && "Collapse"}
+              </button>
+              <div className="flex items-center justify-between px-2 py-1 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-green-500" title="Clerk Auth: Connected" />
+                  <ShieldCheck className="h-4 w-4 text-blue-500" title="Neon Auth: Connected" />
                 </div>
+                <Wifi className="h-4 w-4 text-green-500" title="Neon Data API: Online" />
               </div>
-            )}
-          </button>
-        </div>
+              <button
+                onClick={async () => {
+                  await signOut();
+                  navigate("/");
+                }}
+                className={cn(
+                  "w-full flex items-center rounded-md hover:bg-secondary/60 transition-colors text-left group",
+                  collapsed ? "justify-center py-2" : "gap-2 px-2 py-2",
+                )}
+                title={collapsed ? `${user?.email ?? ""} — Sign out` : "Sign out"}
+              >
+                <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground shrink-0">
+                  {initial}
+                </div>
+                {!collapsed && (
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs truncate">{user?.email}</div>
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <LogOut className="h-3 w-3" /> Sign out
+                    </div>
+                  </div>
+                )}
+              </button>
+            </div>
+          </>
+        )}
       </aside>
 
       <main className="flex-1 min-w-0 flex flex-col">
@@ -338,7 +377,6 @@ function DashboardLayoutInner() {
         </div>
       </main>
 
-      <AIChatSidebar />
       <CommandPalette />
     </div>
   );

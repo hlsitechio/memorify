@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Memorify Ad — Problem / Solution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      width: 1080px; height: 1080px;
+      font-family: Inter, system-ui, sans-serif;
+      background: #05070b;
+      color: #eefaf7;
+      padding: 56px;
+      display: flex;
+      flex-direction: column;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 36px;
+    }
+    .mark {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(135deg, #2ee6c8, #5cf0d8);
+      display:grid; place-items:center;
+      font-weight: 800; color:#04110e; font-size: 18px;
+    }
+    .name { font-weight: 650; font-size: 20px; }
+    .kicker {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px; color: #fb7185; letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 48px; font-weight: 650; letter-spacing: -0.03em;
+      line-height: 1.1; margin-bottom: 28px;
+    }
+    h1 span { color: #6b8280; }
+    .grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1;
+      align-content: start;
+    }
+    .bad {
+      padding: 14px 16px; border-radius: 10px;
+      border: 1px solid #2a1f24;
+      background: rgba(40,16,20,0.35);
+      color: #9aa8a6;
+      text-decoration: line-through;
+      text-decoration-color: rgba(251,113,133,0.7);
+      font-size: 15px;
+    }
+    .good {
+      grid-column: 1 / -1;
+      margin-top: 6px;
+      padding: 22px;
+      border-radius: 14px;
+      border: 1px solid rgba(46,230,200,0.45);
+      background: linear-gradient(135deg, rgba(46,230,200,0.2), rgba(46,230,200,0.08));
+      box-shadow: 0 0 40px rgba(46,230,200,0.15);
+      text-align: center;
+      font-size: 22px;
+      font-weight: 650;
+      color: #e8fffa;
+    }
+    .good small {
+      display: block;
+      margin-top: 8px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: #8fd9cb;
+    }
+    .footer {
+      margin-top: auto;
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 28px;
+      font-family: "JetBrains Mono", monospace;
+      color: #6f8a86; font-size: 14px;
+    }
+    .footer .url { color: #2ee6c8; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="mark">M</div>
+    <div class="name">Memorify</div>
+  </div>
+  <div class="kicker">The current state</div>
+  <h1>Every agent is duct-taped to <span>ten backends.</span></h1>
+  <div class="grid">
+    <div class="bad">Postgres for state</div>
+    <div class="bad">Pinecone for vectors</div>
+    <div class="bad">S3 for files</div>
+    <div class="bad">Notion / Obsidian</div>
+    <div class="bad">Redis cache</div>
+    <div class="bad">10+ MCP servers</div>
+    <div class="bad">Per-app OAuth</div>
+    <div class="bad">Custom glue code</div>
+    <div class="good">
+      Memorify Gateway
+      <small>one endpoint · MCP · HTTP · WS · shared memory</small>
+    </div>
+  </div>
+  <div class="footer">
+    <div>Replace the duct tape.</div>
+    <div class="url">memorify.dev</div>
+  </div>
+</body>
+</html>

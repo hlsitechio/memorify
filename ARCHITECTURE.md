@@ -42,7 +42,7 @@ Neon Postgres (connection string only — not Netlify Database extension)
 
 - Deno Deploy project `hlsitechio/memorify1` (stale; archive in console.deno.com)
 - `@netlify/database` / `npx netlify db init` (breaks builds; use `NEON_DATABASE_URL`)
-- Supabase / Lovable (removed)
+- Legacy hosted backends (removed)
 
 ## Local commands
 

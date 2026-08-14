@@ -1,0 +1,380 @@
+# Memorify Copilot / MCP Command Inventory
+
+Last audited: 2026-08-09
+
+Legend:
+- [x] Ready: registered and implemented now.
+- [~] Client-ready: browser command, no server handler needed.
+- [ ] Declared, not wired: appears in the Copilot tool list but still needs a server handler.
+- [ ] Not built yet: should exist for full dashboard control, but is not registered yet.
+- [!] Security-gated: should require explicit user confirmation or should never reveal secret values.
+
+Current count:
+- Copilot commands declared in `src/copilot/actions`: 163
+- Server commands ready in `backend/routes/copilot.ts`: 148
+- Declared server commands still missing handlers: 0
+- Client-only commands ready: 15
+- Target expansion below is now registered; remaining work is hardening/media pipelines/UI migration.
+
+Security baseline:
+- Copilot actions must always run with Clerk user auth and workspace/org scoping.
+- Vault secret values should not be revealed through Copilot chat.
+- API key and agent token creation must be explicit, auditable, and return plaintext only once.
+- MCP configuration is human-dashboard only; external agent tokens should call enabled MCP tools, not rewrite MCP config.
+- Destructive commands must be marked destructive and confirmed in the app flow.
+- OpenRouter Copilot should keep ZDR enabled by default.
+
+---
+
+## Ready Now: Server-Side Copilot Commands
+
+### MCP
+- [x] `mcp.servers.list` - List MCP servers.
+- [x] `mcp.servers.get` - Get one MCP server and cached tools.
+- [x] `mcp.servers.add` - Add HTTPS MCP server.
+- [x] `mcp.servers.update` - Patch MCP server config.
+- [x] `mcp.servers.rename` - Rename MCP server.
+- [x] `mcp.servers.toggle` - Enable or disable MCP server.
+- [x] `mcp.servers.delete` - Delete MCP server and tools.
+- [x] `mcp.tools.list` - List cached MCP tools.
+- [x] `mcp.tools.toggle` - Enable or disable tool.
+- [x] `mcp.sync` - Refresh tool catalog from server.
+- [x] `mcp.call` - Call an enabled tool on an enabled server.
+- [x] `mcp.oauth.start` - Handler returns secure not-configured response until provider OAuth metadata exists.
+
+### Memory
+- [x] `memory.add` - Add memory.
+- [x] `memory.list` - List/search memories.
+- [x] `memory.delete` - Delete memory.
+- [x] `memory.get` - Get one memory.
+- [x] `memory.update` - Modify memory and save old content version.
+- [x] `memory.archive` - Archive memory.
+- [x] `memory.restore` - Restore archived memory.
+- [x] `memory.versions.list` - List memory versions.
+- [x] `memory.session.create` - Create memory session marker.
+- [x] `memory.session.list` - List sessions.
+- [x] `memory.session.add` - Add memory to session.
+- [x] `memory.session.delete` - Delete session marker or cascade.
+- [x] `memory.session.rename` - Rename a session marker.
+- [x] `memory.session.update` - Update session title/description.
+
+### Documents
+- [x] `documents.list` - List documents.
+- [x] `documents.add_note` - Create text/markdown/json note.
+- [x] `documents.add_from_url` - Fetch HTTPS URL and store content.
+- [x] `documents.delete` - Delete document.
+- [x] `documents.add_from_base64` - Store base64 document bytes.
+- [x] `documents.add_from_file` - Alias for base64 local file upload.
+- [x] `documents.signed_url` - Return stored URL/content or explicit binary-download-not-configured response.
+- [x] `documents.view` - View document content/metadata.
+- [x] `documents.search` - Search documents.
+
+---
+
+## Ready Now: Client-Side Copilot Commands
+
+### Home / Navigation / UI
+- [~] `nav.navigate` - Navigate to dashboard route.
+- [~] `nav.back` - Browser back.
+- [~] `nav.forward` - Browser forward.
+- [~] `nav.open_command_palette` - Open command palette.
+- [~] `nav.toast` - Show toast.
+- [~] `meta.list_commands` - List all registered commands.
+- [~] `meta.list_commands_here` - List route-relevant commands.
+
+### Home Widgets
+- [~] `widgets.list` - List dashboard widgets.
+- [~] `widgets.move` - Move widget.
+- [~] `widgets.resize` - Resize widget.
+- [~] `widgets.add` - Add widget.
+- [~] `widgets.remove` - Remove widget.
+- [~] `widgets.reset_layout` - Reset layout.
+
+### UI Highlight Helpers
+- [~] `plugins.flash` - Highlight plugin row.
+- [~] `mcp.flash` - Highlight MCP server row.
+
+---
+
+## Declared But Missing Server Handlers
+
+All declared Copilot commands now have a client path, a server handler, or an explicit secure not-configured response.
+
+### Agents / Workspace
+- [x] `agents.list`
+- [x] `agents.new`
+- [x] `agents.rename`
+- [x] `agents.reset_name`
+- [x] `workspace.set_name`
+- [x] `workspace.rename`
+- [x] `workspace.delete_name`
+- [x] `workspace.reset`
+
+### Plugins
+- [x] `plugins.list`
+- [x] `plugins.add`
+- [x] `plugins.update_config`
+- [x] `plugins.rename`
+- [x] `plugins.toggle`
+- [x] `plugins.reorder`
+- [x] `plugins.move_to_top`
+- [x] `plugins.delete`
+
+### Documents
+- [x] `documents.add_from_base64`
+- [x] `documents.add_from_file`
+- [x] `documents.signed_url`
+
+### MCP
+- [x] `mcp.oauth.start`
+
+---
+
+## Target Full Dashboard Command Surface
+
+This is the fuller list the Copilot should eventually expose across the whole Memorify dashboard.
+
+### Home
+- [x] `nav.navigate`
+- [x] `meta.list_commands`
+- [x] `meta.list_commands_here`
+- [x] `widgets.list`
+- [x] `widgets.move`
+- [x] `widgets.resize`
+- [x] `widgets.add`
+- [x] `widgets.remove`
+- [x] `widgets.reset_layout`
+- [x] `home.summary` - Workspace dashboard summary.
+- [x] `home.quickstart_status` - Show setup gaps.
+
+### Build
+- [x] `build.status` - Show build/runtime readiness.
+- [x] `build.checks.list` - List validation checks.
+- [x] `build.checks.run` - Run safe app checks.
+- [x] `build.deploy_status` - Read deployment state.
+
+### Agents
+- [x] `agents.list`
+- [x] `agents.new`
+- [x] `agents.rename`
+- [x] `agents.reset_name`
+- [x] `agents.disconnect`
+- [x] `agents.bootstrap`
+- [!] `agents.tokens.mint` - Must be confirmation-gated; plaintext token shown once.
+- [x] `agents.tokens.list`
+- [!] `agents.tokens.revoke`
+- [ ] `agents.access.set`
+- [ ] `agents.events.list`
+
+### Skills
+- [x] `skills.list`
+- [x] `skills.get`
+- [x] `skills.create`
+- [x] `skills.update`
+- [x] `skills.rename`
+- [x] `skills.publish`
+- [x] `skills.unpublish`
+- [x] `skills.run`
+- [x] `skills.delete`
+- [x] `skills.import_url`
+- [x] `skills.add_to_plugins`
+
+### Plugins
+- [x] `plugins.list`
+- [x] `plugins.add`
+- [x] `plugins.update_config`
+- [x] `plugins.rename`
+- [x] `plugins.toggle`
+- [x] `plugins.reorder`
+- [x] `plugins.move_to_top`
+- [x] `plugins.delete`
+- [x] `plugins.library.list`
+- [x] `plugins.library.install`
+- [x] `plugins.library.uninstall`
+- [!] `plugins.call` - Must validate method/url and avoid leaking credentials.
+- [x] `plugins.flash`
+
+### Connectors
+- [x] `connectors.list`
+- [x] `connectors.get`
+- [x] `connectors.add`
+- [x] `connectors.update_config`
+- [x] `connectors.rename`
+- [x] `connectors.toggle`
+- [x] `connectors.delete`
+- [x] `connectors.test`
+- [x] `connectors.sync`
+- [x] `connectors.oauth.start`
+- [!] `connectors.resolve_secret_refs` - Server-side only; never return secret values.
+
+### MCP
+- [x] `mcp.servers.list`
+- [x] `mcp.servers.get`
+- [x] `mcp.servers.add`
+- [x] `mcp.servers.update`
+- [x] `mcp.servers.rename`
+- [x] `mcp.servers.toggle`
+- [x] `mcp.servers.delete`
+- [x] `mcp.tools.list`
+- [x] `mcp.tools.toggle`
+- [x] `mcp.sync`
+- [x] `mcp.call`
+- [x] `mcp.oauth.start`
+- [ ] `mcp.servers.test`
+- [ ] `mcp.servers.audit`
+- [x] `mcp.flash`
+
+### Knowledge
+- [x] `knowledge.search` - Search memory, documents, transcripts, image metadata.
+- [x] `knowledge.rehydrate` - Return useful workspace context bundle.
+- [x] `knowledge.related` - Find related memories/docs/items.
+- [x] `knowledge.summary` - Summarize workspace knowledge.
+
+### Memory
+- [x] `memory.add`
+- [x] `memory.list`
+- [x] `memory.get`
+- [x] `memory.update`
+- [x] `memory.archive`
+- [x] `memory.restore`
+- [x] `memory.delete`
+- [x] `memory.search`
+- [x] `memory.versions.list`
+- [x] `memory.session.create`
+- [x] `memory.session.list`
+- [x] `memory.session.add`
+- [x] `memory.session.rename`
+- [x] `memory.session.update`
+- [x] `memory.session.delete`
+
+### Mind Map
+- [x] `mindmap.nodes.list`
+- [x] `mindmap.nodes.create`
+- [x] `mindmap.nodes.update`
+- [x] `mindmap.nodes.delete`
+- [x] `mindmap.edges.list`
+- [x] `mindmap.edges.create`
+- [x] `mindmap.edges.delete`
+- [x] `mindmap.build_from_memory`
+- [x] `mindmap.export`
+
+### Documents
+- [x] `documents.list`
+- [x] `documents.view`
+- [x] `documents.add_note`
+- [x] `documents.add_from_url`
+- [x] `documents.add_from_base64`
+- [x] `documents.add_from_file`
+- [x] `documents.signed_url`
+- [x] `documents.search`
+- [x] `documents.delete`
+
+### Images
+- [x] `images.list`
+- [x] `images.get`
+- [x] `images.add_url`
+- [x] `images.add_from_base64`
+- [x] `images.generate`
+- [x] `images.describe`
+- [x] `images.signed_url`
+- [x] `images.delete`
+
+### Voices
+- [x] `voices.list`
+- [x] `voices.get`
+- [x] `voices.add_from_base64`
+- [x] `voices.update_transcript`
+- [x] `voices.rename`
+- [x] `voices.summarize`
+- [x] `voices.signed_url`
+- [x] `voices.delete`
+
+### Data / Database
+- [x] `database.tables`
+- [x] `database.counts`
+- [x] `database.table_sample`
+- [!] `database.query_readonly` - SELECT-only, allowlisted tables, row limit.
+- [x] `collections.list`
+- [x] `collections.create`
+- [x] `collections.update`
+- [x] `collections.delete`
+- [x] `collection_items.list`
+- [x] `collection_items.add`
+- [x] `collection_items.update`
+- [x] `collection_items.delete`
+- [x] `collection_items.import`
+
+### Vault
+- [!] `vault.status` - Safe.
+- [!] `vault.list_refs` - Safe metadata only.
+- [!] `vault.set_secret` - Confirmation-gated; value never echoed.
+- [!] `vault.delete_secret`
+- [!] `vault.import_env`
+- [!] `vault.copy_ref`
+- [!] `vault.reveal` - Should remain human-only through Vault page unlock, not Copilot chat.
+
+### Observe / Events / Logs
+- [x] `events.list`
+- [x] `events.log`
+- [x] `logs.list`
+- [x] `logs.search`
+- [x] `audit.list`
+- [x] `agent_calls.list`
+- [x] `observe.summary`
+
+### Project / Workspace
+- [x] `project.get`
+- [x] `project.update`
+- [x] `workspace.info`
+- [x] `workspace.set_name`
+- [x] `workspace.rename`
+- [x] `workspace.delete_name`
+- [x] `workspace.reset`
+- [x] `settings.copilot.get`
+- [x] `settings.copilot.update`
+- [x] `settings.models.search`
+
+### API Keys
+- [x] `api_keys.list`
+- [!] `api_keys.create` - Confirmation-gated; plaintext key shown once.
+- [!] `api_keys.revoke`
+- [x] `api_keys.rotate`
+
+---
+
+## External Agent Gateway / MCP Tool Surface
+
+This is separate from the in-app Copilot. These are the kinds of tools external agents should get through `/api/v1` or `/mcp` using agent tokens.
+
+- [x] `gateway.ping`
+- [x] `gateway.manifest`
+- [x] `memory.remember`
+- [x] `memory.recall`
+- [x] `memory.list`
+- [x] `memory.update`
+- [x] `memory.delete`
+- [x] `documents.list`
+- [x] `documents.view`
+- [x] `documents.add_from_url`
+- [x] `documents.delete`
+- [x] `documents.vector_search`
+- [x] `skills.list`
+- [x] `skills.get`
+- [x] `skills.run`
+- [x] `events.log`
+- [x] `events.list`
+- [x] `agents.list`
+- [x] `agents.bootstrap`
+- [x] `agents.rename`
+- [x] `mcp.servers`
+- [x] `mcp.tools`
+- [x] `mcp.call`
+- [x] `mcp.add_server`
+- [x] `mcp.remove_server`
+- [x] `config.get`
+- [x] `config.set`
+- [x] `config.delete`
+- [x] `config.list`
+- [x] `audit.list`
+
+Security note: external agent tokens should be scoped by access level and token scopes. In-app Copilot can administer MCP/config because it uses Clerk user auth; external agents should normally be limited to calling enabled tools and reading assigned context.

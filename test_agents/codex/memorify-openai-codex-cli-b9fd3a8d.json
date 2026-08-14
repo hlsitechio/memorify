@@ -1,0 +1,48 @@
+{
+  "schema": "memorify.agent_connection.v1",
+  "created_at": "2026-08-09T20:44:59.133Z",
+  "warning": "This file contains a live Memorify agent token. Store it like a password. Delete or rotate it if shared.",
+  "agent": {
+    "id": "b9fd3a8d-9533-4174-9ee2-89044c6dbe6b",
+    "name": "OpenAI Codex CLI",
+    "kind": "openai_codex",
+    "label": "OpenAI Codex CLI",
+    "workspace_id": "org_3He74aex3qJDDBbpkHalbBRQ5Lb"
+  },
+  "memorify": {
+    "mcp_url": "https://memorify.dev/mcp",
+    "auth": {
+      "type": "bearer",
+      "token": "mem_live_b21ab1b3-da79-42c4-a4d3-8b6605f05dc0.eyJ3b3Jrc3BhY2VfaWQiOiJvcmdfM0hlNzRhZXgzcUpEREJicGtIYWxiQlJRNUxiIiwiYWdlbnRfaWQiOiJiOWZkM2E4ZC05NTMzLTQxNzQtOWVlMi04OTA0NGM2ZGJlNmIiLCJzY29wZXMiOlsibWVtb3J5OnJlYWQiLCJtZW1vcnk6d3JpdGUiLCJza2lsbHM6cmVhZCIsInNraWxsczp3cml0ZSIsImRvY3VtZW50czpyZWFkIiwiZG9jdW1lbnRzOndyaXRlIiwiZXZlbnRzOnJlYWQiLCJldmVudHM6d3JpdGUiLCJ3b3Jrc3BhY2U6YWRtaW4iLCJ0b2tlbnM6YWRtaW4iXSwiZXhwIjowLCJpYXQiOjE3ODYzMDgyOTgsImp0aSI6ImIyMWFiMWIzLWRhNzktNDJjNC1hNGQzLThiNjYwNWYwNWRjMCJ9.qVVT36SRoGSM2W1_WFW_ofSH_zl1BX3rOh2WCiuGF8p5FZR_kxhmCwXj1pEhFNQpJvcrG7mlAkQZInmySf3wCg",
+      "header": "Authorization: Bearer <token from memorify.auth.token>"
+    },
+    "scopes_note": "Token scopes are enforced server-side by Memorify and can be revoked from the Agents page."
+  },
+  "instructions": [
+    "Use memorify.mcp_url as the MCP server endpoint.",
+    "Build the Authorization header from memorify.auth.token and send it on every MCP request.",
+    "Run tools/list first to confirm the connection.",
+    "Run tools/call with name=whoami to confirm this agent identity."
+  ],
+  "install": {
+    "openai_codex_config_toml": "[mcp_servers.memorify]\nurl = \"https://memorify.dev/mcp\"\nheaders = { Authorization = \"Bearer mem_live_[stored-in-json-file]\" }",
+    "claude_code_command": "claude mcp add memorify https://memorify.dev/mcp \\\\\n  --transport http \\\\\n  --header \"Authorization: Bearer mem_live_[stored-in-json-file]\"",
+    "github_copilot_mcp_json": "{\n  \"mcpServers\": {\n    \"memorify\": {\n      \"url\": \"https://memorify.dev/mcp\",\n      \"headers\": {\n        \"Authorization\": \"Bearer mem_live_[stored-in-json-file]\"\n      }\n    }\n  }\n}",
+    "generic_env": "MCP_URL=https://memorify.dev/mcp\nMEMORIFY_AGENT_TOKEN=mem_live_[stored-in-json-file]\nAuthorization: Bearer mem_live_[stored-in-json-file]"
+  },
+  "test_request": {
+    "method": "POST",
+    "url": "https://memorify.dev/mcp",
+    "headers": {
+      "Content-Type": "application/json",
+      "Accept": "application/json, text/event-stream",
+      "Authorization": "Bearer <token from memorify.auth.token>"
+    },
+    "body": {
+      "jsonrpc": "2.0",
+      "id": "memorify-test",
+      "method": "tools/list",
+      "params": {}
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 **Do not use.** Historical note only.
 
-This doc described proxying `mcp.memorify.dev` → old Supabase edge functions  
+This doc described proxying `mcp.memorify.dev` → old edge functions  
 and/or Deno Deploy. That path is **retired**.
 
 ## Current MCP endpoint

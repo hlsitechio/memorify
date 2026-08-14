@@ -1,0 +1,394 @@
+// Netlify Edge Function — POST /api/bootstrap-agent
+// Creates an agent + mints a scoped token for the authenticated Clerk user
+// Self-contained — no npm imports (Edge compatible)
+// Uses Neon HTTP API directly (no @neondatabase/serverless dependency)
+// SECURITY: Clerk session JWT required (RS256 via Web Crypto). Fail closed.
+
+const VALID_SCOPES = [
+  "memory:read", "memory:write", "skills:read", "skills:write",
+  "documents:read", "documents:write", "events:read", "events:write",
+  "workspace:admin", "tokens:admin"
+];
+
+const TOKEN_PREFIX = "mem_live_";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+
+// Neon HTTP API client (edge-compatible, no external deps)
+async function neonQuery(sql: string, params: unknown[] = []): Promise<{ rows: any[] }> {
+  const dsn = Deno.env.get("NEON_DATABASE_URL");
+  if (!dsn) throw new Error("NEON_DATABASE_URL not set");
+
+  // Strip channel_binding=require
+  const cleanDsn = dsn.replace(/&channel_binding=require/g, "").replace(/\?&/, "?").replace(/&$/, "");
+
+  // Extract connection details from DSN for Neon HTTP API
+  // Format: postgresql://user:pass@host/db?params
+  const url = new URL(cleanDsn.replace("postgresql://", "https://").replace("postgres://", "https://"));
+  const projectId = url.hostname.split(".")[0];
+  const password = url.password;
+
+  // Use Neon HTTP API directly
+  const apiUrl = `https://${projectId}.neon.tech/sql`;
+  const res = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${password}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify({
+      query: sql,
+      params: params,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Neon query failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return { rows: data.results?.[0]?.rows ?? [] };
+}
+
+function base64urlEncode(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function getSigningKey(): Promise<CryptoKey | null> {
+  const b64 = Deno.env.get("NEON_JWT_PRIVATE_KEY") ?? "";
+  if (!b64) return null;
+  const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return crypto.subtle.importKey(
+    "pkcs8",
+    raw.buffer,
+    { name: "Ed25519" },
+    false,
+    ["sign"],
+  );
+}
+
+function b64urlToBytes(s: string): Uint8Array {
+  const pad = "=".repeat((4 - (s.length % 4)) % 4);
+  const b64 = (s + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function decodeJsonPart(part: string): Record<string, unknown> {
+  const text = new TextDecoder().decode(b64urlToBytes(part));
+  return JSON.parse(text) as Record<string, unknown>;
+}
+
+async function loadJwks(frontendApi: string): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${frontendApi}/.well-known/jwks.json`);
+  if (!res.ok) throw new Error(`jwks_fetch_failed:${res.status}`);
+  const body = (await res.json()) as { keys: Record<string, unknown>[] };
+  return body.keys;
+}
+
+async function verifyClerkJwt(token: string): Promise<{
+  sub: string;
+  org_id?: string;
+  org_role?: string;
+  email?: string;
+  session_id?: string;
+  iat?: number;
+  exp?: number;
+}> {
+  const frontendApi = Deno.env.get("CLERK_FRONTEND_API_URL") ?? "";
+  if (!frontendApi) throw new Error("CLERK_FRONTEND_API_URL not set");
+
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("malformed_jwt");
+
+  const [hB64, pB64, sB64] = parts;
+  const header = decodeJsonPart(hB64);
+  const payload = decodeJsonPart(pB64);
+
+  if (header.alg !== "RS256") throw new Error("unsupported_alg");
+  if (typeof payload.sub !== "string" || !payload.sub) throw new Error("missing_sub");
+
+  const exp = payload.exp;
+  if (typeof exp !== "number") throw new Error("missing_exp");
+  if (Math.floor(Date.now() / 1000) >= exp) throw new Error("token_expired");
+
+  const iss = payload.iss;
+  if (typeof iss !== "string" || iss.replace(/\/$/, "") !== frontendApi.replace(/\/$/, "")) {
+    throw new Error("bad_issuer");
+  }
+
+  const keys = await loadJwks(frontendApi);
+  const kid = header.kid as string | undefined;
+  const candidates = kid ? keys.filter((k) => k.kid === kid) : keys;
+  if (!candidates.length) throw new Error("no_matching_jwk");
+
+  const data = new TextEncoder().encode(`${hB64}.${pB64}`);
+  const sig = b64urlToBytes(sB64);
+  const sigView = new Uint8Array(sig);
+  const dataView = new Uint8Array(data);
+
+  let ok = false;
+  for (const jwk of candidates) {
+    try {
+      const key = await crypto.subtle.importKey(
+        "jwk",
+        jwk,
+        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        false,
+        ["verify"],
+      );
+      if (await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, sigView, dataView)) {
+        ok = true;
+        break;
+      }
+    } catch {}
+  }
+  if (!ok) throw new Error("bad_signature");
+
+  return {
+    sub: payload.sub as string,
+    org_id: typeof payload.o?.id === "string" ? payload.o.id : (typeof payload.org_id === "string" ? payload.org_id : undefined),
+    org_role: typeof payload.o?.rol === "string" ? payload.o.rol : (typeof payload.org_role === "string" ? payload.org_role : undefined),
+    email: typeof payload.email === "string" ? payload.email : undefined,
+    session_id: typeof payload.sid === "string" ? payload.sid : undefined,
+    iat: typeof payload.iat === "number" ? payload.iat : undefined,
+    exp,
+  };
+}
+
+function extractBearer(req: Request): string | null {
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+  return null;
+}
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+const VALID_SCOPES = [
+  "memory:read", "memory:write", "skills:read", "skills:write",
+  "documents:read", "documents:write", "events:read", "events:write",
+  "workspace:admin", "tokens:admin"
+];
+
+const TOKEN_PREFIX = "mem_live_";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+
+export default async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
+  const token = extractBearer(req);
+  if (!token) return json({ error: "missing_bearer" }, 401);
+
+  let claims: Awaited<ReturnType<typeof verifyClerkJwt>>;
+  try {
+    claims = await verifyClerkJwt(token);
+  } catch (e) {
+    return json({ error: "invalid_token", detail: String((e as Error).message) }, 401);
+  }
+
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  const userId = claims.sub;
+  const workspaceId = claims.org_id || (body.workspace_id as string) || "";
+  const agentName = (body.agent_name as string) || `agent-${userId.slice(-8)}`;
+  const accessLevel = (body.access_level as string) || "full";
+
+  if (!workspaceId) {
+    return json({ error: "workspace_id required (no active Clerk org)" }, 400);
+  }
+
+  try {
+    // Sync user + workspace
+    await neonQuery(
+      `INSERT INTO app_users (id, email, full_name, last_seen_at)
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT (id) DO UPDATE SET email = COALESCE(EXCLUDED.email, app_users.email),
+         full_name = COALESCE(EXCLUDED.full_name, app_users.full_name),
+         last_seen_at = now(), updated_at = now()`,
+      [userId, claims.email ?? null, claims.full_name ?? null],
+    );
+
+    await neonQuery(
+      `INSERT INTO workspaces (id, name, created_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()`,
+      [workspaceId, "My Workspace", userId],
+    );
+
+    await neonQuery(
+      `INSERT INTO workspace_members (workspace_id, user_id, role)
+       VALUES ($1, $2, 'org:admin')
+       ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = now()`,
+      [workspaceId, userId],
+    );
+
+    // Create agent
+    const agent_id = crypto.randomUUID();
+    const dummyTokenHash = "dev-dummy-" + crypto.randomUUID();
+    await neonQuery(
+      `INSERT INTO agents (id, workspace_id, user_id, name, kind, status, access_level, token_hash, token_alg)
+       VALUES ($1, $2, $3, $4, $5, 'connected', $6, $7, 'HS256')`,
+      [agent_id, workspaceId, userId, agentName, "custom", accessLevel, dummyTokenHash],
+    );
+
+    // Create Ed25519 JWT token directly here
+    const jti = crypto.randomUUID();
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = 0; // never expires
+
+    const payload = {
+      workspace_id: workspaceId,
+      agent_id,
+      scopes: VALID_SCOPES,
+      exp,
+      iat,
+      jti,
+    };
+
+    // Encode header and payload
+    const header = { alg: "EdDSA", typ: "JWT" };
+    const headerB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(header)));
+    const payloadB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+    const signingInput = `${headerB64}.${payloadB64}`;
+
+    // Sign
+    const signingKey = await getSigningKey();
+    if (!signingKey) {
+      return json({ error: "NEON_JWT_PRIVATE_KEY not configured" }, 500);
+    }
+
+    const sig = await crypto.subtle.sign(
+      { name: "Ed25519" },
+      signingKey,
+      new TextEncoder().encode(signingInput),
+    );
+    const sigB64 = base64urlEncode(new Uint8Array(sig));
+
+    const tokenStr = `${TOKEN_PREFIX}${jti}.${payloadB64}.${sigB64}`;
+    const tokenHash = await sha256Hex(`${jti}.${payloadB64}.${sigB64}`);
+
+    // Store in agent_tokens table
+    await neonQuery(
+      `INSERT INTO agent_tokens (workspace_id, agent_id, jti, token_hash, scopes, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [workspaceId, agent_id, jti, tokenHash, VALID_SCOPES, null],
+    );
+
+    // Audit log
+    await neonQuery(
+      `INSERT INTO audit_log (workspace_id, agent_id, action, resource, metadata)
+       VALUES ($1, $2, 'token.mint', $3, $4)`,
+      [
+        workspaceId,
+        agent_id,
+        jti,
+        JSON.stringify({ scopes: VALID_SCOPES, expires_at: null }),
+      ],
+    ).catch(() => {});
+
+    return json({
+      ok: true,
+      agent: { id: agent_id, name: agentName, kind: "custom", access_level: accessLevel },
+      workspace_id: workspaceId,
+      token: tokenStr,
+      note: "Use this token as 'Authorization: Bearer ***' for /mcp and /api/v1",
+    });
+  } catch (e) {
+    console.error("bootstrap-agent error:", e);
+    return json({ error: (e as Error).message }, 500);
+  }
+};
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+function extractBearer(req: Request): string | null {
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+  return null;
+}
+
+function base64urlEncode(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function getSigningKey(): Promise<CryptoKey | null> {
+  const b64 = Deno.env.get("NEON_JWT_PRIVATE_KEY") ?? "";
+  if (!b64) return null;
+  const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return crypto.subtle.importKey(
+    "pkcs8",
+    raw.buffer,
+    { name: "Ed25519" },
+    false,
+    ["sign"],
+  );
+}
+
+const VALID_SCOPES = [
+  "memory:read", "memory:write", "skills:read", "skills:write",
+  "documents:read", "documents:write", "events:read", "events:write",
+  "workspace:admin", "tokens:admin"
+];
+
+const TOKEN_PREFIX = "mem_live_";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+};

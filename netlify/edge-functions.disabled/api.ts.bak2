@@ -1,0 +1,49 @@
+// Netlify Edge Function — Memorify API gateway
+// SECURITY: agent tokens on /api/v1; Clerk JWT on /api/agents + /api/bootstrap (separate).
+import { json, corsHeaders, requireAuth } from "../../backend/lib/cors.ts";
+import { loadEnv } from "../../backend/lib/env.ts";
+import { handleV1 } from "../../backend/routes/v1.ts";
+import { handleAgentsAdmin } from "../../backend/routes/agents-admin.ts";
+import { handleConnectors } from "../../backend/routes/connectors.ts";
+
+loadEnv();
+
+export default async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  const url = new URL(req.url);
+  const path = url.pathname;
+
+  if (path === "/api/health" || path === "/health") {
+    return json({
+      name: "memorify",
+      version: "0.1.1",
+      status: "live",
+      endpoints: [
+        "/api/v1",
+        "/api/agents",
+        "/api/bootstrap",
+        "/mcp",
+        "/api/health",
+      ],
+    });
+  }
+
+  // Clerk session: list/update agent access_level (Settings → Roles)
+  if (path === "/api/agents" || path.startsWith("/api/agents/")) {
+    return handleAgentsAdmin(req);
+  }
+
+  // Connectors API (Clerk JWT auth via requireAuth in route)
+  if (path === "/api/v1/connectors" || path.startsWith("/api/v1/connectors/")) {
+    return handleConnectors(req);
+  }
+
+  if (path === "/api/v1" || path === "/v1" || path === "/api") {
+    return handleV1(req);
+  }
+
+  return json({ error: "not found", path }, 404);
+};

@@ -45,6 +45,14 @@ drizzle.config.ts
 **/*.js.map
 **/*.css.map
 
+# Backups & temp files
+BACKUPS/
+.hermes/
+*.bak
+*.tmp*
+.hermes-tmp*
+
 # OS / junk
 Thumbs.db
 desktop.ini
+
