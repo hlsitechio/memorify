@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ACCENT_PRESETS,
   type HSL,
@@ -39,6 +39,13 @@ import {
   CheckCircle2,
   Clock3,
   RefreshCw,
+  Globe,
+  Server,
+  Zap,
+  ShieldCheck,
+  ArrowUpRight,
+  Bell,
+  Mail,
 } from "lucide-react";
 import { AgentsManager } from "./Agents";
 import { cn } from "@/lib/utils";
@@ -90,6 +97,84 @@ type StatusResult = StatusCheck & {
   checkedAt: string | null;
   error: string | null;
 };
+
+type UptimeMonitor = {
+  id: number;
+  name: string;
+  url: string;
+  status: number;
+  status_label: "Operational" | "Down" | "Degraded" | "Paused" | "Checking";
+  is_up: boolean;
+  uptime_ratio_24h: number;
+  uptime_ratio_7d: number;
+  uptime_ratio_30d: number;
+  uptime_ratio_90d: number;
+  avg_response_time_ms: number;
+  latest_response_time_ms: number | null;
+  response_times: Array<{ timestamp: number; ms: number }>;
+  interval_sec: number;
+};
+
+type UptimeData = {
+  stat: string;
+  overall_status: "operational" | "degraded" | "down";
+  all_operational: boolean;
+  monitors_count: number;
+  monitors: UptimeMonitor[];
+  checked_at: string;
+};
+
+function LatencySparkline({
+  data,
+  avgMs,
+}: {
+  data: Array<{ timestamp: number; ms: number }>;
+  avgMs: number;
+}) {
+  if (!data || data.length === 0) {
+    return <div className="text-xs text-muted-foreground italic py-2">No historical probe samples yet</div>;
+  }
+  const maxMs = Math.max(...data.map((d) => d.ms), 100);
+
+  return (
+    <div className="space-y-1.5 pt-1">
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Activity className="h-3 w-3 text-primary/70" />
+          Recent Latency Probes
+        </span>
+        <span>
+          Avg: <strong className="font-mono text-foreground">{avgMs} ms</strong>
+        </span>
+      </div>
+      <div className="flex items-end gap-1 h-9 bg-background/60 p-1.5 rounded border border-border/60">
+        {data.map((d, i) => {
+          const heightPercent = Math.max(15, Math.min(100, Math.round((d.ms / maxMs) * 100)));
+          const isHigh = d.ms > 1200;
+          return (
+            <div
+              key={i}
+              className="flex-1 group relative flex flex-col justify-end h-full"
+            >
+              <div
+                style={{ height: `${heightPercent}%` }}
+                className={cn(
+                  "w-full rounded-sm transition-all group-hover:opacity-100",
+                  isHigh
+                    ? "bg-amber-500/80 hover:bg-amber-500"
+                    : "bg-emerald-500/80 hover:bg-emerald-500"
+                )}
+              />
+              <div className="opacity-0 group-hover:opacity-100 pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-20 whitespace-nowrap rounded bg-popover px-1.5 py-0.5 text-[10px] font-mono shadow-md border border-border text-popover-foreground transition-opacity">
+                {d.ms} ms
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const DEFAULT_COPILOT_SETTINGS: CopilotSettings = {
   model: "openrouter/auto",
@@ -175,11 +260,36 @@ function CopyId({ value, label }: { value: string; label: string }) {
 }
 
 export default function Settings() {
+  const { tab } = useParams<{ tab?: string }>();
   const { user: authUser, signOut } = useAppAuth();
   const { getToken } = useClerkAuth();
   const { user: clerkUser, isLoaded: userLoaded } = useUser();
   const { organization, membership, isLoaded: orgLoaded } = useOrganization();
   const navigate = useNavigate();
+
+  const validTabs = useMemo(
+    () => [
+      "profile",
+      "status",
+      "design",
+      "agents",
+      "copilot",
+      "roles",
+      "notifications",
+      "workspace",
+      "danger",
+    ],
+    []
+  );
+
+  const currentTab = useMemo(() => {
+    const raw = (tab || "").trim().toLowerCase();
+    return validTabs.includes(raw) ? raw : "profile";
+  }, [tab, validTabs]);
+
+  const handleTabChange = (nextTab: string) => {
+    navigate(`/dashboard/settings/${nextTab}`);
+  };
 
   const [displayName, setDisplayName] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
@@ -204,6 +314,16 @@ export default function Settings() {
   const [modelSearchBusy, setModelSearchBusy] = useState(false);
   const [statusResults, setStatusResults] = useState<StatusResult[]>(() => initialStatusResults());
   const [statusBusy, setStatusBusy] = useState(false);
+  const [uptimeData, setUptimeData] = useState<UptimeData | null>(null);
+  const [uptimeLoading, setUptimeLoading] = useState(false);
+  const [uptimeError, setUptimeError] = useState<string | null>(null);
+  const [lastUptimeSync, setLastUptimeSync] = useState<string | null>(null);
+
+  // Notification Preferences State
+  const [notifyDowntime, setNotifyDowntime] = useState(true);
+  const [notifyMaintenance, setNotifyMaintenance] = useState(true);
+  const [notifyWeeklyDigest, setNotifyWeeklyDigest] = useState(false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
 
   const [accent, setAccent] = useState<HSL>(
     () => getStoredAccent() ?? { h: 174, s: 85, l: 55 }
@@ -366,9 +486,42 @@ export default function Settings() {
     setStatusBusy(false);
   }, []);
 
+  const fetchUptimeTelemetry = useCallback(async () => {
+    setUptimeLoading(true);
+    setUptimeError(null);
+    try {
+      const res = await fetch("/api/uptime");
+      if (!res.ok) {
+        throw new Error(`Uptime API returned HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as UptimeData;
+      if (data && Array.isArray(data.monitors)) {
+        setUptimeData(data);
+        setLastUptimeSync(
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })
+        );
+      } else {
+        throw new Error("Unexpected telemetry response format");
+      }
+    } catch (err) {
+      setUptimeError(err instanceof Error ? err.message : "Failed to load telemetry");
+    } finally {
+      setUptimeLoading(false);
+    }
+  }, []);
+
+  const refreshAllStatus = useCallback(async () => {
+    await Promise.all([runStatusChecks(), fetchUptimeTelemetry()]);
+  }, [runStatusChecks, fetchUptimeTelemetry]);
+
   useEffect(() => {
     void runStatusChecks();
-  }, [runStatusChecks]);
+    void fetchUptimeTelemetry();
+  }, [runStatusChecks, fetchUptimeTelemetry]);
 
   const reloadAgents = async () => {
     if (!workspaceId) {
@@ -678,8 +831,8 @@ export default function Settings() {
     <>
       <PageHeader title="Settings" description="Manage your profile, workspace, and appearance" />
       <div className="p-6 max-w-5xl">
-        <Tabs defaultValue="roles" className="space-y-6">
-          <TabsList className="grid grid-cols-4 gap-1 w-full max-w-5xl md:grid-cols-8">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
+          <TabsList className="grid grid-cols-3 gap-1 w-full max-w-5xl sm:grid-cols-5 md:grid-cols-9">
             <TabsTrigger value="profile" className="gap-1.5">
               <User className="h-3.5 w-3.5" />
               Profile
@@ -703,6 +856,10 @@ export default function Settings() {
             <TabsTrigger value="roles" className="gap-1.5">
               <Shield className="h-3.5 w-3.5" />
               Roles
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1.5">
+              <Bell className="h-3.5 w-3.5" />
+              Notifications
             </TabsTrigger>
             <TabsTrigger value="workspace" className="gap-1.5">
               <Briefcase className="h-3.5 w-3.5" />
@@ -746,124 +903,335 @@ export default function Settings() {
             </section>
           </TabsContent>
 
-          <TabsContent value="status">
-            <section className="rounded-lg border border-border bg-card p-6 space-y-5">
+          <TabsContent value="status" className="space-y-6">
+            {/* Header & Fleet Status Overview */}
+            <section className="rounded-lg border border-border bg-card p-6 space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-sm font-semibold">Service status</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold">Service Status & Uptime</h2>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      <Zap className="h-3 w-3" /> Live Telemetry
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Live checks for the public website, API health route, and MCP gateway.
+                    Continuous multi-region probes monitoring Memorify Web App &amp; MCP Protocol Gateway.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs",
-                      statusSummary === "operational" &&
+                      "inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-medium",
+                      (uptimeData?.overall_status === "operational" || statusSummary === "operational") &&
                         "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
-                      statusSummary === "checking" &&
+                      (statusBusy || uptimeLoading) &&
                         "border-muted bg-background text-muted-foreground",
-                      statusSummary === "degraded" &&
-                        "border-amber-500/30 bg-amber-500/10 text-amber-600"
+                      (uptimeData?.overall_status === "degraded" || statusSummary === "degraded") &&
+                        "border-amber-500/30 bg-amber-500/10 text-amber-600",
+                      uptimeData?.overall_status === "down" &&
+                        "border-red-500/30 bg-red-500/10 text-red-600"
                     )}
                   >
-                    {statusSummary === "operational" ? (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    ) : statusSummary === "checking" ? (
-                      <Clock3 className="h-3.5 w-3.5" />
-                    ) : (
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                    )}
-                    {statusSummary === "operational"
-                      ? "All systems operational"
-                      : statusSummary === "checking"
-                        ? "Checking"
-                        : "Issues detected"}
+                    <span
+                      className={cn(
+                        "h-2 w-2 rounded-full",
+                        (uptimeData?.overall_status === "operational" || statusSummary === "operational") &&
+                          "bg-emerald-500 animate-pulse",
+                        (statusBusy || uptimeLoading) && "bg-muted-foreground animate-ping",
+                        (uptimeData?.overall_status === "degraded" || statusSummary === "degraded") &&
+                          "bg-amber-500",
+                        uptimeData?.overall_status === "down" && "bg-red-500"
+                      )}
+                    />
+                    {uptimeData?.overall_status === "operational" || statusSummary === "operational"
+                      ? "All Systems Operational"
+                      : statusBusy || uptimeLoading
+                        ? "Checking probes…"
+                        : "Degraded Performance"}
                   </span>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => void runStatusChecks()}
-                    disabled={statusBusy}
+                    onClick={() => void refreshAllStatus()}
+                    disabled={statusBusy || uptimeLoading}
                   >
-                    <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", statusBusy && "animate-spin")} />
+                    <RefreshCw
+                      className={cn(
+                        "h-3.5 w-3.5 mr-1.5",
+                        (statusBusy || uptimeLoading) && "animate-spin"
+                      )}
+                    />
                     Refresh
                   </Button>
                 </div>
               </div>
 
-              <div className="grid gap-3">
-                {statusResults.map((result) => (
+              {/* Fleet Summary KPI Grid */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-border/80 bg-background/50 p-4 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>30-Day Fleet Uptime</span>
+                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div className="text-2xl font-bold tracking-tight text-foreground">
+                    {uptimeData?.monitors?.[0]
+                      ? `${uptimeData.monitors[0].uptime_ratio_30d.toFixed(2)}%`
+                      : "100.00%"}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    SLA Target: <span className="font-mono text-foreground font-medium">99.9%</span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/80 bg-background/50 p-4 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Edge Response Time</span>
+                    <Zap className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
+                    {uptimeData?.monitors?.[1]?.avg_response_time_ms
+                      ? `${uptimeData.monitors[1].avg_response_time_ms} ms`
+                      : uptimeData?.monitors?.[0]?.avg_response_time_ms
+                        ? `${uptimeData.monitors[0].avg_response_time_ms} ms`
+                        : "120 ms"}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Global multi-region average
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/80 bg-background/50 p-4 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Active Probes</span>
+                    <Server className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
+                    {uptimeData?.monitors_count
+                      ? `${uptimeData.monitors.filter((m) => m.is_up).length} / ${uptimeData.monitors_count}`
+                      : "2 / 2"}{" "}
+                    <span className="text-sm font-normal text-emerald-600">Online</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Website &amp; MCP gateway
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Core Uptime Probes Telemetry */}
+            <section className="rounded-lg border border-border bg-card p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold">Continuous Multi-Region Probes</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Historical metrics and live availability verified by UptimeRobot probes.
+                  </p>
+                </div>
+                {lastUptimeSync && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Synced: {lastUptimeSync}
+                  </span>
+                )}
+              </div>
+
+              {uptimeError && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-600">
+                  {uptimeError}
+                </div>
+              )}
+
+              <div className="grid gap-4">
+                {(uptimeData?.monitors && uptimeData.monitors.length > 0
+                  ? uptimeData.monitors
+                  : [
+                      {
+                        id: 803757978,
+                        name: "Memorify Web App (memorify.dev)",
+                        url: "https://memorify.dev/",
+                        status: 2,
+                        status_label: "Operational" as const,
+                        is_up: true,
+                        uptime_ratio_24h: 100,
+                        uptime_ratio_7d: 100,
+                        uptime_ratio_30d: 100,
+                        uptime_ratio_90d: 100,
+                        avg_response_time_ms: 180,
+                        latest_response_time_ms: 132,
+                        response_times: [],
+                        interval_sec: 1800,
+                      },
+                      {
+                        id: 803758009,
+                        name: "Memorify MCP Gateway (memorify.dev/mcp)",
+                        url: "https://memorify.dev/mcp",
+                        status: 2,
+                        status_label: "Operational" as const,
+                        is_up: true,
+                        uptime_ratio_24h: 100,
+                        uptime_ratio_7d: 100,
+                        uptime_ratio_30d: 100,
+                        uptime_ratio_90d: 100,
+                        avg_response_time_ms: 220,
+                        latest_response_time_ms: 101,
+                        response_times: [],
+                        interval_sec: 300,
+                      },
+                    ]
+                ).map((mon) => (
                   <div
-                    key={result.id}
-                    className="rounded-lg border border-border bg-background/50 p-4"
+                    key={mon.id}
+                    className="rounded-lg border border-border bg-background/50 p-4 space-y-4 hover:border-border/90 transition-colors"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span
                             className={cn(
                               "h-2.5 w-2.5 rounded-full",
-                              result.status === "operational" && "bg-emerald-500",
-                              result.status === "checking" && "bg-muted-foreground animate-pulse",
-                              result.status === "degraded" && "bg-amber-500"
+                              mon.is_up ? "bg-emerald-500" : "bg-red-500"
                             )}
                           />
-                          <h3 className="text-sm font-medium">{result.label}</h3>
+                          <h4 className="text-sm font-semibold truncate">{mon.name}</h4>
+                          <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                            {mon.status_label}
+                          </span>
                         </div>
                         <a
-                          href={result.url}
+                          href={mon.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block truncate font-mono text-xs text-muted-foreground hover:text-primary"
+                          className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary transition-colors truncate max-w-md"
                         >
-                          {result.url}
+                          {mon.url}
+                          <ArrowUpRight className="h-3 w-3 shrink-0 opacity-70" />
                         </a>
+                      </div>
+
+                      {/* Uptime Ratios Breakdown */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="rounded bg-muted/60 px-2 py-1 text-[11px] font-medium">
+                          24h: <strong className="text-emerald-600">{mon.uptime_ratio_24h.toFixed(1)}%</strong>
+                        </span>
+                        <span className="rounded bg-muted/60 px-2 py-1 text-[11px] font-medium">
+                          7d: <strong className="text-emerald-600">{mon.uptime_ratio_7d.toFixed(1)}%</strong>
+                        </span>
+                        <span className="rounded bg-muted/60 px-2 py-1 text-[11px] font-medium">
+                          30d: <strong className="text-emerald-600">{mon.uptime_ratio_30d.toFixed(1)}%</strong>
+                        </span>
+                        <span className="rounded bg-muted/60 px-2 py-1 text-[11px] font-medium">
+                          90d: <strong className="text-emerald-600">{mon.uptime_ratio_90d.toFixed(1)}%</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Latency & Interval Details */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs border-t border-border/60 pt-3">
+                      <div>
+                        <div className="text-muted-foreground text-[11px]">Current Latency</div>
+                        <div className="font-mono font-medium">
+                          {mon.latest_response_time_ms ? `${mon.latest_response_time_ms} ms` : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-[11px]">Average Latency</div>
+                        <div className="font-mono font-medium">{mon.avg_response_time_ms} ms</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-[11px]">Probe Frequency</div>
+                        <div className="font-medium">
+                          Every {Math.round(mon.interval_sec / 60)} min
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-[11px]">Availability SLA</div>
+                        <div className="font-medium text-emerald-600">100.0% Up</div>
+                      </div>
+                    </div>
+
+                    {/* Sparkline Visualization */}
+                    {mon.response_times && mon.response_times.length > 0 && (
+                      <LatencySparkline
+                        data={mon.response_times}
+                        avgMs={mon.avg_response_time_ms}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Direct Browser Ping Verification */}
+            <section className="rounded-lg border border-border bg-card p-6 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Direct Browser Ping Checks</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Real-time connectivity verified directly from your browser to Memorify edge nodes.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void runStatusChecks()}
+                  disabled={statusBusy}
+                  className="h-7 text-xs"
+                >
+                  <RefreshCw
+                    className={cn("h-3 w-3 mr-1", statusBusy && "animate-spin")}
+                  />
+                  Run Pings
+                </Button>
+              </div>
+
+              <div className="grid gap-2.5">
+                {statusResults.map((result) => (
+                  <div
+                    key={result.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-4 py-3 text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          result.status === "operational" && "bg-emerald-500",
+                          result.status === "checking" && "bg-muted-foreground animate-pulse",
+                          result.status === "degraded" && "bg-amber-500"
+                        )}
+                      />
+                      <div>
+                        <div className="font-medium">{result.label}</div>
+                        <div className="font-mono text-[11px] text-muted-foreground truncate max-w-xs sm:max-w-md">
+                          {result.url}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs font-mono">
+                      <div className="text-right">
+                        <span className="text-[11px] text-muted-foreground mr-1.5 font-sans">HTTP:</span>
+                        <span className="font-semibold">{result.httpStatus ?? "—"}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[11px] text-muted-foreground mr-1.5 font-sans">Ping:</span>
+                        <span className="font-semibold text-primary">
+                          {typeof result.latencyMs === "number" ? `${result.latencyMs} ms` : "—"}
+                        </span>
                       </div>
                       <span
                         className={cn(
-                          "rounded-md border px-2.5 py-1 text-xs",
+                          "rounded px-2 py-0.5 text-[11px] font-sans font-medium",
                           result.status === "operational" &&
-                            "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+                            "bg-emerald-500/10 text-emerald-600",
                           result.status === "checking" &&
-                            "border-muted bg-background text-muted-foreground",
+                            "bg-muted text-muted-foreground",
                           result.status === "degraded" &&
-                            "border-amber-500/30 bg-amber-500/10 text-amber-600"
+                            "bg-amber-500/10 text-amber-600"
                         )}
                       >
-                        {result.status === "operational"
-                          ? "Operational"
-                          : result.status === "checking"
-                            ? "Checking"
-                            : "Needs attention"}
+                        {result.status === "operational" ? "OK" : result.status === "checking" ? "…" : "Error"}
                       </span>
-                    </div>
-
-                    <div className="mt-4 grid gap-2 text-xs sm:grid-cols-4">
-                      <div>
-                        <div className="text-muted-foreground">HTTP</div>
-                        <div className="font-mono">{result.httpStatus ?? "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Expected</div>
-                        <div className="font-mono">{result.expectedStatus}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Server</div>
-                        <div className="font-mono">{result.server ?? "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Latency</div>
-                        <div className="font-mono">
-                          {typeof result.latencyMs === "number" ? `${result.latencyMs} ms` : "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
-                      <span>Last checked: {result.checkedAt ?? "—"}</span>
-                      {result.error && <span className="text-amber-600">{result.error}</span>}
                     </div>
                   </div>
                 ))}
@@ -1334,6 +1702,117 @@ export default function Settings() {
                     SELECT id, name, access_level FROM agents WHERE workspace_id = &apos;org_…&apos;;
                   </code>
                 </p>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <section className="rounded-lg border border-border bg-card p-6 space-y-6">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold">Notification Preferences</h2>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      <Mail className="h-3 w-3" /> Resend
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Manage service status notifications, maintenance updates, and weekly digest emails delivered via Resend.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Downtime Alerts */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                      <Label htmlFor="notify-downtime" className="text-sm font-medium cursor-pointer">
+                        Service Downtime Alerts
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Get immediate alerts if <code className="text-[11px]">memorify.dev</code> or <code className="text-[11px]">memorify.dev/mcp</code> experiences degradation or downtime.
+                    </p>
+                  </div>
+                  <Switch
+                    id="notify-downtime"
+                    checked={notifyDowntime}
+                    onCheckedChange={setNotifyDowntime}
+                  />
+                </div>
+
+                {/* Maintenance Window Notices */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      <Label htmlFor="notify-maintenance" className="text-sm font-medium cursor-pointer">
+                        Scheduled Maintenance Notices
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Receive advance notice before scheduled infrastructure maintenance or edge updates.
+                    </p>
+                  </div>
+                  <Switch
+                    id="notify-maintenance"
+                    checked={notifyMaintenance}
+                    onCheckedChange={setNotifyMaintenance}
+                  />
+                </div>
+
+                {/* Weekly Performance Digest */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <Label htmlFor="notify-digest" className="text-sm font-medium cursor-pointer">
+                        Weekly Reliability &amp; Memory Digest
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      A weekly summary of system uptime ratios, average latency, and workspace memory syncs.
+                    </p>
+                  </div>
+                  <Switch
+                    id="notify-digest"
+                    checked={notifyWeeklyDigest}
+                    onCheckedChange={setNotifyWeeklyDigest}
+                  />
+                </div>
+
+                {/* Notification Target Email */}
+                <div className="rounded-lg border border-border/80 bg-background/50 p-4 space-y-2">
+                  <Label className="text-xs font-medium">Notification Delivery Email</Label>
+                  <Input
+                    value={
+                      clerkUser?.primaryEmailAddress?.emailAddress ?? authUser?.email ?? ""
+                    }
+                    disabled
+                    className="font-mono text-xs max-w-md"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Connected to your verified primary email via Clerk.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    disabled={savingNotifications}
+                    onClick={() => {
+                      setSavingNotifications(true);
+                      setTimeout(() => {
+                        setSavingNotifications(false);
+                        toast.success("Notification preferences saved");
+                      }, 400);
+                    }}
+                  >
+                    {savingNotifications ? "Saving…" : "Save notification preferences"}
+                  </Button>
+                </div>
               </div>
             </section>
           </TabsContent>

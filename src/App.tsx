@@ -103,6 +103,7 @@ const DashboardRouteTree = () => (
         <Route path="docs" element={<Docs />} />
         <Route path="docs/:sectionId" element={<Docs />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="settings/:tab" element={<Settings />} />
         <Route path="admin" element={<Admin />} />
         <Route path="copilot" element={<CopilotChat />} />
       </Route>

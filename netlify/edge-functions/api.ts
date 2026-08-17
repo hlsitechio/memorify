@@ -5,6 +5,7 @@ import { handleAgentsAdmin } from "../../backend/routes/agents-admin.ts";
 import { handleCopilotAction, handleCopilotChat, handleCopilotModels, handleCopilotModelStatus, handleCopilotSettings, handleCopilotUpload, handleGitHubOAuthCallback, handleMcpOAuthCallback } from "../../backend/routes/copilot.ts";
 import { handleV1 } from "../../backend/routes/v1.ts";
 import { handleStripeWebhook } from "../../backend/routes/connectors.ts";
+import { handleUptime } from "../../backend/routes/uptime.ts";
 
 const API_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,10 @@ export default async (req: Request): Promise<Response> => {
 
   if (path === "/api/bootstrap") {
     return handleBootstrap(req);
+  }
+
+  if (path === "/api/uptime") {
+    return handleUptime(req);
   }
 
   if (path === "/api/agents" || path.startsWith("/api/agents/")) {
