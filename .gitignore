@@ -37,6 +37,7 @@ backend/.env.*
 # Local Netlify / DB tooling
 .netlify
 db/
+!db/shape-triggers.sql
 netlify/database/
 drizzle.config.ts
 

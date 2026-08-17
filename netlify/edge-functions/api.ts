@@ -8,6 +8,7 @@ import { handleStripeWebhook } from "../../backend/routes/connectors.ts";
 import { handleUptime } from "../../backend/routes/uptime.ts";
 import { handleHealth } from "../../backend/routes/health.ts";
 import { handleUptimeRobotWebhook } from "../../backend/routes/webhooks.ts";
+import { handleShapeQuery } from "../../backend/routes/shape-query.ts";
 
 const API_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -104,6 +105,10 @@ export default async (req: Request): Promise<Response> => {
   if (path === "/api/migrate-embeddings") {
     const { default: handler } = await import("./migrate-embeddings.ts");
     return handler(req);
+  }
+
+  if (path === "/api/shape/query") {
+    return handleShapeQuery(req);
   }
 
   if (path === "/api/v1" || path === "/v1" || path === "/api") {
