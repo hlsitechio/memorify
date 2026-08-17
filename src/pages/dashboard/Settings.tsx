@@ -198,7 +198,7 @@ const MODEL_OPTIONS = [
 const FREE_MODEL_MAX_TOKENS = 2048;
 const STATUS_CHECKS: StatusCheck[] = [
   { id: "site", label: "Website", url: "https://memorify.dev/", expectedStatus: 200 },
-  { id: "api", label: "API health", url: "https://memorify.dev/api/health", expectedStatus: 200 },
+  { id: "api", label: "API & Neon DB health", url: "https://memorify.dev/api/health?deep=1", expectedStatus: 200 },
   { id: "mcp", label: "MCP gateway", url: "https://memorify.dev/mcp", expectedStatus: 200 },
 ];
 
@@ -322,6 +322,9 @@ export default function Settings() {
   // Notification Preferences State
   const [notifyDowntime, setNotifyDowntime] = useState(true);
   const [notifyMaintenance, setNotifyMaintenance] = useState(true);
+  const [notifyLatency, setNotifyLatency] = useState(true);
+  const [notifyPostMortem, setNotifyPostMortem] = useState(true);
+  const [notifyConnectorAlerts, setNotifyConnectorAlerts] = useState(true);
   const [notifyWeeklyDigest, setNotifyWeeklyDigest] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
 
@@ -1729,11 +1732,11 @@ export default function Settings() {
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-red-500" />
                       <Label htmlFor="notify-downtime" className="text-sm font-medium cursor-pointer">
-                        Service Downtime Alerts
+                        Service Downtime &amp; Recovery Alerts
                       </Label>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Get immediate alerts if <code className="text-[11px]">memorify.dev</code> or <code className="text-[11px]">memorify.dev/mcp</code> experiences degradation or downtime.
+                      Get immediate alerts if <code className="text-[11px]">memorify.dev</code> or <code className="text-[11px]">memorify.dev/mcp</code> experiences an outage or when services are restored.
                     </p>
                   </div>
                   <Switch
@@ -1743,23 +1746,83 @@ export default function Settings() {
                   />
                 </div>
 
-                {/* Maintenance Window Notices */}
+                {/* Degraded Performance & Latency */}
                 <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      <Label htmlFor="notify-latency" className="text-sm font-medium cursor-pointer">
+                        Degraded Performance &amp; High Latency
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Proactive advisories when response times or vector embedding search latencies exceed SLA thresholds (&gt;1000ms).
+                    </p>
+                  </div>
+                  <Switch
+                    id="notify-latency"
+                    checked={notifyLatency}
+                    onCheckedChange={setNotifyLatency}
+                  />
+                </div>
+
+                {/* Maintenance Window Notices */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-blue-500" />
                       <Label htmlFor="notify-maintenance" className="text-sm font-medium cursor-pointer">
                         Scheduled Maintenance Notices
                       </Label>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Receive advance notice before scheduled infrastructure maintenance or edge updates.
+                      Receive advance notice breaking down impacted services and maintenance windows before infrastructure updates.
                     </p>
                   </div>
                   <Switch
                     id="notify-maintenance"
                     checked={notifyMaintenance}
                     onCheckedChange={setNotifyMaintenance}
+                  />
+                </div>
+
+                {/* Post-Mortems and RCA Reports */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                      <Label htmlFor="notify-postmortem" className="text-sm font-medium cursor-pointer">
+                        Incident RCA &amp; Post-Mortem Reports
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Detailed root cause analysis, total downtime duration, remediation, and preventative measures following major incidents.
+                    </p>
+                  </div>
+                  <Switch
+                    id="notify-postmortem"
+                    checked={notifyPostMortem}
+                    onCheckedChange={setNotifyPostMortem}
+                  />
+                </div>
+
+                {/* MCP Connector Circuit-Breaker */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-background/50 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-purple-500" />
+                      <Label htmlFor="notify-connector" className="text-sm font-medium cursor-pointer">
+                        MCP Connector &amp; Circuit-Breaker Alerts
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Instant alerts when third-party tool integrations (GitHub, Notion, Linear) fail delivery or exceed rate limit thresholds.
+                    </p>
+                  </div>
+                  <Switch
+                    id="notify-connector"
+                    checked={notifyConnectorAlerts}
+                    onCheckedChange={setNotifyConnectorAlerts}
                   />
                 </div>
 

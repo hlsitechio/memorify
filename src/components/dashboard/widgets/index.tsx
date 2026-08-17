@@ -108,36 +108,77 @@ function StatCard({ label, value, hint, icon: Icon, to }: any) {
   );
 }
 
-function useCount(table: string) {
+export type WorkspaceStats = {
+  memories: number;
+  documents: number;
+  events: number;
+  connectors: number;
+  agents: number;
+  skills: number;
+  loading: boolean;
+};
+
+export function useWorkspaceStats(): WorkspaceStats {
   const { user } = useAuth();
+  const [ws] = useCurrentWorkspace();
   const { action } = useApi();
-  const [n, setN] = useState(0);
+  const [stats, setStats] = useState<WorkspaceStats>({
+    memories: 0,
+    documents: 0,
+    events: 0,
+    connectors: 0,
+    agents: 0,
+    skills: 0,
+    loading: true,
+  });
+
   useEffect(() => {
     if (!user) return;
-    const map: Record<string, string> = {
-      memories: "memory.list",
-      connectors: "mcp.servers.list",
-      events: "events.list",
-      skills: "skills.list",
-      agents: "agents.list",
+    let cancelled = false;
+    action("workspace.stats", {}).then(({ data }) => {
+      if (cancelled || !data) return;
+      const d = data as any;
+      setStats({
+        memories: Number(d.memories ?? 0),
+        documents: Number(d.documents ?? 0),
+        events: Number(d.events ?? 0),
+        connectors: Number(d.connectors ?? 0),
+        agents: Number(d.agents ?? 0),
+        skills: Number(d.skills ?? 0),
+        loading: false,
+      });
+    });
+    return () => {
+      cancelled = true;
     };
-    const cmd = map[table] ?? `${table}.list`;
-    action(cmd, { limit: 1 }).then(({ data }) => setN(Array.isArray(data) ? data.length : 0));
-  }, [user, table, action]);
-  return n;
+  }, [user, ws?.id, action]);
+
+  return stats;
 }
 
 export function MemoriesStatWidget({ onRemove }: RProps) {
-  const n = useCount("memories");
-  return <WidgetShell title="Memories" icon={Database} onRemove={onRemove}><StatCard label="Memories" value={n} hint="Across all namespaces" icon={Database} to="/dashboard/memory" /></WidgetShell>;
+  const stats = useWorkspaceStats();
+  return (
+    <WidgetShell title="Memories" icon={Database} onRemove={onRemove}>
+      <StatCard label="Memories" value={stats.memories} hint="Across all namespaces" icon={Database} to="/dashboard/memory" />
+    </WidgetShell>
+  );
 }
 export function ConnectorsStatWidget({ onRemove }: RProps) {
-  const n = useCount("connectors");
-  return <WidgetShell title="Connectors" icon={Plug} onRemove={onRemove}><StatCard label="Connectors" value={n} hint="Tools & data sources" icon={Plug} to="/dashboard/connectors" /></WidgetShell>;
+  const stats = useWorkspaceStats();
+  return (
+    <WidgetShell title="Connectors" icon={Plug} onRemove={onRemove}>
+      <StatCard label="Connectors" value={stats.connectors} hint="Tools & data sources" icon={Plug} to="/dashboard/connectors" />
+    </WidgetShell>
+  );
 }
 export function EventsStatWidget({ onRemove }: RProps) {
-  const n = useCount("events");
-  return <WidgetShell title="Events (24h)" icon={Activity} onRemove={onRemove}><StatCard label="Events" value={n} hint="Real-time bus" icon={Activity} to="/dashboard/events" /></WidgetShell>;
+  const stats = useWorkspaceStats();
+  return (
+    <WidgetShell title="Events (24h)" icon={Activity} onRemove={onRemove}>
+      <StatCard label="Events" value={stats.events} hint="Real-time bus" icon={Activity} to="/dashboard/events" />
+    </WidgetShell>
+  );
 }
 export function AgentsStatWidget({ onRemove }: RProps) {
   const { user } = useAuth();
@@ -255,8 +296,8 @@ export function AgentsStatWidget({ onRemove }: RProps) {
   );
 }
 export function SkillsStatWidget({ onRemove }: RProps) {
-  const n = useCount("skills");
-  return <WidgetShell title="Skills" icon={Sparkles} onRemove={onRemove}><StatCard label="Skills" value={n} hint="Reusable prompt bundles" icon={Sparkles} to="/dashboard/skills" /></WidgetShell>;
+  const stats = useWorkspaceStats();
+  return <WidgetShell title="Skills" icon={Sparkles} onRemove={onRemove}><StatCard label="Skills" value={stats.skills} hint="Reusable prompt bundles" icon={Sparkles} to="/dashboard/skills" /></WidgetShell>;
 }
 
 export function QuickStartWidget({ onRemove }: RProps) {
@@ -273,29 +314,13 @@ export function QuickStartWidget({ onRemove }: RProps) {
 
 export function ProjectInfoWidget({ onRemove }: RProps) {
   const { user } = useAuth();
-  const { action } = useApi();
-  const [counts, setCounts] = useState({ agents: 0, skills: 0, connectors: 0 });
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const [a, s, c] = await Promise.all([
-        action("agents.list", { limit: 1 }),
-        action("skills.list", { limit: 1 }),
-        action("mcp.servers.list", {}),
-      ]);
-      setCounts({
-        agents: Array.isArray(a.data) ? a.data.length : 0,
-        skills: Array.isArray(s.data) ? s.data.length : 0,
-        connectors: Array.isArray(c.data) ? c.data.length : 0,
-      });
-    })();
-  }, [user, action]);
+  const stats = useWorkspaceStats();
   return (
     <WidgetShell title="Project info" icon={KeyRound} onRemove={onRemove}>
       <dl className="text-sm space-y-2">
-        <div className="flex justify-between"><dt className="text-muted-foreground">Agents</dt><dd className="tabular-nums">{counts.agents}</dd></div>
-        <div className="flex justify-between"><dt className="text-muted-foreground">Skills</dt><dd className="tabular-nums">{counts.skills}</dd></div>
-        <div className="flex justify-between"><dt className="text-muted-foreground">Connectors</dt><dd className="tabular-nums">{counts.connectors}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted-foreground">Agents</dt><dd className="tabular-nums">{stats.agents}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted-foreground">Skills</dt><dd className="tabular-nums">{stats.skills}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted-foreground">Connectors</dt><dd className="tabular-nums">{stats.connectors}</dd></div>
         <div className="flex justify-between"><dt className="text-muted-foreground">User ID</dt><dd className="font-mono text-xs truncate max-w-[180px]">{user?.id}</dd></div>
       </dl>
     </WidgetShell>
@@ -460,35 +485,16 @@ export function RecentActivityWidget({ onRemove }: RProps) {
 }
 
 export function UsageWidget({ onRemove }: RProps) {
-  const { user } = useAuth();
-  const { action } = useApi();
-  const [rows, setRows] = useState<Array<{ k: string; v: string; pct: number }>>([
-    { k: "Tokens", v: "—", pct: 0 },
-    { k: "Storage", v: "—", pct: 0 },
-    { k: "Requests", v: "—", pct: 0 },
-  ]);
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const [mem, doc, evt] = await Promise.all([
-        action("memory.list", { limit: 5000 }),
-        action("documents.list", {}),
-        action("events.list", { limit: 5000 }),
-      ]);
-      const memCount = Array.isArray(mem.data) ? mem.data.length : 0;
-      const docCount = Array.isArray(doc.data) ? doc.data.length : 0;
-      const evtCount = Array.isArray(evt.data) ? evt.data.length : 0;
-      setRows([
-        { k: "Memories", v: memCount.toLocaleString(), pct: Math.min(100, (memCount / 1000) * 100) },
-        { k: "Documents", v: docCount.toLocaleString(), pct: Math.min(100, (docCount / 500) * 100) },
-        { k: "Events", v: evtCount.toLocaleString(), pct: Math.min(100, (evtCount / 20_000) * 100) },
-      ]);
-    })();
-  }, [user, action]);
+  const stats = useWorkspaceStats();
+  const rows = [
+    { k: "Memories", v: stats.memories.toLocaleString(), pct: Math.min(100, (stats.memories / 1000) * 100) },
+    { k: "Documents", v: stats.documents.toLocaleString(), pct: Math.min(100, (stats.documents / 500) * 100) },
+    { k: "Events", v: stats.events.toLocaleString(), pct: Math.min(100, (stats.events / 20_000) * 100) },
+  ];
   return (
     <WidgetShell title="Usage (30d)" icon={Zap} onRemove={onRemove}>
       <div className="space-y-3">
-        {rows.map(r => (
+        {rows.map((r) => (
           <div key={r.k}>
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-muted-foreground">{r.k}</span>
@@ -505,10 +511,10 @@ export function UsageWidget({ onRemove }: RProps) {
 }
 
 export function DocsWidget({ onRemove }: RProps) {
-  const n = useCount("documents");
+  const stats = useWorkspaceStats();
   return (
     <WidgetShell title="Documents" icon={FileText} onRemove={onRemove}>
-      <StatCard label="Documents" value={n} hint="Indexed sources · ready for grounding" icon={FileText} to="/dashboard/documents" />
+      <StatCard label="Documents" value={stats.documents} hint="Indexed sources · ready for grounding" icon={FileText} to="/dashboard/documents" />
     </WidgetShell>
   );
 }

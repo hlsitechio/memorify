@@ -6,6 +6,8 @@ import { handleCopilotAction, handleCopilotChat, handleCopilotModels, handleCopi
 import { handleV1 } from "../../backend/routes/v1.ts";
 import { handleStripeWebhook } from "../../backend/routes/connectors.ts";
 import { handleUptime } from "../../backend/routes/uptime.ts";
+import { handleHealth } from "../../backend/routes/health.ts";
+import { handleUptimeRobotWebhook } from "../../backend/routes/webhooks.ts";
 
 const API_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -35,19 +37,12 @@ export default async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
   const path = url.pathname;
 
-  if (path === "/api/health" || path === "/health") {
-    return api_json({
-      name: "memorify",
-      version: "0.1.1",
-      status: "live",
-      endpoints: [
-        "/api/v1",
-        "/api/agents",
-        "/api/bootstrap",
-        "/mcp",
-        "/api/health",
-      ],
-    });
+  if (path === "/api/health" || path === "/health" || path === "/api/health/db") {
+    return handleHealth(req);
+  }
+
+  if (path === "/api/webhooks/uptimerobot" || path === "/api/uptime/webhook") {
+    return handleUptimeRobotWebhook(req);
   }
 
   if (path === "/api/bootstrap") {

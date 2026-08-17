@@ -34,7 +34,9 @@ export type ApiFunction = (
  * Uses the Clerk session token + current workspace from context.
  */
 export function useApi(): { action: ApiFunction } {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
+  const { organization } = useOrganization();
+  const [currentWs] = useCurrentWorkspace();
 
   const action = useCallback(
     async (name: string, args: Record<string, unknown> = {}): Promise<ApiResult> => {
@@ -42,7 +44,7 @@ export function useApi(): { action: ApiFunction } {
         const token = await session?.getToken?.();
         if (!token) return { data: null, error: "Not authenticated" };
 
-        const ws = readCurrentWorkspace();
+        const wsId = currentWs?.id || organization?.id || (user ? `user:${user.id}` : undefined);
 
         const res = await fetch(API_URL, {
           method: "POST",
@@ -53,7 +55,7 @@ export function useApi(): { action: ApiFunction } {
           body: JSON.stringify({
             name,
             args,
-            workspace_id: ws?.id ?? undefined,
+            workspace_id: wsId,
           }),
         });
 
@@ -72,7 +74,7 @@ export function useApi(): { action: ApiFunction } {
         return { data: null, error: (e as Error).message };
       }
     },
-    [session],
+    [session, currentWs?.id, organization?.id, user?.id],
   );
 
   return { action };

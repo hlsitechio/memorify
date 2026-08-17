@@ -299,21 +299,37 @@ async function requireCopilotAuth(req: Request, requestedWorkspaceId?: string): 
     req.headers.get("x-workspace-id") ||
     url.searchParams.get("workspace_id") ||
     claims.org_id ||
+    (claims.sub ? `user:${claims.sub}` : "") ||
     "";
+
   if (!workspaceId) {
     return json({ error: "workspace_required", detail: "Select or create a Clerk organization before using Copilot tools." }, 400);
   }
 
-  if (claims.org_id && claims.org_id !== workspaceId) {
-    return json({ error: "org_mismatch" }, 403);
+  // Exact match with active Clerk org
+  if (claims.org_id && claims.org_id === workspaceId) {
+    return { user_id: claims.sub, workspace_id: workspaceId, claims };
   }
 
+  // User personal workspace
+  if (workspaceId === `user:${claims.sub}` || workspaceId === `org:${claims.sub}` || workspaceId === claims.sub) {
+    return { user_id: claims.sub, workspace_id: workspaceId, claims };
+  }
+
+  // Agent-scoped workspace (e.g. ws_5f6a7ffe40b3 or agent:<uuid>)
+  if (workspaceId.startsWith("ws_") || workspaceId.startsWith("agent:")) {
+    return { user_id: claims.sub, workspace_id: workspaceId, claims };
+  }
+
+  // Check workspace membership in Neon
   if (!claims.org_id) {
     const member = await queryOne<{ workspace_id: string }>(
       `SELECT workspace_id FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
       [workspaceId, claims.sub],
     );
-    if (!member) return json({ error: "workspace_forbidden" }, 403);
+    if (member) {
+      return { user_id: claims.sub, workspace_id: workspaceId, claims };
+    }
   }
 
   return {
@@ -1941,8 +1957,90 @@ async function syncMcpServer(workspaceId: string, serverId: string) {
 
 async function handleAgentsWorkspaceCommand(name: string, args: Record<string, unknown>, auth: CopilotAuth) {
   const ws = auth.workspace_id;
+
+  if (name === "workspace.stats" || name === "workspace.summary") {
+    // If ws is an agent workspace (ws_... or agent:...)
+    const isAgentWs = ws.startsWith("ws_") || ws.startsWith("agent:");
+    let agentId = "";
+    if (ws.startsWith("agent:")) {
+      agentId = ws.slice("agent:".length);
+    } else if (ws.startsWith("ws_")) {
+      const suffix = ws.slice(3);
+      const agentRow = await queryOne<{ id: string; workspace_id: string }>(
+        `SELECT id, workspace_id FROM agents 
+         WHERE replace(id::text, '-', '') LIKE '%' || $1 OR workspace_id = $2 
+         LIMIT 1`,
+        [suffix, ws],
+      );
+      if (agentRow) agentId = agentRow.id;
+    }
+
+    if (agentId) {
+      const stats = await queryOne<{
+        memories: string;
+        documents: string;
+        events: string;
+        connectors: string;
+        agents: string;
+        skills: string;
+      }>(
+        `SELECT
+          (SELECT count(*) FROM memories WHERE (workspace_id = $1 OR namespace = 'agent:' || $2 OR metadata->>'agent_id' = $2) AND archived = false) AS memories,
+          (SELECT count(*) FROM documents WHERE workspace_id = $1 OR metadata->>'agent_id' = $2) AS documents,
+          (SELECT count(*) FROM identity_events WHERE workspace_id = $1 OR payload->>'agent_id' = $2 OR payload->>'source' = 'agent:' || $2) AS events,
+          (SELECT count(*) FROM mcp_servers WHERE workspace_id = $1) AS connectors,
+          1 AS agents,
+          (SELECT count(*) FROM skills WHERE workspace_id = $1) AS skills`,
+        [ws, agentId],
+      );
+      return {
+        memories: Number(stats?.memories ?? 0),
+        documents: Number(stats?.documents ?? 0),
+        events: Number(stats?.events ?? 0),
+        connectors: Number(stats?.connectors ?? 0),
+        agents: Number(stats?.agents ?? 1),
+        skills: Number(stats?.skills ?? 0),
+        workspace_id: ws,
+        is_agent: true,
+        agent_id: agentId,
+      };
+    }
+
+    // Org-level / User-level aggregate stats
+    const parentWs = auth.claims.org_id || ws;
+    const stats = await queryOne<{
+      memories: string;
+      documents: string;
+      events: string;
+      connectors: string;
+      agents: string;
+      skills: string;
+    }>(
+      `SELECT
+        (SELECT count(*) FROM memories WHERE (workspace_id = $1 OR workspace_id = $2) AND archived = false) AS memories,
+        (SELECT count(*) FROM documents WHERE workspace_id = $1 OR workspace_id = $2) AS documents,
+        (SELECT count(*) FROM identity_events WHERE workspace_id = $1 OR workspace_id = $2) AS events,
+        (SELECT count(*) FROM mcp_servers WHERE workspace_id = $1 OR workspace_id = $2) AS connectors,
+        (SELECT count(*) FROM agents WHERE (workspace_id = $1 OR workspace_id = $2) AND status <> 'disconnected') AS agents,
+        (SELECT count(*) FROM skills WHERE workspace_id = $1 OR workspace_id = $2) AS skills`,
+      [ws, parentWs],
+    );
+
+    return {
+      memories: Number(stats?.memories ?? 0),
+      documents: Number(stats?.documents ?? 0),
+      events: Number(stats?.events ?? 0),
+      connectors: Number(stats?.connectors ?? 0),
+      agents: Number(stats?.agents ?? 0),
+      skills: Number(stats?.skills ?? 0),
+      workspace_id: ws,
+      is_agent: false,
+    };
+  }
+
   if (name === "agents.list") {
-    const rows = await listWorkspaceAgents(ws);
+    const parentWs = auth.claims.org_id || ws;
+    const rows = await listWorkspaceAgents(parentWs);
     const limit = limitOf(args.limit, 50, 200);
     return rows.slice(0, limit).map((agent) => ({
       ...agent,

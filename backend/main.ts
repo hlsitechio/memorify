@@ -12,6 +12,7 @@ import { loadEnv } from "./lib/env.ts";
 import { handleCors, json } from "./lib/cors.ts";
 import { handleV1 } from "./routes/v1.ts";
 import { handleMcp } from "./routes/mcp.ts";
+import { handleHealth } from "./routes/health.ts";
 
 loadEnv();
 
@@ -24,13 +25,8 @@ Deno.serve((req: Request) => {
   const path = url.pathname;
 
   // ── Health checks ─────────────────────────────────────────
-  if (path === "/" || path === "/health") {
-    return json({
-      name: "memorify",
-      version: "0.1.0",
-      status: "live",
-      endpoints: ["/v1", "/mcp", "/health"],
-    });
+  if (path === "/" || path === "/health" || path === "/api/health") {
+    return handleHealth(req);
   }
 
   // ── Agent gateway ─────────────────────────────────────────
