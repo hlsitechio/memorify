@@ -234,7 +234,7 @@ function DashboardLayoutInner() {
     ? "Documentation"
     : currentWs?.subtitle || (currentWs?.kind === "agent" ? currentWs.id : "Org workspace");
   const [collapsed, setCollapsed] = useState<boolean>(false);
-  const { chatOpen } = useDashboardUI();
+  const { chatOpen, toggleChat } = useDashboardUI();
   useRegisterCoreCommands();
 
   // Per-workspace theme: when the user switches agent/workspace, load that
