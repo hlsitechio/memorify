@@ -830,7 +830,7 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="Settings" description="Manage your profile, workspace, and appearance" />
-      <div className="p-6 max-w-5xl">
+      <div className="p-6 max-w-5xl space-y-6 pb-28">
         <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid grid-cols-3 gap-1 w-full max-w-5xl sm:grid-cols-5 md:grid-cols-9">
             <TabsTrigger value="profile" className="gap-1.5">
