@@ -14,7 +14,7 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@clerk/react";
-import { readCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
+import { readCurrentWorkspace, useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { useCallback } from "react";
 
 const API_URL = "/api/copilot/action";
