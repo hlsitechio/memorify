@@ -64,6 +64,22 @@ const PublicRoutes = () => (
         </ClerkAuthBoundary>
       }
     />
+    <Route
+      path="/sign-in"
+      element={
+        <ClerkAuthBoundary>
+          <Auth defaultMode="signin" />
+        </ClerkAuthBoundary>
+      }
+    />
+    <Route
+      path="/sign-up"
+      element={
+        <ClerkAuthBoundary>
+          <Auth defaultMode="signup" />
+        </ClerkAuthBoundary>
+      }
+    />
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/unsubscribe" element={<Unsubscribe />} />
     <Route path="/ws/:handle" element={<WorkspaceHandle />} />
