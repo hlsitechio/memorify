@@ -1,10 +1,7 @@
 // backend/routes/connectors.ts
-// Connectors CRUD + AgentMail webhook handler
-import { Router, json, corsHeaders, requireAuth } from "../lib/cors.ts";
-import { getDb } from "../lib/db.ts";
-import { randomUUID } from "crypto";
-
-const router = new Router();
+// Connectors CRUD + AgentMail & Stripe webhook handlers
+import { json, corsHeaders, requireAuth } from "../lib/cors.ts";
+import { query, queryOne, execute } from "../lib/db.ts";
 
 // Connector kinds supported
 export const CONNECTOR_KINDS = [
@@ -21,7 +18,7 @@ export const CONNECTOR_KINDS = [
 
 export type ConnectorKind = (typeof CONNECTOR_KINDS)[number];
 
-export interface Connector {
+export interface Connector extends Record<string, unknown> {
   id: string;
   workspace_id: string;
   name: string;
@@ -55,246 +52,202 @@ function validateConfig(kind: ConnectorKind, config: Record<string, unknown>): s
   return null;
 }
 
-// GET /api/v1/connectors — list all connectors for workspace
-router.get("/connectors", async (req: Request): Promise<Response> => {
-  const auth = await requireAuth(req);
-  if (!auth) return json({ error: "unauthorized" }, 401);
-
-  const db = getDb();
-  const connectors = await db.query(
-    `SELECT * FROM connectors WHERE workspace_id = $1 ORDER BY created_at DESC`,
-    [auth.workspace_id],
-  );
-
-  // Never return sensitive config values in list
-  const safe = connectors.rows.map((c) => ({
-    ...c,
-    config: Object.keys(c.config).reduce((acc, k) => {
-      // Mask sensitive fields
-      const sensitive = ["api_key", "secret", "token", "password", "key", "webhook_secret", "client_secret"];
-      acc[k] = sensitive.some((s) => k.toLowerCase().includes(s)) ? "***" : c.config[k];
-      return acc;
-    }, {} as Record<string, unknown>),
-  }));
-
-  return json(safe);
-});
-
-// POST /api/v1/connectors — create new connector
-router.post("/connectors", async (req: Request): Promise<Response> => {
-  const auth = await requireAuth(req);
-  if (!auth) return json({ error: "unauthorized" }, 401);
-
-  const body = await req.json().catch(() => ({}));
-  const { name, kind, config = {} } = body as { name?: string; kind?: string; config?: Record<string, unknown> };
-
-  if (!name || !name.trim()) return json({ error: "name required" }, 400);
-  if (!kind || !CONNECTOR_KINDS.includes(kind as ConnectorKind)) {
-    return json({ error: `kind must be one of: ${CONNECTOR_KINDS.join(", ")}` }, 400);
-  }
-
-  const validationError = validateConfig(kind as ConnectorKind, config);
-  if (validationError) return json({ error: validationError }, 400);
-
-  const db = getDb();
-  const id = randomUUID();
-  const now = new Date().toISOString();
-
-  await db.query(
-    `INSERT INTO connectors (id, workspace_id, name, kind, status, config, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, 'inactive', $5, $6, $6)`,
-    [id, auth.workspace_id, name.trim(), kind, JSON.stringify(config), now],
-  );
-
-  const result = await db.query(
-    `SELECT * FROM connectors WHERE id = $1`,
-    [id],
-  );
-
-  const conn = result.rows[0];
-  // Mask sensitive config in response
-  const safeConfig = Object.keys(conn.config).reduce((acc, k) => {
-    const sensitive = ["api_key", "secret", "token", "password", "key", "webhook_secret", "client_secret"];
-    acc[k] = sensitive.some((s) => k.toLowerCase().includes(s)) ? "***" : conn.config[k];
-    return acc;
-  }, {} as Record<string, unknown>);
-
-  return json({ ...conn, config: safeConfig }, 201);
-});
-
-// GET /api/v1/connectors/:id — get single connector
-router.get("/connectors/:id", async (req: Request): Promise<Response> => {
-  const auth = await requireAuth(req);
-  if (!auth) return json({ error: "unauthorized" }, 401);
-
-  const id = req.params.id;
-  const db = getDb();
-  const result = await db.query(
-    `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
-    [id, auth.workspace_id],
-  );
-
-  if (result.rows.length === 0) return json({ error: "not found" }, 404);
-
-  const conn = result.rows[0];
+function maskConfig(config: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!config || typeof config !== "object") return {};
   const sensitive = ["api_key", "secret", "token", "password", "key", "webhook_secret", "client_secret"];
-  const safeConfig = Object.keys(conn.config).reduce((acc, k) => {
-    acc[k] = sensitive.some((s) => k.toLowerCase().includes(s)) ? "***" : conn.config[k];
+  return Object.keys(config).reduce((acc, k) => {
+    acc[k] = sensitive.some((s) => k.toLowerCase().includes(s)) ? "***" : config[k];
     return acc;
   }, {} as Record<string, unknown>);
+}
 
-  return json({ ...conn, config: safeConfig });
-});
+export async function handleConnectors(req: Request): Promise<Response> {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-// PATCH /api/v1/connectors/:id — update connector (config, status, name)
-router.patch("/connectors/:id", async (req: Request): Promise<Response> => {
   const auth = await requireAuth(req);
   if (!auth) return json({ error: "unauthorized" }, 401);
 
-  const id = req.params.id;
-  const body = await req.json().catch(() => ({}));
-  const { name, kind, status, config } = body as {
-    name?: string;
-    kind?: string;
-    status?: "active" | "inactive" | "error";
-    config?: Record<string, unknown>;
-  };
+  const url = new URL(req.url);
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  // Match e.g. /api/connectors or /api/v1/connectors
+  const connIndex = pathParts.indexOf("connectors");
+  const id = connIndex !== -1 && pathParts[connIndex + 1] ? pathParts[connIndex + 1] : null;
+  const isTest = connIndex !== -1 && pathParts[connIndex + 2] === "test";
 
-  const db = getDb();
-  const existing = await db.query(
-    `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
-    [id, auth.workspace_id],
-  );
+  // POST /api/connectors/:id/test
+  if (id && isTest && req.method === "POST") {
+    const conn = await queryOne<Connector>(
+      `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
+      [id, auth.workspace_id],
+    );
+    if (!conn) return json({ error: "not found" }, 404);
 
-  if (existing.rows.length === 0) return json({ error: "not found" }, 404);
-
-  const conn = existing.rows[0];
-  const newKind = (kind || conn.kind) as ConnectorKind;
-  const newConfig = config !== undefined ? config : conn.config;
-
-  // If kind changing or config updated, validate
-  if (kind && kind !== conn.kind) {
-    const err = validateConfig(newKind, newConfig);
-    if (err) return json({ error: err }, 400);
-  } else if (config !== undefined) {
-    const err = validateConfig(conn.kind as ConnectorKind, newConfig);
-    if (err) return json({ error: err }, 400);
-  }
-
-  const updates: string[] = [];
-  const params: unknown[] = [];
-  let paramIdx = 1;
-
-  if (name !== undefined) {
-    updates.push(`name = $${paramIdx++}`);
-    params.push(name.trim());
-  }
-  if (kind !== undefined) {
-    updates.push(`kind = $${paramIdx++}`);
-    params.push(kind);
-  }
-  if (status !== undefined) {
-    updates.push(`status = $${paramIdx++}`);
-    params.push(status);
-  }
-  if (config !== undefined) {
-    updates.push(`config = $${paramIdx++}`);
-    params.push(JSON.stringify(newConfig));
-  }
-
-  if (updates.length === 0) return json({ error: "no fields to update" }, 400);
-
-  updates.push(`updated_at = $${paramIdx++}`);
-  params.push(new Date().toISOString());
-
-  params.push(id, auth.workspace_id);
-
-  await db.query(
-    `UPDATE connectors SET ${updates.join(", ")} WHERE id = $${paramIdx++} AND workspace_id = $${paramIdx}`,
-    params,
-  );
-
-  const result = await db.query(
-    `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
-    [id, auth.workspace_id],
-  );
-
-  const updated = result.rows[0];
-  const sensitive = ["api_key", "secret", "token", "password", "key", "webhook_secret", "client_secret"];
-  const safeConfig = Object.keys(updated.config).reduce((acc, k) => {
-    acc[k] = sensitive.some((s) => k.toLowerCase().includes(s)) ? "***" : updated.config[k];
-    return acc;
-  }, {} as Record<string, unknown>);
-
-  return json({ ...updated, config: safeConfig });
-});
-
-// DELETE /api/v1/connectors/:id
-router.delete("/connectors/:id", async (req: Request): Promise<Response> => {
-  const auth = await requireAuth(req);
-  if (!auth) return json({ error: "unauthorized" }, 401);
-
-  const id = req.params.id;
-  const db = getDb();
-
-  const result = await db.query(
-    `DELETE FROM connectors WHERE id = $1 AND workspace_id = $2 RETURNING id`,
-    [id, auth.workspace_id],
-  );
-
-  if (result.rowCount === 0) return json({ error: "not found" }, 404);
-
-  return json({ success: true });
-});
-
-// POST /api/v1/connectors/:id/test — test connector connectivity
-router.post("/connectors/:id/test", async (req: Request): Promise<Response> => {
-  const auth = await requireAuth(req);
-  if (!auth) return json({ error: "unauthorized" }, 401);
-
-  const id = req.params.id;
-  const db = getDb();
-
-  const result = await db.query(
-    `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
-    [id, auth.workspace_id],
-  );
-
-  if (result.rows.length === 0) return json({ error: "not found" }, 404);
-
-  const conn = result.rows[0];
-  let testResult: { ok: boolean; detail: string };
-
-  try {
-    switch (conn.kind) {
-      case "agentmail":
-        testResult = await testAgentMail(conn.config as Record<string, unknown>);
-        break;
-      case "http":
-        testResult = await testHttp(conn.config as Record<string, unknown>);
-        break;
-      case "slack":
-        testResult = await testSlack(conn.config as Record<string, unknown>);
-        break;
-      case "github":
-        testResult = await testGitHub(conn.config as Record<string, unknown>);
-        break;
-      default:
-        testResult = { ok: true, detail: "Test not implemented for this kind" };
+    let testResult: { ok: boolean; detail: string };
+    try {
+      switch (conn.kind) {
+        case "agentmail":
+          testResult = await testAgentMail(conn.config as Record<string, unknown>);
+          break;
+        case "http":
+          testResult = await testHttp(conn.config as Record<string, unknown>);
+          break;
+        case "slack":
+          testResult = await testSlack(conn.config as Record<string, unknown>);
+          break;
+        case "github":
+          testResult = await testGitHub(conn.config as Record<string, unknown>);
+          break;
+        default:
+          testResult = { ok: true, detail: "Test not implemented for this kind" };
+      }
+    } catch (e) {
+      testResult = { ok: false, detail: String(e) };
     }
-  } catch (e) {
-    testResult = { ok: false, detail: String(e) };
+
+    const newStatus = testResult.ok ? "active" : "error";
+    await execute(
+      `UPDATE connectors SET status = $1, updated_at = $2 WHERE id = $3`,
+      [newStatus, new Date().toISOString(), id],
+    );
+
+    return json({ ...testResult, status: newStatus });
   }
 
-  // Update status based on test
-  const newStatus = testResult.ok ? "active" : "error";
-  await db.query(
-    `UPDATE connectors SET status = $1, updated_at = $2 WHERE id = $3`,
-    [newStatus, new Date().toISOString(), id],
-  );
+  // GET /api/connectors/:id
+  if (id && req.method === "GET") {
+    const conn = await queryOne<Connector>(
+      `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
+      [id, auth.workspace_id],
+    );
+    if (!conn) return json({ error: "not found" }, 404);
+    return json({ ...conn, config: maskConfig(conn.config) });
+  }
 
-  return json({ ...testResult, status: newStatus });
-});
+  // PATCH /api/connectors/:id
+  if (id && req.method === "PATCH") {
+    const conn = await queryOne<Connector>(
+      `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
+      [id, auth.workspace_id],
+    );
+    if (!conn) return json({ error: "not found" }, 404);
+
+    const body = await req.json().catch(() => ({}));
+    const { name, kind, status, config } = body as {
+      name?: string;
+      kind?: string;
+      status?: "active" | "inactive" | "error";
+      config?: Record<string, unknown>;
+    };
+
+    const newKind = (kind || conn.kind) as ConnectorKind;
+    const newConfig = config !== undefined ? config : conn.config;
+
+    if (kind && kind !== conn.kind) {
+      const err = validateConfig(newKind, newConfig);
+      if (err) return json({ error: err }, 400);
+    } else if (config !== undefined) {
+      const err = validateConfig(conn.kind as ConnectorKind, newConfig);
+      if (err) return json({ error: err }, 400);
+    }
+
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIdx++}`);
+      params.push(name.trim());
+    }
+    if (kind !== undefined) {
+      updates.push(`kind = $${paramIdx++}`);
+      params.push(kind);
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramIdx++}`);
+      params.push(status);
+    }
+    if (config !== undefined) {
+      updates.push(`config = $${paramIdx++}`);
+      params.push(JSON.stringify(newConfig));
+    }
+
+    if (updates.length === 0) return json({ error: "no fields to update" }, 400);
+
+    updates.push(`updated_at = $${paramIdx++}`);
+    params.push(new Date().toISOString());
+
+    params.push(id, auth.workspace_id);
+
+    await execute(
+      `UPDATE connectors SET ${updates.join(", ")} WHERE id = $${paramIdx++} AND workspace_id = $${paramIdx}`,
+      params,
+    );
+
+    const updated = await queryOne<Connector>(
+      `SELECT * FROM connectors WHERE id = $1 AND workspace_id = $2`,
+      [id, auth.workspace_id],
+    );
+
+    return json({ ...updated, config: maskConfig(updated?.config) });
+  }
+
+  // DELETE /api/connectors/:id
+  if (id && req.method === "DELETE") {
+    const deletedCount = await execute(
+      `DELETE FROM connectors WHERE id = $1 AND workspace_id = $2`,
+      [id, auth.workspace_id],
+    );
+    if (deletedCount === 0) return json({ error: "not found" }, 404);
+    return json({ success: true });
+  }
+
+  // GET /api/connectors — list all
+  if (req.method === "GET") {
+    const connectors = await query<Connector>(
+      `SELECT * FROM connectors WHERE workspace_id = $1 ORDER BY created_at DESC`,
+      [auth.workspace_id],
+    );
+    const safe = connectors.map((c) => ({
+      ...c,
+      config: maskConfig(c.config),
+    }));
+    return json(safe);
+  }
+
+  // POST /api/connectors — create connector
+  if (req.method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    const { name, kind, config = {} } = body as { name?: string; kind?: string; config?: Record<string, unknown> };
+
+    if (!name || !name.trim()) return json({ error: "name required" }, 400);
+    if (!kind || !CONNECTOR_KINDS.includes(kind as ConnectorKind)) {
+      return json({ error: `kind must be one of: ${CONNECTOR_KINDS.join(", ")}` }, 400);
+    }
+
+    const validationError = validateConfig(kind as ConnectorKind, config);
+    if (validationError) return json({ error: validationError }, 400);
+
+    const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await execute(
+      `INSERT INTO connectors (id, workspace_id, name, kind, status, config, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'inactive', $5, $6, $6)`,
+      [newId, auth.workspace_id, name.trim(), kind, JSON.stringify(config), now],
+    );
+
+    const conn = await queryOne<Connector>(
+      `SELECT * FROM connectors WHERE id = $1`,
+      [newId],
+    );
+
+    return json({ ...conn, config: maskConfig(conn?.config) }, 201);
+  }
+
+  return json({ error: "method not allowed" }, 405);
+}
 
 // Test functions
 async function testAgentMail(config: Record<string, unknown>): Promise<{ ok: boolean; detail: string }> {
@@ -353,22 +306,16 @@ async function testGitHub(config: Record<string, unknown>): Promise<{ ok: boolea
 
 // AgentMail webhook handler — called by Netlify edge function
 export async function handleAgentMailWebhook(req: Request, workspaceId: string): Promise<Response> {
-  const db = getDb();
-
-  // Find active AgentMail connector for this workspace
-  const connResult = await db.query(
+  const conn = await queryOne<Connector>(
     `SELECT * FROM connectors WHERE workspace_id = $1 AND kind = 'agentmail' AND status = 'active' LIMIT 1`,
     [workspaceId],
   );
 
-  if (connResult.rows.length === 0) {
+  if (!conn) {
     return json({ error: "No active AgentMail connector" }, 404);
   }
 
-  const connector = connResult.rows[0];
-  const config = connector.config as Record<string, unknown>;
-  const apiKey = config.api_key as string;
-  const inboxId = config.inbox_id as string;
+  const config = conn.config as Record<string, unknown>;
   const webhookSecret = config.webhook_secret as string;
 
   // Verify HMAC signature if secret configured
@@ -382,15 +329,11 @@ export async function handleAgentMailWebhook(req: Request, workspaceId: string):
   }
 
   const payload = await req.json();
-  // Handle AgentMail event types: message.received, message.sent, etc.
   const eventType = payload.type || payload.event_type;
 
   if (eventType === "message.received") {
     const message = payload.message;
-    // Process inbound message — could trigger sub-agent here
-    console.log("AgentMail message received:", message.message_id, message.thread_id);
-
-    // For now, just acknowledge
+    console.log("AgentMail message received:", message?.message_id, message?.thread_id);
     return json({ received: true });
   }
 
@@ -415,30 +358,23 @@ async function hmacSha256(secret: string, data: string): Promise<string> {
 
 // Stripe webhook handler — called by Netlify edge function
 export async function handleStripeWebhook(req: Request, workspaceId: string): Promise<Response> {
-  const db = getDb();
-
-  // Find active Stripe connector for this workspace
-  const connResult = await db.query(
+  const conn = await queryOne<Connector>(
     `SELECT * FROM connectors WHERE workspace_id = $1 AND kind = 'stripe' AND status = 'active' LIMIT 1`,
     [workspaceId],
   );
 
-  if (connResult.rows.length === 0) {
+  if (!conn) {
     return json({ error: "No active Stripe connector" }, 404);
   }
 
-  const connector = connResult.rows[0];
-  const config = connector.config as Record<string, unknown>;
+  const config = conn.config as Record<string, unknown>;
   const webhookSecret = config.webhook_secret as string;
 
-  // Verify Stripe signature
   const signature = req.headers.get("stripe-signature") || "";
   const body = await req.clone().text();
 
   if (webhookSecret) {
     const expected = await hmacSha256(webhookSecret, body);
-    // Stripe uses a different signature format: "t=timestamp,v1=signature"
-    // We need to parse and verify properly
     const sigElements = signature.split(",");
     let valid = false;
     for (const element of sigElements) {
@@ -448,58 +384,18 @@ export async function handleStripeWebhook(req: Request, workspaceId: string): Pr
         break;
       }
     }
-    if (!valid) {
-      // Also check for legacy format
-      if (signature !== expected) {
-        return json({ error: "Invalid Stripe signature" }, 401);
-      }
+    if (!valid && signature !== expected) {
+      return json({ error: "Invalid Stripe signature" }, 401);
     }
   }
 
-  let event;
+  let event: { type?: string; id?: string; data?: { object?: Record<string, unknown> } };
   try {
     event = JSON.parse(body);
   } catch {
     return json({ error: "Invalid JSON payload" }, 400);
   }
 
-  // Handle Stripe event types
   console.log("Stripe webhook received:", event.type, event.id);
-
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      // Handle successful checkout - could create subscription, send email, etc.
-      console.log("Checkout completed:", session.id, session.customer);
-      break;
-    }
-    case "customer.subscription.created":
-    case "customer.subscription.updated": {
-      const subscription = event.data.object;
-      console.log("Subscription event:", event.type, subscription.id, subscription.status);
-      // Could sync subscription status to database
-      break;
-    }
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      console.log("Subscription deleted:", subscription.id);
-      break;
-    }
-    case "invoice.payment_succeeded": {
-      const invoice = event.data.object;
-      console.log("Invoice payment succeeded:", invoice.id);
-      break;
-    }
-    case "invoice.payment_failed": {
-      const invoice = event.data.object;
-      console.log("Invoice payment failed:", invoice.id);
-      break;
-    }
-    default:
-      console.log("Unhandled Stripe event type:", event.type);
-  }
-
   return json({ received: true });
 }
-
-export default router;

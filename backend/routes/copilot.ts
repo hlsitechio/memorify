@@ -646,7 +646,7 @@ export async function handleCopilotChat(req: Request): Promise<Response> {
   });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return json({ error: "copilot_internal_error", detail: msg, model: settings?.model ?? "unknown" }, 500);
+    return json({ error: "copilot_internal_error", detail: msg, model: "unknown" }, 500);
   }
 }
 
@@ -2843,10 +2843,9 @@ async function handleConnectorsCommand(name: string, args: Record<string, unknow
 
 async function handleStripeCommand(name: string, args: Record<string, unknown>, auth: CopilotAuth) {
   const ws = auth.workspace_id;
-  const settings = await getCopilotSettings(ws);
-  const stripeKey = settings?.openrouter_key || Deno.env.get("STRIPE_SECRET_KEY");
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
 
-  if (!stripeKey) throw new Error("Stripe secret key not configured in Copilot settings or environment");
+  if (!stripeKey) throw new Error("Stripe secret key not configured in environment");
 
   // Import Stripe dynamically from esm.sh (works in Netlify Edge Functions)
   const Stripe = (await import("https://esm.sh/stripe@17.0.0")).default;
@@ -2900,13 +2899,13 @@ async function handleStripeCommand(name: string, args: Record<string, unknown>, 
     case "stripe.list_prices": {
       const { product_id, active = true, limit = 20 } = args as { product_id?: string; active?: boolean; limit?: number };
       const prices = await stripe.prices.list({ product: product_id, active, limit: Math.min(Math.max(Number(limit), 1), 100) });
-      return { ok: true, data: prices.data.map((p) => ({ id: p.id, product_id: p.product, unit_amount: p.unit_amount, currency: p.currency, recurring: p.recurring, active: p.active })) };
+      return { ok: true, data: prices.data.map((p: any) => ({ id: p.id, product_id: p.product, unit_amount: p.unit_amount, currency: p.currency, recurring: p.recurring, active: p.active })) };
     }
 
     case "stripe.list_products": {
       const { active = true, limit = 20 } = args as { active?: boolean; limit?: number };
       const products = await stripe.products.list({ active, limit: Math.min(Math.max(Number(limit), 1), 100) });
-      return { ok: true, data: products.data.map((p) => ({ id: p.id, name: p.name, description: p.description, active: p.active, metadata: p.metadata })) };
+      return { ok: true, data: products.data.map((p: any) => ({ id: p.id, name: p.name, description: p.description, active: p.active, metadata: p.metadata })) };
     }
 
     case "stripe.create_price": {
@@ -2943,7 +2942,7 @@ async function handleStripeCommand(name: string, args: Record<string, unknown>, 
           customer: subscription.customer,
           status: subscription.status,
           current_period_end: subscription.current_period_end,
-          items: subscription.items.data.map((item) => ({ price_id: item.price.id, quantity: item.quantity })),
+          items: subscription.items.data.map((item: any) => ({ price_id: item.price.id, quantity: item.quantity })),
         },
       };
     }

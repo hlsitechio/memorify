@@ -596,8 +596,8 @@ export async function handleMcp(req: Request): Promise<Response> {
         // Convert Clerk payload to agent-like payload for MCP handlers
         const now = Math.floor(Date.now() / 1000);
         agentPayload = {
-          workspace_id: clerkPayload.org_id || clerkPayload.workspace_id,
-          agent_id: clerkPayload.agent_id || clerkPayload.sub,
+          workspace_id: clerkPayload.org_id || clerkPayload.workspace_id || clerkPayload.sub || "default",
+          agent_id: clerkPayload.agent_id || clerkPayload.sub || "clerk-agent",
           access_level: "full", // Clerk JWT agents get full access
           scopes: ["memory:read", "memory:write", "documents:read", "documents:write", "events:read", "events:write", "skills:read", "skills:write"],
           exp: now + 3600, // 1 hour

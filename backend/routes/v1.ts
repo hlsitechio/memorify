@@ -1128,7 +1128,7 @@ async function handleStripe(action: string, input: Record<string, unknown>, ctx:
         limit: Math.min(Math.max(Number(limit), 1), 100),
       });
 
-      return prices.data.map((p) => ({
+      return prices.data.map((p: any) => ({
         id: p.id,
         product_id: p.product,
         unit_amount: p.unit_amount,
@@ -1149,7 +1149,7 @@ async function handleStripe(action: string, input: Record<string, unknown>, ctx:
         limit: Math.min(Math.max(Number(limit), 1), 100),
       });
 
-      return products.data.map((p) => ({
+      return products.data.map((p: any) => ({
         id: p.id,
         name: p.name,
         description: p.description,
@@ -1203,7 +1203,7 @@ async function handleStripe(action: string, input: Record<string, unknown>, ctx:
         customer: subscription.customer,
         status: subscription.status,
         current_period_end: subscription.current_period_end,
-        items: subscription.items.data.map((item) => ({
+        items: subscription.items.data.map((item: any) => ({
           price_id: item.price.id,
           quantity: item.quantity,
         })),
