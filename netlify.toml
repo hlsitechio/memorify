@@ -8,7 +8,7 @@
   edge_functions = "netlify/edge-functions"
 
 [build.environment]
-  NODE_VERSION = "20.18.0"
+  NODE_VERSION = "24"
   NPM_CONFIG_PRODUCTION = "false"
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "true"
 
