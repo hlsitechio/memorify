@@ -758,7 +758,7 @@ export function AgentsManager() {
       </div>
 
       <Dialog open={!!wizardAgent} onOpenChange={(open) => !open && setWizardAgent(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{wizardAgent ? `Connect ${wizardAgent.name}` : "Connect agent"}</DialogTitle>
             <DialogDescription>
