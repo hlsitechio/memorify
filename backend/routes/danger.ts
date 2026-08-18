@@ -1,6 +1,6 @@
 import { json } from "../lib/cors.ts";
 import { execute } from "../lib/db.ts";
-import { verifyClerkToken } from "../lib/clerk.ts";
+import { verifyClerkJwt } from "../lib/clerk.ts";
 
 export async function handleDangerAction(req: Request): Promise<Response> {
   if (req.method !== "POST") {
@@ -14,18 +14,18 @@ export async function handleDangerAction(req: Request): Promise<Response> {
 
   let auth;
   try {
-    auth = await verifyClerkToken(token);
+    auth = await verifyClerkJwt(token);
   } catch (err) {
     return json({ error: "Invalid token" }, 401);
   }
 
-  const workspace_id = auth.claims.org_id;
+  const workspace_id = auth.org_id;
   if (!workspace_id) {
     return json({ error: "Organization/Workspace context required" }, 400);
   }
 
   // Ensure user has admin rights (org:admin)
-  if (auth.claims.org_role !== "org:admin") {
+  if (auth.org_role !== "org:admin") {
     return json({ error: "Forbidden: You must be a workspace admin to perform destructive actions." }, 403);
   }
 
