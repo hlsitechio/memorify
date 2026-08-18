@@ -1469,19 +1469,19 @@ async function processSingleRpc(
 
       const res = await fetch(window.location.pathname, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: { 
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json"
+        },
         body: body.toString()
       });
 
-      if (res.redirected) {
-        window.location.href = res.url;
+      const data = await res.json().catch(() => ({}));
+      
+      if (data.redirect_to) {
+        window.location.href = data.redirect_to;
         return;
       }
-      if (res.status === 302) {
-        const loc = res.headers.get("location");
-        if (loc) { window.location.href = loc; return; }
-      }
-      const data = await res.json().catch(() => ({}));
       document.getElementById("loading").style.display = "none";
       const err = document.getElementById("error");
       err.style.display = "block";
@@ -1570,6 +1570,11 @@ async function processSingleRpc(
       const callbackUrl = new URL(redirectUri);
       callbackUrl.searchParams.set("code", code);
       if (state) callbackUrl.searchParams.set("state", state);
+
+      const isJsonRequest = req.headers.get("accept")?.includes("application/json");
+      if (isJsonRequest) {
+        return json({ redirect_to: callbackUrl.toString() });
+      }
 
       return Response.redirect(callbackUrl.toString(), 302);
     }
