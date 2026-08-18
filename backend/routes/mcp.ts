@@ -701,7 +701,7 @@ export async function handleMcp(req: Request): Promise<Response> {
 
     <div class="footer-actions">
       <a href="https://memorify.dev" class="btn btn-secondary">Homepage</a>
-      <a href="https://memorify.dev/dashboard/apikeys" class="btn btn-primary">Generate Agent Token &rarr;</a>
+      <a href="https://memorify.dev/auth" class="btn btn-primary">Generate Agent Token &rarr;</a>
     </div>
   </div>
 </body>
