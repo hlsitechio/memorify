@@ -63,12 +63,12 @@ export const Architecture = () => {
             >
               {/* Glowing line running completely across the row behind content */}
               <div 
-                className="hidden lg:block absolute left-4 right-4 top-1/2 -translate-y-1/2 h-[1px] opacity-30 pointer-events-none transition-opacity duration-700"
+                className="hidden lg:block absolute left-4 right-4 top-1/2 -translate-y-1/2 h-[1px] pointer-events-none"
                 style={{
                   background: `linear-gradient(90deg, transparent, ${
                     { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
                   } 50%, transparent)`,
-                  boxShadow: `0 0 12px ${
+                  boxShadow: `0 0 18px 1px ${
                     { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
                   }`
                 }}
