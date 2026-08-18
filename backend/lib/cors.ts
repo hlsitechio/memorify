@@ -13,10 +13,10 @@ export function handleCors(req: Request): Response | null {
   return null;
 }
 
-export function json(body: unknown, status = 200): Response {
+export function json(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 

@@ -1756,20 +1756,15 @@ async function processSingleRpc(
           [refreshHash, client.id, authCode.workspace_id_claim, authCode.user_id, authCode.workspace_id_claim, authCode.scopes, tokenResult.jti],
         );
 
-        return new Response(JSON.stringify({
+        return json({
           access_token: tokenResult.token,
           token_type: "Bearer",
           expires_in: 86400,
           refresh_token: refreshToken,
           scope: authCode.scopes.join(" "),
-        }), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-            "Pragma": "no-cache",
-            "Access-Control-Allow-Origin": "*",
-          }
+        }, 200, {
+          "Cache-Control": "no-store",
+          "Pragma": "no-cache"
         });
 
       } else if (grantType === "refresh_token") {
