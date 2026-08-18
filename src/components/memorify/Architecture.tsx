@@ -61,28 +61,30 @@ export const Architecture = () => {
               key={lane.number}
               className={`mem-platform-lane mem-platform-lane-${lane.tone} ${visibleIndices.has(index) ? "is-visible" : ""}`}
             >
-              <div className="flex items-start gap-4">
+              {/* Glowing line running completely across the row behind content */}
+              <div 
+                className="hidden lg:block absolute left-4 right-4 top-1/2 -translate-y-1/2 h-[1px] opacity-30 pointer-events-none transition-opacity duration-700"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${
+                    { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
+                  } 50%, transparent)`,
+                  boxShadow: `0 0 12px ${
+                    { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
+                  }`
+                }}
+              />
+              
+              <div className="flex items-start gap-4 relative z-10">
                 <span className="font-mono text-xs text-white/25">{lane.number}</span>
                 <div>
                   <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">{lane.eyebrow}</p>
                   <h3 className="mt-2 text-xl font-semibold text-white sm:text-2xl">{lane.title}</h3>
                 </div>
               </div>
-              <div className="flex items-center gap-6 w-full">
-                <p className="text-sm leading-7 text-slate-400 sm:text-base max-w-[24rem]">{lane.description}</p>
-                <div 
-                  className="hidden lg:block h-[2px] flex-1 opacity-80 transition-opacity duration-500 hover:opacity-100" 
-                  style={{
-                    background: `linear-gradient(90deg, transparent, ${
-                      { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
-                    })`,
-                    boxShadow: `0 0 14px ${
-                      { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
-                    }`
-                  }}
-                />
+              <div className="w-full relative z-10">
+                <p className="text-sm leading-7 text-slate-400 sm:text-base max-w-[28rem]">{lane.description}</p>
               </div>
-              <div className="flex flex-wrap gap-2 lg:justify-end">
+              <div className="flex flex-wrap gap-2 lg:justify-end relative z-10">
                 {lane.tokens.map((token) => <span key={token} className="mem-tool-token">{token}</span>)}
               </div>
             </article>
