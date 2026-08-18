@@ -34,7 +34,7 @@
 [[plugins]]
   package = "netlify-plugin-snyk"
   [plugins.inputs]
-    severityThreshold = "high"
+    severity = "high"
 
 # ── Edge Functions ────────────────────────────────────────
 # More specific routes first (bootstrap before /api/*).
