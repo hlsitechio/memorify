@@ -20,9 +20,7 @@
 
 ## ⚡ Overview
 
-**Memorify** is the unified control plane and persistent memory gateway for autonomous AI agents. It connects modern AI developer tools—including **Claude Code**, **Cursor**, **OpenAI**, **Microsoft Copilot**, **Codex**, and **Hermes**—into a single secure, synchronized ecosystem.
-
-Instead of fragmenting context across disconnected chats and CLI sessions, Memorify ensures that **the next agent session always inherits the context the last one earned.**
+**Memorify** — Shared memory and tools for MCP-capable agents.
 
 <div align="center">
   <img src="./public/memorify-architecture-diagram.jpg" alt="Memorify Architecture Diagram — Unified Control Plane & Persistent Memory Gateway for Autonomous AI Agents" width="100%" />
