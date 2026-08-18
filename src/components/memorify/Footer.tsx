@@ -20,7 +20,7 @@ export const Footer = () => {
               </span>
               <span className="mem-brand-word text-lg font-semibold">Memorify</span>
             </a>
-            <p className="mt-5 max-w-sm text-sm leading-7 text-slate-500">
+            <p className="mt-5 max-w-sm text-sm leading-7 text-slate-400">
               Shared memory, searchable knowledge, connected tools, and production control for AI agents.
             </p>
             <div className="mt-5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.15em] text-cyan-200/70">
@@ -30,7 +30,7 @@ export const Footer = () => {
           </div>
 
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-600">Product</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-400">Product</p>
             <nav className="mt-4 grid gap-3 text-sm text-slate-400">
               {productLinks.map((link) => (
                 <a key={link.href} href={link.href} className="mem-focus w-fit rounded-sm transition-colors hover:text-white">{link.label}</a>
@@ -39,7 +39,7 @@ export const Footer = () => {
           </div>
 
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-600">Connect</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-400">Connect</p>
             <div className="mt-4 grid gap-3 text-sm text-slate-400">
               <a href="https://memorify.dev/mcp" target="_blank" rel="noreferrer" className="mem-focus inline-flex w-fit items-center gap-2 rounded-sm transition-colors hover:text-white">
                 <Radio className="h-4 w-4" /> Live MCP endpoint <ArrowUpRight className="h-3 w-3 text-white/30" />
@@ -54,7 +54,7 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-700 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <span>Memorify</span>
           <span>Production MCP gateway · workspace control plane</span>
         </div>
