@@ -69,8 +69,18 @@ export const Architecture = () => {
                 </div>
               </div>
               <div className="flex items-center gap-6 w-full">
-                <p className="text-sm leading-7 text-slate-400 sm:text-base max-w-[26rem]">{lane.description}</p>
-                <div className={`hidden lg:block h-[1px] flex-1 mem-lane-line-${lane.tone} opacity-40`} />
+                <p className="text-sm leading-7 text-slate-400 sm:text-base max-w-[24rem]">{lane.description}</p>
+                <div 
+                  className="hidden lg:block h-[2px] flex-1 opacity-80 transition-opacity duration-500 hover:opacity-100" 
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${
+                      { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
+                    })`,
+                    boxShadow: `0 0 14px ${
+                      { cyan: "#4fe3c1", blue: "#78a8ff", violet: "#aa8cff", amber: "#ffd166" }[lane.tone] || "#fff"
+                    }`
+                  }}
+                />
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 {lane.tokens.map((token) => <span key={token} className="mem-tool-token">{token}</span>)}
