@@ -65,6 +65,7 @@
     "recharts": "^2.15.4",
     "sonner": "^1.7.4",
     "stripe": "^17.0.0",
+    "svix": "^1.99.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
@@ -72,8 +73,8 @@
   },
   "devDependencies": {
     "@clerk/chrome-extension": "^3.1.69",
-    "@netlify/plugin-csp-nonce": "^1.6.2",
     "@eslint/js": "^9.32.0",
+    "@netlify/plugin-csp-nonce": "^1.6.2",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",

@@ -225,7 +225,7 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
         to: [DEFAULT_ALERT_EMAIL],
         reply_to: "memorify-ops@agentmail.to",
         subject: `🎉 New User Signup: ${emailAddress}`,
-        html: \`<!DOCTYPE html>
+        html: `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:32px 16px;background-color:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -236,15 +236,15 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
           🎉 NEW USER ALERT
         </span>
         <h1 style="color:#fff;font-size:20px;margin:12px 0 4px;">A new user just signed up!</h1>
-        <p style="color:#93c5fd;font-size:12px;margin:0;">User ID: <code style="color:#bfdbfe;">\${id}</code></p>
+        <p style="color:#93c5fd;font-size:12px;margin:0;">User ID: <code style="color:#bfdbfe;">${id}</code></p>
       </td>
     </tr>
     <tr>
       <td style="padding:24px 28px;color:#e2e8f0;font-size:13px;line-height:1.6;">
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#111827;border:1px solid #1f2937;border-radius:8px;margin:16px 0;">
-          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Email:</td><td style="padding:10px 14px;color:#fff;font-weight:bold;font-size:13px;border-bottom:1px solid #1f2937;">\${emailAddress}</td></tr>
-          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Name:</td><td style="padding:10px 14px;color:#e2e8f0;font-size:12px;border-bottom:1px solid #1f2937;">\${name}</td></tr>
-          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">Signed up at:</td><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">\${signupTime}</td></tr>
+          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Email:</td><td style="padding:10px 14px;color:#fff;font-weight:bold;font-size:13px;border-bottom:1px solid #1f2937;">${emailAddress}</td></tr>
+          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Name:</td><td style="padding:10px 14px;color:#e2e8f0;font-size:12px;border-bottom:1px solid #1f2937;">${name}</td></tr>
+          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">Signed up at:</td><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">${signupTime}</td></tr>
         </table>
         <div style="text-align:center;margin-top:24px;">
           <a href="https://dashboard.clerk.com" style="background:#3b82f6;color:#fff;font-weight:700;font-size:13px;padding:12px 28px;border-radius:8px;text-decoration:none;display:inline-block;">
@@ -255,14 +255,14 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
     </tr>
   </table>
 </body>
-</html>\`,
-        text: \`[NEW USER SIGNUP]\nEmail: \${emailAddress}\nName: \${name}\nUser ID: \${id}\nTime: \${signupTime}\`
+</html>`,
+        text: `[NEW USER SIGNUP]\nEmail: ${emailAddress}\nName: ${name}\nUser ID: ${id}\nTime: ${signupTime}`
       };
 
       const resendRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: \`Bearer \${RESEND_API_KEY}\`,
+          Authorization: `Bearer ${RESEND_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(resendPayload),
