@@ -287,11 +287,18 @@ const TOOLS: ToolDef[] = [
   },
 ];
 
-// ── JSON-RPC helpers ──────────────────────────────────────────
-function rpc(id: unknown, result?: unknown, error?: { code: number; message: string }): unknown {
-  return error
-    ? { jsonrpc: "2.0", id, error }
-    : { jsonrpc: "2.0", id, result };
+// ── JSON-RPC 2.0 helpers ──────────────────────────────────────
+function rpc(id: unknown, result?: unknown, error?: { code: number; message: string; data?: unknown }): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    jsonrpc: "2.0",
+    id: id !== undefined ? id : null,
+  };
+  if (error) {
+    payload.error = error;
+  } else {
+    payload.result = result !== undefined ? result : {};
+  }
+  return payload;
 }
 
 function textOrEmpty(value: unknown): string {
@@ -625,42 +632,116 @@ export async function handleMcp(req: Request): Promise<Response> {
   }
 
   // ── Parse JSON-RPC ────────────────────────────────────────
-  let body: { jsonrpc?: string; id?: unknown; method?: string; params?: Record<string, unknown> };
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     return new Response(
-      JSON.stringify(rpc(null, undefined, { code: -32700, message: "parse error" })),
+      JSON.stringify(rpc(null, undefined, { code: -32700, message: "Parse error: Invalid JSON was received by the server" })),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  const { id = null, method, params = {} } = body;
-  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  // ── Batch requests (JSON-RPC 2.0 Section 6) ───────────────
+  if (Array.isArray(rawBody)) {
+    if (rawBody.length === 0) {
+      return new Response(
+        JSON.stringify(rpc(null, undefined, { code: -32600, message: "Invalid Request: Batch array cannot be empty" })),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const responses = await Promise.all(
+      rawBody.map((item) => processSingleRpc(item, agentPayload, rawToken))
+    );
+
+    // Filter out notifications (null return)
+    const validResponses = responses.filter((r) => r !== null);
+    if (validResponses.length === 0) {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    return new Response(JSON.stringify(validResponses), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // ── Single Request ────────────────────────────────────────
+  const response = await processSingleRpc(rawBody, agentPayload, rawToken);
+  if (response === null) {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  return new Response(JSON.stringify(response), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// ── Single JSON-RPC 2.0 / MCP Request Processor ───────────────
+async function processSingleRpc(
+  body: unknown,
+  agentPayload: { workspace_id: string; agent_id: string; scopes: string[]; access_level?: string },
+  rawToken: string,
+): Promise<Record<string, unknown> | null> {
+  // Validate request object structure per JSON-RPC 2.0 Section 4
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return rpc(null, undefined, { code: -32600, message: "Invalid Request: Expected a JSON-RPC request object" });
+  }
+
+  const reqObj = body as Record<string, unknown>;
+  const isNotification = !("id" in reqObj) || reqObj.id === undefined;
+  const id = isNotification ? null : reqObj.id;
+
+  // Enforce jsonrpc: "2.0"
+  if (reqObj.jsonrpc !== "2.0") {
+    return isNotification ? null : rpc(id, undefined, { code: -32600, message: 'Invalid Request: "jsonrpc" field must be exactly "2.0"' });
+  }
+
+  // Enforce method is string
+  if (typeof reqObj.method !== "string" || !reqObj.method.trim()) {
+    return isNotification ? null : rpc(id, undefined, { code: -32600, message: 'Invalid Request: "method" must be a non-empty string' });
+  }
+
+  const method = reqObj.method.trim();
+  const params = (reqObj.params && typeof reqObj.params === "object" && !Array.isArray(reqObj.params))
+    ? (reqObj.params as Record<string, unknown>)
+    : {};
 
   try {
     // ── initialize ──────────────────────────────────────────
     if (method === "initialize") {
-      return new Response(JSON.stringify(rpc(id, {
-        protocolVersion: "2024-11-05",
-        capabilities: { tools: { listChanged: false } },
+      const clientProto = typeof params.protocolVersion === "string" ? params.protocolVersion : "2024-11-05";
+      return rpc(id, {
+        protocolVersion: clientProto === "2024-11-05" ? "2024-11-05" : "2024-11-05",
+        capabilities: {
+          tools: { listChanged: false },
+          resources: { subscribe: false, listChanged: false },
+          prompts: { listChanged: false },
+        },
         serverInfo: {
           name: "memorify",
           version: "0.1.0",
-          description: "Memorify MCP — memory, skills, documents, events, MCP proxy. Agent token required.",
+          description: "Memorify MCP — persistent memory, tools, documents, and dynamic proxying for autonomous agents.",
         },
-      })), { headers });
+      });
+    }
+
+    // ── notifications/initialized ───────────────────────────
+    if (method === "notifications/initialized") {
+      return null; // Notification, no response body
     }
 
     // ── ping ────────────────────────────────────────────────
     if (method === "ping") {
-      return new Response(JSON.stringify(rpc(id, {})), { headers });
+      return rpc(id, {});
     }
 
     // ── tools/list ──────────────────────────────────────────
     if (method === "tools/list") {
       const dynamicTools = await listDynamicTools(agentPayload.workspace_id);
-      return new Response(JSON.stringify(rpc(id, {
+      return rpc(id, {
         tools: [
           ...TOOLS.map((t) => ({
             name: t.name,
@@ -673,46 +754,49 @@ export async function handleMcp(req: Request): Promise<Response> {
             inputSchema: t.input_schema,
           })),
         ],
-      })), { headers });
+      });
     }
 
     // ── tools/call ──────────────────────────────────────────
     if (method === "tools/call") {
-      const toolName = (params as Record<string, unknown>).name as string;
-      const args = ((params as Record<string, unknown>).arguments ?? {}) as Record<string, unknown>;
+      const toolName = params.name as string;
+      const args = (params.arguments ?? {}) as Record<string, unknown>;
+      if (!toolName) {
+        return rpc(id, undefined, { code: -32602, message: "Invalid params: 'name' is required for tools/call" });
+      }
+
       const def = TOOLS.find((t) => t.name === toolName);
 
       if (!def) {
         const dynamicTool = (await listDynamicTools(agentPayload.workspace_id)).find((t) => t.alias === toolName);
         if (!dynamicTool) {
-          return new Response(JSON.stringify(rpc(id, undefined, {
+          return rpc(id, undefined, {
             code: -32602,
             message: `unknown tool: ${toolName}`,
-          })), { status: 400, headers });
+          });
         }
         try {
           const result = await callDynamicTool(agentPayload.workspace_id, dynamicTool, args);
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             content: Array.isArray(result.content)
               ? result.content
               : [{ type: "text", text: JSON.stringify(result, null, 2) }],
-          })), { headers });
+          });
         } catch (e) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: (e as Error).message }],
-          })), { headers });
+          });
         }
       }
 
-      // Handle token management tools directly (not via v1)
+      // Handle token management tools directly
       if (toolName === "agent_token_create") {
-        // Require tokens:admin scope
         if (!agentPayload.scopes.includes("tokens:admin")) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: "Insufficient scope: tokens:admin required" }],
-          })), { headers });
+          });
         }
 
         const { agent_id, scopes, expires_in_seconds } = args as {
@@ -728,24 +812,23 @@ export async function handleMcp(req: Request): Promise<Response> {
             scopes: scopes as Scope[],
             expiresInSeconds: expires_in_seconds ?? 86_400,
           });
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-          })), { headers });
+          });
         } catch (e) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: (e as Error).message }],
-          })), { headers });
+          });
         }
       }
 
       if (toolName === "agent_token_revoke") {
-        // Require tokens:admin scope
         if (!agentPayload.scopes.includes("tokens:admin")) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: "Insufficient scope: tokens:admin required" }],
-          })), { headers });
+          });
         }
 
         const { jti, prefix } = args as { jti?: string; prefix?: string };
@@ -756,82 +839,189 @@ export async function handleMcp(req: Request): Promise<Response> {
             jti,
             prefix,
           });
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             content: [{ type: "text", text: JSON.stringify({ revoked }, null, 2) }],
-          })), { headers });
+          });
         } catch (e) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: (e as Error).message }],
-          })), { headers });
+          });
         }
       }
 
       if (toolName === "agent_token_list") {
-        // Require tokens:admin or workspace:admin scope
         if (!agentPayload.scopes.includes("tokens:admin") && !agentPayload.scopes.includes("workspace:admin")) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: "Insufficient scope: tokens:admin or workspace:admin required" }],
-          })), { headers });
+          });
         }
 
         try {
           const tokens = await listAgentTokens(agentPayload.workspace_id);
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             content: [{ type: "text", text: JSON.stringify(tokens, null, 2) }],
-          })), { headers });
+          });
         } catch (e) {
-          return new Response(JSON.stringify(rpc(id, {
+          return rpc(id, {
             isError: true,
             content: [{ type: "text", text: (e as Error).message }],
-          })), { headers });
+          });
         }
       }
 
       // Dispatch directly to the v1 handler (no HTTP roundtrip)
-            const v1Req = new Request("https://memorify.dev/v1", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${rawToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                agent: def.agent,
-                action: def.action,
-                input: args,
-              }),
-            });
+      const v1Req = new Request("https://memorify.dev/v1", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${rawToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          agent: def.agent,
+          action: def.action,
+          input: args,
+        }),
+      });
       const v1Res = await handleV1(v1Req);
       const v1Data = await v1Res.json();
 
       if (!v1Data?.ok) {
-        return new Response(JSON.stringify(rpc(id, {
+        return rpc(id, {
           isError: true,
           content: [{ type: "text", text: v1Data?.error ?? "tool call failed" }],
-        })), { headers });
+        });
       }
 
-      return new Response(JSON.stringify(rpc(id, {
+      return rpc(id, {
         content: [{ type: "text", text: JSON.stringify(v1Data.result, null, 2) }],
-      })), { headers });
+      });
     }
 
-    // ── notifications (no id) → 204 ─────────────────────────
-    if (id === null || id === undefined) {
-      return new Response(null, { status: 204, headers: corsHeaders });
+    // ── resources/list ──────────────────────────────────────
+    if (method === "resources/list") {
+      const docs = await query<{ id: string; name: string; kind: string | null }>(
+        `SELECT id, name, kind FROM documents WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [agentPayload.workspace_id],
+      ).catch(() => []);
+
+      return rpc(id, {
+        resources: docs.map((d) => ({
+          uri: `memorify://documents/${d.id}`,
+          name: d.name,
+          description: `Document (${d.kind || "text"}) in workspace`,
+          mimeType: "text/markdown",
+        })),
+      });
     }
 
-    return new Response(JSON.stringify(rpc(id, undefined, {
-          code: -32601,
-          message: `method not found: ${method}`,
-        })), { status: 400, headers });
-      } catch (e) {
-        return new Response(JSON.stringify(rpc(id, undefined, {
-          code: -32000,
-          message: (e as Error).message,
-        })), { status: 500, headers });
+    // ── resources/read ──────────────────────────────────────
+    if (method === "resources/read") {
+      const uri = typeof params.uri === "string" ? params.uri : "";
+      if (!uri) {
+        return rpc(id, undefined, { code: -32602, message: "Invalid params: 'uri' is required for resources/read" });
       }
+
+      const match = uri.match(/^memorify:\/\/documents\/(.+)$/);
+      if (!match) {
+        return rpc(id, undefined, { code: -32602, message: `Resource not found: ${uri}` });
+      }
+
+      const docId = match[1];
+      const doc = await queryOne<{ id: string; name: string; content: string | null }>(
+        `SELECT id, name, content FROM documents WHERE id = $1 AND workspace_id = $2`,
+        [docId, agentPayload.workspace_id],
+      ).catch(() => null);
+
+      if (!doc) {
+        return rpc(id, undefined, { code: -32602, message: `Document not found: ${docId}` });
+      }
+
+      return rpc(id, {
+        contents: [
+          {
+            uri,
+            mimeType: "text/markdown",
+            text: doc.content ?? "",
+          },
+        ],
+      });
+    }
+
+    // ── resources/templates/list ────────────────────────────
+    if (method === "resources/templates/list") {
+      return rpc(id, { resourceTemplates: [] });
+    }
+
+    // ── prompts/list ────────────────────────────────────────
+    if (method === "prompts/list") {
+      const skills = await query<{ id: string; name: string; slug: string; description: string | null }>(
+        `SELECT id, name, slug, description FROM skills WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [agentPayload.workspace_id],
+      ).catch(() => []);
+
+      return rpc(id, {
+        prompts: skills.map((s) => ({
+          name: s.slug || s.name,
+          description: s.description || s.name,
+          arguments: [],
+        })),
+      });
+    }
+
+    // ── prompts/get ─────────────────────────────────────────
+    if (method === "prompts/get") {
+      const promptName = typeof params.name === "string" ? params.name : "";
+      if (!promptName) {
+        return rpc(id, undefined, { code: -32602, message: "Invalid params: 'name' is required for prompts/get" });
+      }
+
+      const skill = await queryOne<{ id: string; name: string; description: string | null; prompt: string | null }>(
+        `SELECT id, name, description, prompt FROM skills WHERE (slug = $1 OR name = $1) AND workspace_id = $2`,
+        [promptName, agentPayload.workspace_id],
+      ).catch(() => null);
+
+      if (!skill) {
+        return rpc(id, undefined, { code: -32602, message: `Prompt not found: ${promptName}` });
+      }
+
+      return rpc(id, {
+        description: skill.description || skill.name,
+        messages: [
+          {
+            role: "user",
+            content: { type: "text", text: skill.prompt || skill.name },
+          },
+        ],
+      });
+    }
+
+    // ── roots/list ──────────────────────────────────────────
+    if (method === "roots/list") {
+      return rpc(id, {
+        roots: [{ uri: "https://memorify.dev", name: "Memorify Gateway" }],
+      });
+    }
+
+    // ── Notification without handler → return null ──────────
+    if (isNotification) {
+      return null;
+    }
+
+    // ── Method not found ────────────────────────────────────
+    return rpc(id, undefined, {
+      code: -32601,
+      message: `Method not found: ${method}`,
+    });
+
+  } catch (e) {
+    if (isNotification) return null;
+    return rpc(id, undefined, {
+      code: -32603,
+      message: (e as Error).message || "Internal JSON-RPC error",
+    });
+  }
     }
 
     // ── OAuth 2.1 Handlers ────────────────────────────────────────
