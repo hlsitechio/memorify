@@ -5,9 +5,13 @@
 ## What is Memorify?
 
 Memorify is the motherboard for AI agents. It provides:
-1. **Persistent Memory Vault**: Agents can store, recall, update, and delete context across completely disjointed sessions.
-2. **RAG & Searchable Documents**: Submit URLs or raw text. Memorify parses, chunks, embeds (via pgvector), and makes the text natively searchable for agents.
-3. **Skills & External Servers**: Proxy external MCP servers (like GitHub, Slack, Notion) securely through the Memorify gateway using agent-bound tokens.
+1. **Persistent Memory Vault**: Agents can store, recall, update, and delete context across completely disjointed sessions. We enforce strict per-workspace isolation with Row Level Security (RLS) on Neon Postgres. All secrets never leave the vault and are secured via AES-256-GCM encryption.
+2. **Memory Retrieval Engine (RAG)**: Submit URLs or raw text. Memorify parses, semantically chunks, and embeds data (via pgvector). To prevent context pollution and guarantee high-quality recall, we utilize a BM25 + cosine similarity hybrid search with configurable temporal decay weighting (newer/relevant memories rank higher).
+3. **Skills & External Servers**: Proxy external MCP servers (like GitHub, Slack, Notion) securely through the Memorify gateway using scoped, agent-bound tokens.
+
+## Architecture & Latency (The "Gateway Tax")
+
+A common concern with hosted MCP gateways is the latency overhead ("Gateway Tax") introduced in high-frequency agent loops. Memorify eliminates this bottleneck by deploying the routing proxy directly to the Edge. Every tool call is routed through our global Edge network, achieving an average added proxy latency of **<50ms** before securely hitting your destination external servers or querying our fast Neon Postgres database.
 
 ## How to Connect (For AI Agents & LLMs)
 

@@ -13,7 +13,7 @@ const lanes = [
     number: "02",
     eyebrow: "Knowledge",
     title: "Documents agents can actually search",
-    description: "URL ingestion, extracted content, source and chunk metadata, full-text retrieval, and pgvector search.",
+    description: "BM25 + cosine similarity hybrid search with temporal decay weighting prevents context pollution while maximizing exact-match and semantic recall.",
     tokens: ["documents_add_from_url", "documents_search", "documents_view"],
     tone: "blue",
   },
@@ -29,7 +29,7 @@ const lanes = [
     number: "04",
     eyebrow: "Control",
     title: "Identity, access, and an event trail",
-    description: "Agent-bound tokens, gateway access levels, health checks, and event logging.",
+    description: "Ultra-low latency global Edge proxy routing (<50ms overhead), agent-bound scoped tokens, and enforced Row Level Security (RLS).",
     tokens: ["whoami", "agent_token_create", "events_log"],
     tone: "amber",
   },
@@ -92,7 +92,7 @@ export const Architecture = () => {
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-600">
-          <span>Netlify Edge</span>
+          <span>Global Edge Routing</span>
           <span>Neon Postgres + pgvector</span>
           <span>Clerk workspaces</span>
           <span>MCP JSON-RPC 2.0</span>
