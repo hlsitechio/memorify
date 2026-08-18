@@ -836,8 +836,8 @@ export function AgentsManager() {
                       <div>
                         <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">1. Endpoint URL</div>
                         <div className="flex items-center gap-2">
-                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono">{MCP_URL}</code>
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => copyText(MCP_URL, "Endpoint URL copied")}>
+                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono">{MCP_URL}/sse</code>
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => copyText(`${MCP_URL}/sse`, "Endpoint URL copied")}>
                             <Copy className="h-3.5 w-3.5" />
                           </Button>
                         </div>
