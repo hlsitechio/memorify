@@ -33,7 +33,7 @@ const Index = () => {
   return (
     <main className="mem-site min-h-screen bg-[#05060a] text-white">
       <Seo
-        title="Memorify — Shared memory and tools for AI agents"
+        title="Memorify.dev"
         description="A live MCP gateway and control plane for AI agents: shared memory, searchable documents, skills, external tools, agent tokens, and workspace visibility."
         path="/"
       />
