@@ -2,9 +2,7 @@
 
 # Memorify
 
-### The AI Agent Motherboard & Unified MCP Gateway
-
-**One gateway. One connection. Every agent. Every tool.**
+### Shared memory and tools for MCP-capable agents.
 
 [![Status](https://img.shields.io/badge/Gateway-Online-00E599?style=flat-square&logo=statuspage&logoColor=white)](https://memorify.dev)
 [![Protocol](https://img.shields.io/badge/MCP-2024--11--05-79E3C1?style=flat-square)](https://modelcontextprotocol.io)
