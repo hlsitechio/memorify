@@ -23,7 +23,7 @@ export const Hero = () => {
 
   return (
     <section id="hero" className="mem-hero relative flex min-h-[92svh] overflow-hidden border-b border-white/10" aria-labelledby="hero-title">
-      <img src="/brand/hero-banner-memorify-front-gate.png" alt="Memorify Hero Banner" className="mem-hero-image" fetchPriority="high" />
+      <img src="/brand/hero-banner-memorify-front-gate.webp" alt="Memorify Hero Banner" className="mem-hero-image" fetchPriority="high" />
       <div className="mem-hero-wash" aria-hidden />
       <div className="mem-spectrum-field" aria-hidden />
       <div className="mem-site-grid absolute inset-0 opacity-35" aria-hidden />
