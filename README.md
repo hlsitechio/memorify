@@ -24,30 +24,9 @@
 
 Instead of fragmenting context across disconnected chats and CLI sessions, Memorify ensures that **the next agent session always inherits the context the last one earned.**
 
-```
-                               ┌───────────────────────────┐
-                               │  Connected AI Agents      │
-                               │  Claude • Cursor • Codex  │
-                               │  Copilot • Hermes • CLI   │
-                               └─────────────┬─────────────┘
-                                             │
-                                   [ JSON-RPC 2.0 / MCP ]
-                                             │
-                                             ▼
-                               ┌───────────────────────────┐
-                               │   MEMORIFY MCP GATEWAY    │
-                               │   https://memorify.dev/mcp│
-                               └─────────────┬─────────────┘
-                                             │
-                 ┌───────────────────────────┼───────────────────────────┐
-                 ▼                           ▼                           ▼
-    ┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
-    │  Cross-Session Memory   │ │   Zero-Leak Vault       │ │   Unified Tool Engine   │
-    │  • Vector Similarity    │ │   • AES-256-GCM Storage │ │   • Dynamic Connectors  │
-    │  • Episodic Recall      │ │   • Scoped mem_live_ Keys│ │   • Document Indexing   │
-    │  • Cross-Agent Sync     │ │   • Server-Side Exec    │ │   • 23+ Live MCP Tools  │
-    └─────────────────────────┘ └─────────────────────────┘ └─────────────────────────┘
-```
+<div align="center">
+  <img src="./public/memorify-architecture-diagram.jpg" alt="Memorify Architecture Diagram — Unified Control Plane & Persistent Memory Gateway for Autonomous AI Agents" width="100%" />
+</div>
 
 ---
 
