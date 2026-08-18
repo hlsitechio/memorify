@@ -817,70 +817,94 @@ export function AgentsManager() {
                 </Alert>
               )}
 
-              <div className="space-y-2">
-                <Label>Preview</Label>
-                <Textarea
-                  readOnly
-                  value={configFor(wizardAgent.kind, wizardToken, true)}
-                  className="min-h-40 font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Copy the command below to connect your agent. No file download needed.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => copyText(configFor("claude_code", wizardToken, false), "Claude Code command copied")}
-                    disabled={!wizardToken}
-                  >
-                    <Terminal className="mr-2 h-4 w-4" />
-                    Copy Claude Code
+              <Tabs defaultValue={wizardAgent.kind === "custom" ? "custom" : wizardAgent.kind} className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="custom">Custom</TabsTrigger>
+                  <TabsTrigger value="claude_code">Claude Code</TabsTrigger>
+                  <TabsTrigger value="github_copilot">Cursor</TabsTrigger>
+                  <TabsTrigger value="openai_codex">VS Code</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="custom" className="mt-4 space-y-4">
+                  <div className="rounded-lg border bg-muted/20 p-4">
+                    <div className="text-sm font-medium mb-1">Custom App Integration</div>
+                    <div className="text-xs text-muted-foreground mb-4">
+                      Enter these credentials exactly as shown into the app's (e.g., Grok) integration settings.
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">1. Endpoint URL</div>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono">{MCP_URL}</code>
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => copyText(MCP_URL, "Endpoint URL copied")}>
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">2. Authentication Type</div>
+                        <code className="rounded bg-muted px-2 py-1 text-xs font-mono">OAuth 2.0</code> <span className="text-xs text-muted-foreground mx-1">or</span> <code className="rounded bg-muted px-2 py-1 text-xs font-mono">Bearer Token</code>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">3. Agent Token / Client Secret</div>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono">
+                            {showToken ? wizardToken : redactToken(wizardToken)}
+                          </code>
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
+                            setShowToken(!showToken);
+                            if (!showToken && wizardToken) copyText(wizardToken, "Token copied");
+                          }}>
+                            {showToken ? <Copy className="h-3.5 w-3.5" /> : <KeyRound className="h-3.5 w-3.5" />}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="claude_code" className="mt-4 space-y-3">
+                  <div className="text-sm font-medium">Claude Code CLI</div>
+                  <p className="text-xs text-muted-foreground">Run this exact command in your terminal to connect Claude Code to this agent.</p>
+                  <Textarea readOnly value={configFor("claude_code", wizardToken, true)} className="min-h-24 font-mono text-xs" />
+                  <Button variant="outline" onClick={() => copyText(configFor("claude_code", wizardToken, false), "Claude Code command copied")} disabled={!wizardToken}>
+                    <Terminal className="mr-2 h-4 w-4" /> Copy Command
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => copyText(
-                      JSON.stringify(
-                        { mcpServers: { memorify: { url: getMcpUrl(), headers: { Authorization: `Bearer ${wizardToken}` } } } },
-                        null,
-                        2
-                      ),
-                      "Cursor config copied"
-                    )}
-                    disabled={!wizardToken}
-                  >
-                    <LayoutGrid className="mr-2 h-4 w-4" />
-                    Copy Cursor
+                </TabsContent>
+
+                <TabsContent value="github_copilot" className="mt-4 space-y-3">
+                  <div className="text-sm font-medium">Cursor IDE</div>
+                  <p className="text-xs text-muted-foreground">Add this to your <code>cursor-mcp.json</code> or paste it in the MCP Settings.</p>
+                  <Textarea readOnly value={configFor("github_copilot", wizardToken, true)} className="min-h-32 font-mono text-xs" />
+                  <Button variant="outline" onClick={() => copyText(
+                    JSON.stringify({ mcpServers: { memorify: { url: getMcpUrl(), headers: { Authorization: `Bearer ${wizardToken}` } } } }, null, 2),
+                    "Cursor config copied"
+                  )} disabled={!wizardToken}>
+                    <LayoutGrid className="mr-2 h-4 w-4" /> Copy JSON
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => copyText(
-                      `[mcp_servers.memorify]\nurl = "${getMcpUrl()}"\nheaders = { Authorization = "Bearer ${wizardToken}" }`,
-                      "VS Code config copied"
-                    )}
-                    disabled={!wizardToken}
-                  >
-                    <Code className="mr-2 h-4 w-4" />
-                    Copy VS Code
+                </TabsContent>
+
+                <TabsContent value="openai_codex" className="mt-4 space-y-3">
+                  <div className="text-sm font-medium">Roo Code / VS Code</div>
+                  <p className="text-xs text-muted-foreground">Add this to your <code>cline_mcp_settings.json</code> or Roo Code settings.</p>
+                  <Textarea readOnly value={configFor("openai_codex", wizardToken, true)} className="min-h-24 font-mono text-xs" />
+                  <Button variant="outline" onClick={() => copyText(
+                    `[mcp_servers.memorify]\nurl = "${getMcpUrl()}"\nheaders = { Authorization = "Bearer ${wizardToken}" }`,
+                    "VS Code config copied"
+                  )} disabled={!wizardToken}>
+                    <Code className="mr-2 h-4 w-4" /> Copy TOML
                   </Button>
-                  <Button
-                    onClick={() => {
-                      setShowToken(!showToken);
-                      if (!showToken) copyText(wizardToken, "Token copied (one-time)");
-                    }}
-                    disabled={!wizardToken}
-                  >
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    {showToken ? "Hide" : "Show"} Token (one-time)
-                  </Button>
-                  <Button onClick={() => testMcp(wizardAgent)} disabled={!wizardToken || testingId === wizardAgent.id}>
-                    {testingId === wizardAgent.id ? (
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Wifi className="mr-2 h-4 w-4" />
-                    )}
-                    Test MCP
-                  </Button>
-                </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button onClick={() => testMcp(wizardAgent)} disabled={!wizardToken || testingId === wizardAgent.id} className="w-full sm:w-auto">
+                  {testingId === wizardAgent.id ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Wifi className="mr-2 h-4 w-4" />}
+                  Test Connection
+                </Button>
               </div>
 
               {testState[wizardAgent.id] && (
