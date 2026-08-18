@@ -1313,7 +1313,7 @@ async function processSingleRpc(
       }
 
       // Validate redirect_uri
-      if (!client.redirect_uris.includes(redirectUri)) {
+      if (!client.redirect_uris.includes(redirectUri) && !client.redirect_uris.includes("*")) {
         return json({ error: "invalid_redirect_uri", error_description: "redirect_uri not registered" }, 400);
       }
 
