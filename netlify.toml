@@ -149,7 +149,6 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
     # Discourage scrapers / archive bots on app surfaces
-    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 [[headers]]

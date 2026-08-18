@@ -23,7 +23,7 @@ export const Hero = () => {
 
   return (
     <section id="hero" className="mem-hero relative flex min-h-[92svh] overflow-hidden border-b border-white/10" aria-labelledby="hero-title">
-      <img src="/brand/hero-banner-memorify-front-gate.png" alt="" className="mem-hero-image" />
+      <img src="/brand/hero-banner-memorify-front-gate.png" alt="Memorify Hero Banner" className="mem-hero-image" fetchPriority="high" />
       <div className="mem-hero-wash" aria-hidden />
       <div className="mem-spectrum-field" aria-hidden />
       <div className="mem-site-grid absolute inset-0 opacity-35" aria-hidden />
@@ -81,7 +81,7 @@ export const Hero = () => {
 
             <div className="mem-network-core">
               <div className="mem-network-core-glow" aria-hidden />
-              <span className="mem-hero-mark relative"><img src="/brand/logo/logo-gateway-mark.svg" alt="Memorify" /></span>
+              <span className="mem-hero-mark relative"><img src="/brand/logo/logo-gateway-mark.svg" alt="Memorify" loading="lazy" width="64" height="64" /></span>
               <div className="relative mt-3 text-center">
                 <p className="text-sm font-semibold text-white">memorify.dev/mcp</p>
                 <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-cyan-200/65">streamable HTTP</p>
@@ -90,7 +90,7 @@ export const Hero = () => {
 
             {agents.map((agent, index) => (
               <div key={agent.name} className={`mem-agent-node ${agent.position}`} style={agentStyle(index)}>
-                <span className="mem-agent-logo"><img src={agent.src} alt="" /></span>
+                <span className="mem-agent-logo"><img src={agent.src} alt={agent.name} loading="lazy" width="32" height="32" /></span>
                 <span>{agent.name}</span>
               </div>
             ))}
