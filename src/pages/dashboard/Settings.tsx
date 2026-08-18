@@ -9,6 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -286,6 +297,32 @@ export default function Settings() {
     const raw = (tab || "").trim().toLowerCase();
     return validTabs.includes(raw) ? raw : "profile";
   }, [tab, validTabs]);
+
+  const [dangerConfirmName, setDangerConfirmName] = useState("");
+  const [isDangerLoading, setIsDangerLoading] = useState(false);
+
+  const performDangerAction = async (action: string, successMsg: string) => {
+    try {
+      setIsDangerLoading(true);
+      const token = await getToken();
+      if (!token) throw new Error("No auth token");
+      const res = await fetch("/api/workspace/danger/action", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Action failed");
+      }
+      toast.success(successMsg);
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong");
+    } finally {
+      setIsDangerLoading(false);
+    }
+  };
 
   const handleTabChange = (nextTab: string) => {
     navigate(`/dashboard/settings/${nextTab}`);
@@ -1937,20 +1974,164 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="danger">
-            <section className="rounded-lg border border-destructive/40 bg-card p-6">
-              <h2 className="text-sm font-semibold mb-2">Danger zone</h2>
-              <p className="text-xs text-muted-foreground mb-4">Sign out of Memorify.</p>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={async () => {
-                  await signOut();
-                  navigate("/");
-                }}
-              >
-                Sign out
-              </Button>
-            </section>
+            <div className="space-y-6">
+              {/* Clear Copilot Chat History */}
+              <section className="rounded-lg border border-destructive/20 bg-card p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold">Clear Copilot chat history</h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Permanently delete all Copilot chat threads and history for this workspace.
+                    </p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0">
+                        Clear chat history
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete all Copilot chat sessions for the entire workspace. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => void performDangerAction("clear_chat", "Chat history cleared")}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Clear History
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </section>
+
+              {/* Revoke API Keys */}
+              <section className="rounded-lg border border-destructive/30 bg-card p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold">Revoke all Agent API Keys</h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Instantly disconnect all external apps (Grok, Claude, Cursor) and invalidate active tokens.
+                    </p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0">
+                        Revoke all tokens
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Revoke all agent tokens?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will immediately invalidate all active <code className="text-xs bg-muted p-0.5 rounded">mem_live_...</code> tokens and OAuth refresh tokens. Connected agents will lose access to Memorify until you generate new tokens for them.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => void performDangerAction("revoke_tokens", "All tokens revoked")}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Revoke Tokens
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </section>
+
+              {/* Wipe Knowledge Base */}
+              <section className="rounded-lg border border-destructive/50 bg-destructive/5 p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-destructive">Wipe Knowledge Base</h2>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                      Permanently delete all uploaded documents, vectors, and memory nodes. Resets the AI's brain to a completely blank slate.
+                    </p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="shrink-0">
+                        Wipe memory
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-destructive">Wipe entire knowledge base?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete <strong>all memories, documents, and vector embeddings</strong> in the workspace. This action is irreversible.
+                          <div className="mt-4">
+                            <Label>Please type the workspace name (<strong className="text-foreground">{workspaceName}</strong>) to confirm.</Label>
+                            <Input
+                              value={dangerConfirmName}
+                              onChange={(e) => setDangerConfirmName(e.target.value)}
+                              className="mt-2"
+                              autoFocus
+                            />
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDangerConfirmName("")}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={dangerConfirmName !== workspaceName || isDangerLoading}
+                          onClick={() => {
+                            void performDangerAction("wipe_memory", "Knowledge base wiped");
+                            setDangerConfirmName("");
+                          }}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          {isDangerLoading ? "Wiping..." : "Wipe Everything"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </section>
+
+              {/* Delete Workspace */}
+              <section className="rounded-lg border border-border bg-card p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold">Delete workspace</h2>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                      This workspace is managed by your Clerk Organization. To delete the workspace, you must delete the Organization from the profile manager.
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={() => toast.info("Open the organization switcher in the sidebar to manage/delete this organization.")}>
+                    Manage organization
+                  </Button>
+                </div>
+              </section>
+
+              {/* Sign out */}
+              <section className="rounded-lg border border-border bg-card p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold">Sign out of Memorify</h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Clear your local session and sign out.
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      await signOut();
+                      navigate("/");
+                    }}
+                  >
+                    Sign out
+                  </Button>
+                </div>
+              </section>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

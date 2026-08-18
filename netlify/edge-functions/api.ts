@@ -9,6 +9,7 @@ import { handleUptime } from "../../backend/routes/uptime.ts";
 import { handleHealth } from "../../backend/routes/health.ts";
 import { handleUptimeRobotWebhook, handleClerkWebhook } from "../../backend/routes/webhooks.ts";
 import { handleShapeQuery } from "../../backend/routes/shape-query.ts";
+import { handleDangerAction } from "../../backend/routes/danger.ts";
 
 const API_CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +57,10 @@ export default async (req: Request): Promise<Response> => {
 
   if (path === "/api/uptime") {
     return handleUptime(req);
+  }
+
+  if (path === "/api/workspace/danger/action") {
+    return handleDangerAction(req);
   }
 
   if (path === "/api/agents" || path.startsWith("/api/agents/")) {
