@@ -1601,11 +1601,25 @@ async function processSingleRpc(
         params = Object.fromEntries(formData.entries()) as Record<string, string>;
       }
 
+      // Support HTTP Basic Auth for client credentials
+      const authHeader = req.headers.get("authorization") || "";
+      if (authHeader.toLowerCase().startsWith("basic ")) {
+        try {
+          const decoded = atob(authHeader.slice(6).trim());
+          const colonIdx = decoded.indexOf(":");
+          if (colonIdx !== -1) {
+            params.client_id = decodeURIComponent(decoded.slice(0, colonIdx));
+            params.client_secret = decodeURIComponent(decoded.slice(colonIdx + 1));
+          }
+        } catch {}
+      }
+
       const grantType = params.grant_type || "";
       const clientId = params.client_id || "";
       const clientSecret = params.client_secret || "";
       const code = params.code || "";
       const redirectUri = params.redirect_uri || "";
+      const codeVerifier = params.code_verifier || "";
 
       // Validate client credentials
       const client = await queryOne<{ id: string; client_secret: string; workspace_id: string; scopes: string[] }>(
@@ -1614,12 +1628,6 @@ async function processSingleRpc(
       );
       if (!client) {
         return json({ error: "invalid_client", error_description: "Unknown client_id" }, 401);
-      }
-
-      // Verify client secret
-      const secretHash = await sha256Hex(clientSecret);
-      if (secretHash !== client.client_secret) {
-        return json({ error: "invalid_client", error_description: "Invalid client_secret" }, 401);
       }
 
       if (grantType === "authorization_code") {
@@ -1647,6 +1655,27 @@ async function processSingleRpc(
 
         if (authCode.consumed_at) {
           return json({ error: "invalid_grant", error_description: "Authorization code already used" }, 400);
+        }
+
+        // Verify PKCE if present, otherwise verify client_secret
+        if (authCode.code_challenge && codeVerifier) {
+          // PKCE verification (S256 only supported for now)
+          const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const base64Url = btoa(String.fromCharCode.apply(null, hashArray))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+            
+          if (base64Url !== authCode.code_challenge) {
+            return json({ error: "invalid_grant", error_description: "PKCE code_verifier mismatch" }, 400);
+          }
+        } else {
+          // Standard client_secret verification
+          const secretHash = await sha256Hex(clientSecret);
+          if (secretHash !== client.client_secret) {
+            return json({ error: "invalid_client", error_description: "Invalid client_secret" }, 401);
+          }
         }
 
         if (new Date(authCode.expires_at) < new Date()) {
