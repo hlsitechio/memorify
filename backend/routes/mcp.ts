@@ -557,7 +557,7 @@ export async function handleMcp(req: Request): Promise<Response> {
   }
 
   // GET → Zero-Leak Discovery Manifest & Browser Inspector
-  if (req.method === "GET") {
+  if (req.method === "GET" && (pathname === "/mcp" || pathname === "/mcp/")) {
     const accept = req.headers.get("accept") || "";
     if (accept.includes("text/html")) {
       const html = `<!DOCTYPE html>
