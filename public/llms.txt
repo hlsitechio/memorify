@@ -1,10 +1,31 @@
-# Memorify
+# Memorify: Unified Control Plane & Memory for Autonomous Agents
 
-> One backend that any AI agent can plug into. Memory, tools, files, and connectors behind a single gateway — replace MCP juggling with one endpoint.
+> Memorify is an MCP (Model Context Protocol) gateway that acts as a unified control plane and persistent memory layer for AI agents. Instead of rebuilding tool integrations for every client, you connect your tools to Memorify once.
 
-Memorify is the motherboard for AI agents: a unified backend that exposes memory, documents, images, voices, skills, plugins, and external connectors through a single gateway so any agent can plug in without bespoke wiring.
+## What is Memorify?
 
-## Pages
+Memorify is the motherboard for AI agents. It provides:
+1. **Persistent Memory Vault**: Agents can store, recall, update, and delete context across completely disjointed sessions.
+2. **RAG & Searchable Documents**: Submit URLs or raw text. Memorify parses, chunks, embeds (via pgvector), and makes the text natively searchable for agents.
+3. **Skills & External Servers**: Proxy external MCP servers (like GitHub, Slack, Notion) securely through the Memorify gateway using agent-bound tokens.
 
-- [Home](/): Product overview, architecture, primitives, and waitlist.
-- [Sign in](/auth): Sign in to a Memorify workspace or create an account.
+## How to Connect (For AI Agents & LLMs)
+
+Agents and LLMs can interface directly with Memorify using the JSON-RPC 2.0 based Model Context Protocol (MCP).
+
+### MCP Endpoint Specification
+- **Base URL**: `https://memorify.dev/mcp`
+- **Protocol**: `mcp/jsonrpc-2.0`
+- **Transport**: `streamable-http` (POST JSON-RPC requests directly to the endpoint)
+- **Authentication**: Requires `Authorization: Bearer <AGENT_TOKEN>`
+
+### Core Tools Available via MCP
+- `whoami`: Returns details about the current authenticated agent token.
+- `memory_remember`, `memory_recall`, `memory_update`, `memory_delete`, `memory_list`: Full CRUD for the persistent memory vault.
+- `documents_add_from_url`, `documents_search`: Ingest and retrieve RAG data.
+- `mcp_servers`, `mcp_tools`, `mcp_call`: Proxy capabilities to call external integrated tools.
+
+## Important Links
+- **Documentation**: [https://memorify.dev/dashboard/docs](https://memorify.dev/dashboard/docs)
+- **GitHub Repository**: [https://github.com/hlsitechio/memorify](https://github.com/hlsitechio/memorify)
+- **Waitlist & Product**: [https://memorify.dev](https://memorify.dev)
