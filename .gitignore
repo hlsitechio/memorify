@@ -57,8 +57,15 @@ new_design/
 test_agents/
 codex_summary/
 mindmap/
+docs/
 test_*.ts
 scripts/mint_test_token.ts
+DESIGN_MODERNIZATION_PLAN.md
+ARCHITECTURE.md
+STRUCTURE.md
+MCP_COMMAND_REFERENCE.md
+generate_hero_video.sh
+stack.html
 
 # OS / junk
 Thumbs.db
