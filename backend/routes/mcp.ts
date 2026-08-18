@@ -717,7 +717,7 @@ export async function handleMcp(req: Request): Promise<Response> {
       version: "1.0.0",
       protocol: "mcp/2024-11-05",
       jsonrpc: "2.0",
-      transport: "streamable-http",
+      transport: ["streamable-http", "sse"],
       status: "online",
       auth: {
         type: "Bearer",
@@ -725,6 +725,10 @@ export async function handleMcp(req: Request): Promise<Response> {
         header: "Authorization: Bearer <token>",
       },
       endpoint: "https://memorify.dev/mcp",
+      endpoints: {
+        jsonrpc: "https://memorify.dev/mcp",
+        sse: "https://memorify.dev/mcp/sse",
+      },
       capabilities: {
         tools: { listChanged: false },
         resources: { subscribe: false, listChanged: false },
@@ -746,7 +750,7 @@ export async function handleMcp(req: Request): Promise<Response> {
     });
   }
 
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && !(req.method === "GET" && pathname === "/mcp/sse")) {
     return json({ error: "method not allowed" }, 405);
   }
 
@@ -809,6 +813,62 @@ export async function handleMcp(req: Request): Promise<Response> {
     );
   }
 
+  // ── Server-Sent Events (SSE) Transport ────────────────────────
+  if (req.method === "GET" && pathname === "/mcp/sse") {
+    const sessionId = crypto.randomUUID();
+    const baseUrl = new URL(req.url).origin;
+    
+    // Register the session
+    await query('INSERT INTO mcp_sse_sessions (id, workspace_id) VALUES ($1, $2)', [sessionId, agentPayload.workspace_id]);
+
+    const encoder = new TextEncoder();
+    let isClosed = false;
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        // Send initial endpoint event
+        controller.enqueue(encoder.encode(`event: endpoint\ndata: ${baseUrl}/mcp/message?session_id=${sessionId}\n\n`));
+        
+        // Polling loop
+        while (!isClosed) {
+          await new Promise(r => setTimeout(r, 500));
+          if (isClosed) break;
+          
+          try {
+            const msgs = await query<{id: number, payload: unknown}>('SELECT id, payload FROM mcp_sse_messages WHERE session_id = $1 ORDER BY id ASC', [sessionId]);
+            if (msgs.length > 0) {
+              for (const msg of msgs) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg.payload)}\n\n`));
+                await query('DELETE FROM mcp_sse_messages WHERE id = $1', [msg.id]);
+              }
+            }
+          } catch (e) {
+            console.error("SSE poll error", e);
+          }
+        }
+      },
+      cancel() {
+        isClosed = true;
+        query('DELETE FROM mcp_sse_sessions WHERE id = $1', [sessionId]).catch(() => {});
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+      }
+    });
+  }
+
+  // If it gets here, it must be POST
+  if (req.method !== "POST") {
+    return json({ error: "method not allowed" }, 405);
+  }
+
+
   // ── Parse JSON-RPC ────────────────────────────────────────
   let rawBody: unknown;
   try {
@@ -835,6 +895,15 @@ export async function handleMcp(req: Request): Promise<Response> {
 
     // Filter out notifications (null return)
     const validResponses = responses.filter((r) => r !== null);
+    
+    if (pathname === "/mcp/message") {
+      const sessionId = url.searchParams.get("session_id");
+      if (sessionId && validResponses.length > 0) {
+        await query('INSERT INTO mcp_sse_messages (session_id, payload) VALUES ($1, $2)', [sessionId, JSON.stringify(validResponses)]);
+      }
+      return new Response("Accepted", { status: 202, headers: corsHeaders });
+    }
+
     if (validResponses.length === 0) {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
@@ -847,6 +916,15 @@ export async function handleMcp(req: Request): Promise<Response> {
 
   // ── Single Request ────────────────────────────────────────
   const response = await processSingleRpc(rawBody, agentPayload, rawToken);
+  
+  if (pathname === "/mcp/message") {
+    const sessionId = url.searchParams.get("session_id");
+    if (sessionId && response !== null) {
+      await query('INSERT INTO mcp_sse_messages (session_id, payload) VALUES ($1, $2)', [sessionId, JSON.stringify(response)]);
+    }
+    return new Response("Accepted", { status: 202, headers: corsHeaders });
+  }
+
   if (response === null) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
