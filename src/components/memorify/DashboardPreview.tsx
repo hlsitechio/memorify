@@ -109,7 +109,7 @@ export const DashboardPreview = () => {
 
             {/* Right Sidebar (Agent Activity) */}
             <div className="border-l border-[#1e293b] bg-[#090b10]/50 p-6 relative">
-              <h3 className="mb-6 text-sm font-semibold text-white">Agent Intelligence</h3>
+              <h2 className="mb-6 text-sm font-semibold text-white">Agent Intelligence</h2>
               
               <div className="space-y-6">
                 <div className="relative pl-4 border-l border-[#1e293b]">
