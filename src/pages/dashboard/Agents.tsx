@@ -830,7 +830,7 @@ export function AgentsManager() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => copyText(configFor(wizardAgent.kind, wizardToken, false), "Claude Code command copied")}
+                    onClick={() => copyText(configFor("claude_code", wizardToken, false), "Claude Code command copied")}
                     disabled={!wizardToken}
                   >
                     <Terminal className="mr-2 h-4 w-4" />
