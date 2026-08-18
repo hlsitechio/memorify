@@ -401,6 +401,24 @@ export function AgentsManager() {
     }
   };
 
+  const downloadConnectionFile = (agent: Agent, authType: "bearer" | "oauth") => {
+    const token = freshTokens[agent.id]?.token;
+    if (!token) {
+      toast.error("No token available to download");
+      return;
+    }
+    const data = connectionPackageFor(agent, token, authType);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `memorify-${agent.kind}-${agent.id.slice(0, 8)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const testMcp = async (agent: Agent) => {
     const token = freshTokens[agent.id]?.token;
     if (!token) {
