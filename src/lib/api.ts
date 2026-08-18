@@ -44,7 +44,14 @@ export function useApi(): { action: ApiFunction } {
         const token = await session?.getToken?.();
         if (!token) return { data: null, error: "Not authenticated" };
 
-        const wsId = currentWs?.id || organization?.id || (user ? `user:${user.id}` : undefined);
+        const wsId = currentWs?.kind === "org" 
+          ? currentWs.id 
+          : (organization?.id || (user ? `user:${user.id}` : undefined));
+
+        const finalArgs = { ...args };
+        if (currentWs?.kind === "agent" && currentWs.agentId && !finalArgs.namespace) {
+          finalArgs.namespace = `agent:${currentWs.agentId}`;
+        }
 
         const res = await fetch(API_URL, {
           method: "POST",
@@ -54,7 +61,7 @@ export function useApi(): { action: ApiFunction } {
           },
           body: JSON.stringify({
             name,
-            args,
+            args: finalArgs,
             workspace_id: wsId,
           }),
         });
