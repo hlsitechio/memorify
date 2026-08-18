@@ -1571,12 +1571,24 @@ async function processSingleRpc(
       callbackUrl.searchParams.set("code", code);
       if (state) callbackUrl.searchParams.set("state", state);
 
+      const finalUrl = callbackUrl.toString();
+
+      await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', [
+        "OAuth Redirect",
+        JSON.stringify({ 
+          redirectUri,
+          finalUrl,
+          code,
+          state
+        })
+      ]).catch(() => {});
+
       const isJsonRequest = req.headers.get("accept")?.includes("application/json");
       if (isJsonRequest) {
-        return json({ redirect_to: callbackUrl.toString() });
+        return json({ redirect_to: finalUrl });
       }
 
-      return Response.redirect(callbackUrl.toString(), 302);
+      return Response.redirect(finalUrl, 302);
     }
 
     // ── Token Endpoint ────────────────────────────────────────────
