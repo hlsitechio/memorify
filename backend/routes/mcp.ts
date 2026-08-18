@@ -556,14 +556,192 @@ export async function handleMcp(req: Request): Promise<Response> {
     return handleOAuthRevoke(req);
   }
 
-  // GET → discovery
+  // GET → Zero-Leak Discovery Manifest & Browser Inspector
   if (req.method === "GET") {
+    const accept = req.headers.get("accept") || "";
+    if (accept.includes("text/html")) {
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memorify MCP Gateway — Protocol 2024-11-05</title>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card: #0d111a;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.2);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .container {
+      max-width: 680px;
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 30px var(--accent-glow);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    .title-group h1 { font-size: 22px; font-weight: 700; color: #fff; }
+    .title-group p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .stat-card label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); display: block; margin-bottom: 6px; }
+    .stat-card value { font-size: 14px; font-family: monospace; color: #e2e8f0; font-weight: 600; }
+    .code-block {
+      background: #05070a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin-bottom: 24px;
+      white-space: pre;
+    }
+    .footer-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #059669; }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title-group">
+        <h1>Memorify MCP Gateway</h1>
+        <p>Unified JSON-RPC 2.0 & Model Context Protocol Endpoint</p>
+      </div>
+      <div class="badge"><span class="dot"></span> Online</div>
+    </div>
+    
+    <div class="grid">
+      <div class="stat-card">
+        <label>Protocol Version</label>
+        <value>MCP 2024-11-05 / JSON-RPC 2.0</value>
+      </div>
+      <div class="stat-card">
+        <label>Transport</label>
+        <value>Streamable HTTP (POST)</value>
+      </div>
+      <div class="stat-card">
+        <label>Authentication</label>
+        <value>Bearer mem_live_... (Ed25519)</value>
+      </div>
+      <div class="stat-card">
+        <label>Available Tools</label>
+        <value>23 Core Tools + Dynamic Upstreams</value>
+      </div>
+    </div>
+
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 8px; font-weight: 600; text-transform: uppercase;">Cursor / Claude Code Configuration</p>
+    <div class="code-block">{
+  "mcpServers": {
+    "memorify": {
+      "url": "https://memorify.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer mem_live_YOUR_TOKEN"
+      }
+    }
+  }
+}</div>
+
+    <div class="footer-actions">
+      <a href="https://memorify.dev" class="btn btn-secondary">Homepage</a>
+      <a href="https://memorify.dev/dashboard/apikeys" class="btn btn-primary">Generate Agent Token &rarr;</a>
+    </div>
+  </div>
+</body>
+</html>`;
+      return new Response(html, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
     return json({
-      name: "memorify-mcp",
-      version: "0.1.0",
-      protocol: "mcp/jsonrpc-2.0",
+      name: "memorify",
+      version: "1.0.0",
+      protocol: "mcp/2024-11-05",
+      jsonrpc: "2.0",
       transport: "streamable-http",
-      docs: "POST JSON-RPC 2.0 with Authorization: Bearer ***",
+      status: "online",
+      auth: {
+        type: "Bearer",
+        token_format: "mem_live_<64hex>",
+        header: "Authorization: Bearer <token>",
+      },
+      endpoint: "https://memorify.dev/mcp",
+      capabilities: {
+        tools: { listChanged: false },
+        resources: { subscribe: false, listChanged: false },
+        prompts: { listChanged: false },
+      },
+      methods_supported: [
+        "initialize",
+        "ping",
+        "tools/list",
+        "tools/call",
+        "resources/list",
+        "resources/read",
+        "prompts/list",
+        "prompts/get",
+        "roots/list",
+      ],
+      tools_count: TOOLS.length,
       tools: TOOLS.map((t) => t.name),
     });
   }
