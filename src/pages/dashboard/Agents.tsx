@@ -779,29 +779,31 @@ export function AgentsManager() {
               </div>
 
               {wizardToken ? (
-                <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-                  <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                  <div>
                     <div className="text-xs uppercase text-muted-foreground">Connection secret</div>
                     <div className="mt-1 text-sm font-medium">Token stored in downloadable JSON file</div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">{redactToken(wizardToken)}</div>
+                    <div className="mt-1 font-mono text-xs text-muted-foreground break-all">{redactToken(wizardToken)}</div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Auth type</Label>
-                    <Select
-                      value={wizardAuthType}
-                      onValueChange={(v) => setWizardAuthType(v as "bearer" | "oauth")}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Bearer token" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bearer">Bearer token (default)</SelectItem>
-                        <SelectItem value="oauth">OAuth 2.0 (for Gemini, etc.)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                    <div className="space-y-2 flex-1">
+                      <Label>Auth type</Label>
+                      <Select
+                        value={wizardAuthType}
+                        onValueChange={(v) => setWizardAuthType(v as "bearer" | "oauth")}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Bearer token" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bearer">Bearer token (default)</SelectItem>
+                          <SelectItem value="oauth">OAuth 2.0 (for Gemini, etc.)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={() => downloadConnectionFile(wizardAgent, wizardAuthType)}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download JSON
+                    </Button>
                   </div>
-                  <Button onClick={() => downloadConnectionFile(wizardAgent, wizardAuthType)}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download JSON
-                  </Button>
                 </div>
               ) : (
                 <Alert>
@@ -851,7 +853,7 @@ export function AgentsManager() {
                       <div>
                         <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">3. Agent Token / Client Secret</div>
                         <div className="flex items-center gap-2">
-                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono">
+                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono break-all">
                             {showToken ? wizardToken : redactToken(wizardToken)}
                           </code>
                           <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
