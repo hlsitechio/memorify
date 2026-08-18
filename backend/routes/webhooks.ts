@@ -1,6 +1,6 @@
 // backend/routes/webhooks.ts — UptimeRobot Webhook Ingestion & Resend Email Dispatcher
 import { json } from "../lib/cors.ts";
-import { Webhook } from "npm:svix";
+import { Webhook } from "https://esm.sh/svix";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const DEFAULT_ALERT_EMAIL = "hlarosesurprenant@gmail.com";
