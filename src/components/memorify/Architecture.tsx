@@ -68,7 +68,10 @@ export const Architecture = () => {
                   <h3 className="mt-2 text-xl font-semibold text-white sm:text-2xl">{lane.title}</h3>
                 </div>
               </div>
-              <p className="text-sm leading-7 text-slate-400 sm:text-base">{lane.description}</p>
+              <div className="flex items-center gap-6 w-full">
+                <p className="text-sm leading-7 text-slate-400 sm:text-base max-w-[26rem]">{lane.description}</p>
+                <div className={`hidden lg:block h-[1px] flex-1 mem-lane-line-${lane.tone} opacity-40`} />
+              </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 {lane.tokens.map((token) => <span key={token} className="mem-tool-token">{token}</span>)}
               </div>

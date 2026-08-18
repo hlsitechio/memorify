@@ -1487,6 +1487,11 @@
   .mem-platform-lane-violet::before { background: linear-gradient(#aa8cff, transparent); box-shadow: 0 0 18px #aa8cff; }
   .mem-platform-lane-amber::before { background: linear-gradient(#ffd166, transparent); box-shadow: 0 0 18px #ffd166; }
 
+  .mem-lane-line-cyan { background: linear-gradient(90deg, transparent, #4fe3c1); box-shadow: 0 0 12px #4fe3c1; }
+  .mem-lane-line-blue { background: linear-gradient(90deg, transparent, #78a8ff); box-shadow: 0 0 12px #78a8ff; }
+  .mem-lane-line-violet { background: linear-gradient(90deg, transparent, #aa8cff); box-shadow: 0 0 12px #aa8cff; }
+  .mem-lane-line-amber { background: linear-gradient(90deg, transparent, #ffd166); box-shadow: 0 0 12px #ffd166; }
+
   .mem-tool-token {
     display: inline-flex;
     align-items: center;
