@@ -1614,6 +1614,15 @@ async function processSingleRpc(
         } catch {}
       }
 
+      await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', [
+        "OAuth Token Request",
+        JSON.stringify({ 
+          contentType, 
+          params, 
+          headers: Object.fromEntries(req.headers.entries()) 
+        })
+      ]).catch(() => {});
+
       const grantType = params.grant_type || "";
       const clientId = params.client_id || "";
       const clientSecret = params.client_secret || "";
@@ -1627,6 +1636,7 @@ async function processSingleRpc(
         [clientId],
       );
       if (!client) {
+        await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_client", desc: "Unknown client_id" })]);
         return json({ error: "invalid_client", error_description: "Unknown client_id" }, 401);
       }
 
@@ -1650,10 +1660,12 @@ async function processSingleRpc(
         );
 
         if (!authCode) {
+          await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_grant", desc: "Invalid authorization code", code, clientId: client.id })]);
           return json({ error: "invalid_grant", error_description: "Invalid authorization code" }, 400);
         }
 
         if (authCode.consumed_at) {
+          await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_grant", desc: "Authorization code already used" })]);
           return json({ error: "invalid_grant", error_description: "Authorization code already used" }, 400);
         }
 
@@ -1668,21 +1680,25 @@ async function processSingleRpc(
             .replace(/=+$/, "");
             
           if (base64Url !== authCode.code_challenge) {
+            await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_grant", desc: "PKCE mismatch", expected: authCode.code_challenge, got: base64Url })]);
             return json({ error: "invalid_grant", error_description: "PKCE code_verifier mismatch" }, 400);
           }
         } else {
           // Standard client_secret verification
           const secretHash = await sha256Hex(clientSecret);
           if (secretHash !== client.client_secret) {
+            await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_client", desc: "Invalid client_secret", sentSecret: clientSecret })]);
             return json({ error: "invalid_client", error_description: "Invalid client_secret" }, 401);
           }
         }
 
         if (new Date(authCode.expires_at) < new Date()) {
+          await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_grant", desc: "Code expired" })]);
           return json({ error: "invalid_grant", error_description: "Authorization code expired" }, 400);
         }
 
         if (redirectUri && redirectUri !== authCode.redirect_uri) {
+          await query('INSERT INTO mcp_logs (message, data) VALUES ($1, $2)', ["OAuth Error", JSON.stringify({ error: "invalid_grant", desc: "redirect_uri mismatch", expected: authCode.redirect_uri, got: redirectUri })]);
           return json({ error: "invalid_grant", error_description: "redirect_uri mismatch" }, 400);
         }
 
