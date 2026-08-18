@@ -2,7 +2,10 @@
 // Provides GET /api/shape with caching, ETag, incremental sync, and SSE live updates
 // Uses Neon pg_notify triggers for real-time invalidation
 
-import type { Config } from '@netlify/edge-functions'
+export interface Config {
+  path?: string;
+  excludedPath?: string[];
+}
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -229,21 +232,18 @@ export default async (req: Request): Promise<Response> => {
         ))
         
         // Keep-alive every 15 seconds
-        const keepAlive = setInterval(() => {
+        let keepAliveTimer: any = setInterval(() => {
           try {
             controller.enqueue(new TextEncoder().encode(`: keep-alive\n\n`))
           } catch {
-            clearInterval(keepAlive)
+            clearInterval(keepAliveTimer)
           }
         }, 15000)
         
-        // Cleanup on close
-        ;(controller as any)._keepAlive = keepAlive
+        ;(controller as any)._keepAlive = keepAliveTimer
       },
       cancel() {
-        entry.subscribers.delete(controller)
-        const keepAlive = (controller as any)._keepAlive
-        if (keepAlive) clearInterval(keepAlive)
+        // Stream cancelled
       },
     })
 

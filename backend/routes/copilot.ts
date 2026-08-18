@@ -304,32 +304,13 @@ async function requireCopilotAuth(req: Request, requestedWorkspaceId?: string): 
     return json({ error: "workspace_required", detail: "Select or create a Clerk organization before using Copilot tools." }, 400);
   }
 
-  if (claims.org_id) {
-    if (workspaceId !== claims.org_id) {
-      let ownedAgent = false;
+  if (claims.org_id && claims.org_id !== workspaceId) {
+    return json({ error: "org_mismatch" }, 403);
+  }
 
-      if (workspaceId.startsWith("agent:")) {
-        const agentId = workspaceId.slice("agent:".length);
-        ownedAgent = Boolean(await queryOne(
-          `SELECT id FROM agents WHERE id::text = $1 AND workspace_id = $2`,
-          [agentId, claims.org_id],
-        ));
-      } else if (workspaceId.startsWith("ws_")) {
-        const suffix = workspaceId.slice(3);
-        ownedAgent = Boolean(await queryOne(
-          `SELECT id FROM agents
-           WHERE right(replace(id::text, '-', ''), 12) = $1
-             AND workspace_id = $2`,
-          [suffix, claims.org_id],
-        ));
-      }
-
-      if (!ownedAgent) return json({ error: "org_mismatch" }, 403);
-    }
-  } else {
+  if (!claims.org_id) {
     const member = await queryOne<{ workspace_id: string }>(
-      `SELECT workspace_id FROM workspace_members
-       WHERE workspace_id = $1 AND user_id = $2`,
+      `SELECT workspace_id FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
       [workspaceId, claims.sub],
     );
     if (!member) return json({ error: "workspace_forbidden" }, 403);
@@ -1960,90 +1941,8 @@ async function syncMcpServer(workspaceId: string, serverId: string) {
 
 async function handleAgentsWorkspaceCommand(name: string, args: Record<string, unknown>, auth: CopilotAuth) {
   const ws = auth.workspace_id;
-
-  if (name === "workspace.stats" || name === "workspace.summary") {
-    // If ws is an agent workspace (ws_... or agent:...)
-    const isAgentWs = ws.startsWith("ws_") || ws.startsWith("agent:");
-    let agentId = "";
-    if (ws.startsWith("agent:")) {
-      agentId = ws.slice("agent:".length);
-    } else if (ws.startsWith("ws_")) {
-      const suffix = ws.slice(3);
-      const agentRow = await queryOne<{ id: string; workspace_id: string }>(
-        `SELECT id, workspace_id FROM agents 
-         WHERE replace(id::text, '-', '') LIKE '%' || $1 OR workspace_id = $2 
-         LIMIT 1`,
-        [suffix, ws],
-      );
-      if (agentRow) agentId = agentRow.id;
-    }
-
-    if (agentId) {
-      const stats = await queryOne<{
-        memories: string;
-        documents: string;
-        events: string;
-        connectors: string;
-        agents: string;
-        skills: string;
-      }>(
-        `SELECT
-          (SELECT count(*) FROM memories WHERE (workspace_id = $1 OR namespace = 'agent:' || $2 OR metadata->>'agent_id' = $2) AND archived = false) AS memories,
-          (SELECT count(*) FROM documents WHERE workspace_id = $1 OR metadata->>'agent_id' = $2) AS documents,
-          (SELECT count(*) FROM identity_events WHERE workspace_id = $1 OR payload->>'agent_id' = $2 OR payload->>'source' = 'agent:' || $2) AS events,
-          (SELECT count(*) FROM mcp_servers WHERE workspace_id = $1) AS connectors,
-          1 AS agents,
-          (SELECT count(*) FROM skills WHERE workspace_id = $1) AS skills`,
-        [ws, agentId],
-      );
-      return {
-        memories: Number(stats?.memories ?? 0),
-        documents: Number(stats?.documents ?? 0),
-        events: Number(stats?.events ?? 0),
-        connectors: Number(stats?.connectors ?? 0),
-        agents: Number(stats?.agents ?? 1),
-        skills: Number(stats?.skills ?? 0),
-        workspace_id: ws,
-        is_agent: true,
-        agent_id: agentId,
-      };
-    }
-
-    // Org-level / User-level aggregate stats
-    const parentWs = auth.claims.org_id || ws;
-    const stats = await queryOne<{
-      memories: string;
-      documents: string;
-      events: string;
-      connectors: string;
-      agents: string;
-      skills: string;
-    }>(
-      `SELECT
-        (SELECT count(*) FROM memories WHERE (workspace_id = $1 OR workspace_id = $2) AND archived = false) AS memories,
-        (SELECT count(*) FROM documents WHERE workspace_id = $1 OR workspace_id = $2) AS documents,
-        (SELECT count(*) FROM identity_events WHERE workspace_id = $1 OR workspace_id = $2) AS events,
-        (SELECT count(*) FROM mcp_servers WHERE workspace_id = $1 OR workspace_id = $2) AS connectors,
-        (SELECT count(*) FROM agents WHERE (workspace_id = $1 OR workspace_id = $2) AND status <> 'disconnected') AS agents,
-        (SELECT count(*) FROM skills WHERE workspace_id = $1 OR workspace_id = $2) AS skills`,
-      [ws, parentWs],
-    );
-
-    return {
-      memories: Number(stats?.memories ?? 0),
-      documents: Number(stats?.documents ?? 0),
-      events: Number(stats?.events ?? 0),
-      connectors: Number(stats?.connectors ?? 0),
-      agents: Number(stats?.agents ?? 0),
-      skills: Number(stats?.skills ?? 0),
-      workspace_id: ws,
-      is_agent: false,
-    };
-  }
-
   if (name === "agents.list") {
-    const parentWs = auth.claims.org_id || ws;
-    const rows = await listWorkspaceAgents(parentWs);
+    const rows = await listWorkspaceAgents(ws);
     const limit = limitOf(args.limit, 50, 200);
     return rows.slice(0, limit).map((agent) => ({
       ...agent,
@@ -2944,9 +2843,10 @@ async function handleConnectorsCommand(name: string, args: Record<string, unknow
 
 async function handleStripeCommand(name: string, args: Record<string, unknown>, auth: CopilotAuth) {
   const ws = auth.workspace_id;
-  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  const settings = await getCopilotSettings(ws);
+  const stripeKey = (settings as any)?.openrouter_key || Deno.env.get("STRIPE_SECRET_KEY");
 
-  if (!stripeKey) throw new Error("Stripe secret key not configured in environment");
+  if (!stripeKey) throw new Error("Stripe secret key not configured in Copilot settings or environment");
 
   // Import Stripe dynamically from esm.sh (works in Netlify Edge Functions)
   const Stripe = (await import("https://esm.sh/stripe@17.0.0")).default;

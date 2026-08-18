@@ -588,21 +588,25 @@ export async function handleMcp(req: Request): Promise<Response> {
   // If not a valid agent token, try to verify as Clerk JWT
   if (!agentPayload) {
     try {
+      // Verify the Clerk JWT using the same logic as the agent-jwt endpoint
+      // We need to import verifyClerkJwt
+      const { verifyClerkJwt } = await import("../lib/clerk.ts");
       const clerkPayload = await verifyClerkJwt(rawToken);
-      if (!clerkPayload.org_id) throw new Error("clerk_org_required");
-
-      const now = Math.floor(Date.now() / 1000);
-      agentPayload = {
-        workspace_id: clerkPayload.org_id,
-        agent_id: clerkPayload.sub,
-        access_level: "full",
-        scopes: ["memory:read", "memory:write", "documents:read", "documents:write", "events:read", "events:write", "skills:read", "skills:write"],
-        exp: now + 3600,
-        iat: now,
-        jti: crypto.randomUUID(),
-      };
+      if (clerkPayload) {
+        // Convert Clerk payload to agent-like payload for MCP handlers
+        const now = Math.floor(Date.now() / 1000);
+        agentPayload = {
+          workspace_id: clerkPayload.org_id || clerkPayload.workspace_id || "",
+          agent_id: clerkPayload.agent_id || clerkPayload.sub,
+          access_level: "full", // Clerk JWT agents get full access
+          scopes: ["memory:read", "memory:write", "documents:read", "documents:write", "events:read", "events:write", "skills:read", "skills:write"],
+          exp: now + 3600, // 1 hour
+          iat: now,
+          jti: crypto.randomUUID(),
+        };
+      }
     } catch {
-      // Not a valid organization-bound Clerk JWT.
+      // Not a valid Clerk JWT either
     }
   }
 
@@ -1418,3 +1422,4 @@ export async function handleMcp(req: Request): Promise<Response> {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
     }
+

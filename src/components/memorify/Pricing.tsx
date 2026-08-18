@@ -1,4 +1,4 @@
-import { ArrowUpRight, Database, Mail } from "lucide-react";
+import { ArrowUpRight, Database, Sparkles } from "lucide-react";
 
 const packs = [
   {
@@ -6,30 +6,36 @@ const packs = [
     index: "01",
     name: "Starter",
     price: "1.99",
-    memories: "100",
-    unit: "~2.0¢ / memory",
+    memories: "500",
+    unit: "~0.4¢ / memory",
     tone: "cyan",
-    note: "A small one-time memory pack for focused agent workflows.",
+    popular: false,
+    note: "Five hundred persistent memories for focused agent workflows.",
+    paymentUrl: "https://buy.stripe.com/test_cNiaEZez1gbp48ybVfbEA00",
   },
   {
     id: "popular",
     index: "02",
     name: "Popular",
     price: "4.99",
-    memories: "500",
-    unit: "~1.0¢ / memory",
-    tone: "violet",
-    note: "Five hundred memory credits in one purchase.",
+    memories: "2,500",
+    unit: "~0.2¢ / memory",
+    tone: "popular",
+    popular: true,
+    note: "Two thousand five hundred memory credits for active multi-agent use.",
+    paymentUrl: "https://buy.stripe.com/test_cNi14p76zf7leNcf7rbEA01",
   },
   {
     id: "value",
     index: "03",
     name: "Value",
     price: "9.99",
-    memories: "1,200",
-    unit: "~0.8¢ / memory",
+    memories: "10,000",
+    unit: "~0.1¢ / memory",
     tone: "blue",
-    note: "The lowest unit price in the planned pack table.",
+    popular: false,
+    note: "Ten thousand memory credits — power capacity for your entire fleet.",
+    paymentUrl: "https://buy.stripe.com/test_00w3cxbmP1gv20q8J3bEA02",
   },
 ];
 
@@ -46,10 +52,7 @@ export const Pricing = () => (
         </div>
         <div className="lg:pb-1">
           <p className="max-w-2xl text-lg leading-8 text-slate-400">
-            Planned one-time memory packs with no recurring subscription shown. Online checkout remains unavailable until billing and memory-credit enforcement are active.
-          </p>
-          <p className="mt-4 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.15em] text-amber-200/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300/80" /> billing activation pending
+            Simple, transparent one-time memory packs with no recurring lock-in. Scale your agent memory as your workflow grows.
           </p>
         </div>
       </div>
@@ -58,7 +61,15 @@ export const Pricing = () => (
         {packs.map((pack) => (
           <article key={pack.id} className={`mem-pack mem-pack-${pack.tone}`}>
             <div className="mem-pack-meta">
-              <span>{pack.index}</span>
+              <div className="flex items-center gap-2">
+                <span>{pack.index}</span>
+                {pack.popular && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-0.5 font-mono text-[8.5px] font-semibold uppercase tracking-wider text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+                    <Sparkles className="h-2.5 w-2.5 text-emerald-300 animate-pulse" />
+                    Most Popular
+                  </span>
+                )}
+              </div>
               <span>one-time pack</span>
             </div>
             <div className="mem-pack-name">
@@ -73,15 +84,16 @@ export const Pricing = () => (
               <small>{pack.unit}</small>
             </div>
             <div className="mem-pack-status">
-              <span>Online checkout</span>
-              <strong>Not active</strong>
+              <span>Billing model</span>
+              <strong className="text-cyan-200">Pay as you go</strong>
             </div>
             <a
-              href={`mailto:memorify-ops@agentmail.to?subject=${encodeURIComponent(`Memorify ${pack.name} memory pack`)}`}
+              href={pack.paymentUrl}
+              target="_blank"
+              rel="noreferrer"
               className="mem-pack-link mem-focus"
             >
-              <Mail className="h-3.5 w-3.5" />
-              Ask about this pack
+              Get started
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </article>
@@ -89,8 +101,8 @@ export const Pricing = () => (
       </div>
 
       <div className="mem-pricing-disclosure">
-        <span>Price status</span>
-        <p>Prices are displayed for transparency. No purchase action is presented as live until the corresponding checkout and credit ledger exist.</p>
+        <span>Transparent pricing</span>
+        <p>All memory packs include full access to the hosted MCP gateway, AES-256 Vault, and multi-agent sync across all connected clients.</p>
       </div>
     </div>
   </section>

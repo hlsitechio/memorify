@@ -12,7 +12,7 @@
 | `G:\memory-mcp` | **Not Memorify** — Claude Code Memory Engine |
 
 Production: https://memorify.dev  
-Netlify site: `memorify-dev` · ID `3b6ed5d9-2648-4dec-960c-8f9b05b1fe04`  
+Netlify site: `memorify-dev`  
 MCP: https://memorify.dev/mcp (same-origin only)
 
 ---
@@ -21,11 +21,10 @@ MCP: https://memorify.dev/mcp (same-origin only)
 
 | System | Correct |
 |--------|---------|
-| Clerk app | **Memorify_Hermes** `app_3HbD3y1Pw8PoIHxa7am9wOzI737` |
-| Clerk Production | `ins_3HdmMe2SwKEa0pK2xN4ZYRKDrKF` · domain `memorify.dev` |
+| Clerk app | **Memorify_Hermes** `app_...` |
+| Clerk Production | `ins_...` · domain `memorify.dev` |
 | Clerk Frontend API | `https://clerk.memorify.dev` |
-| Clerk **wrong** app | My Application `app_3CYNbwz6…` — ignore / delete later |
-| Neon | project `memorify` · `morning-river-80492210` · branch `production` |
+| Neon | project `memorify` · branch `production` |
 | GitHub | `hlsitechio/memorify` (private) |
 
 ---
@@ -175,11 +174,9 @@ All app data tables scope by **`workspace_id` = Clerk org_id**. Auth SoT remains
 
 ## Browser automation (admin)
 
-- **Playwright MCP headed** + profile:  
-  `%LOCALAPPDATA%\hermes\browser-profile-playwright`
-- Use for Clerk / Netlify / GCP / Neon consoles
-- Hermes preview pane is **not** agent-controllable
-- Profile **default** only for Hubert ops — never touch **elisabeth** without explicit OK
+- **Playwright MCP headed** + isolated admin profile
+- Use for Clerk / Netlify / GCP / Neon administrative tasks
+- Keep operations strictly within designated admin sessions
 
 ---
 

@@ -52,8 +52,16 @@ BACKUPS/
 *.bak
 *.tmp*
 .hermes-tmp*
+gpt5-6_site/
+new_design/
+test_agents/
+codex_summary/
+mindmap/
+test_*.ts
+scripts/mint_test_token.ts
 
 # OS / junk
 Thumbs.db
 desktop.ini
+
 

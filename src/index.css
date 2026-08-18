@@ -2325,8 +2325,32 @@
     transform: translateY(-6px);
   }
   .mem-pack-cyan { --pack-color: 79 227 193; }
+  .mem-pack-emerald, .mem-pack-popular { --pack-color: 52 211 153; }
   .mem-pack-violet { --pack-color: 170 140 255; }
   .mem-pack-blue { --pack-color: 120 168 255; }
+
+  .mem-pack-popular {
+    position: relative;
+    z-index: 2;
+    background: linear-gradient(180deg, rgb(52 211 153 / 0.04), transparent 60%), #06080e;
+    border: 1px solid rgb(52 211 153 / 0.45) !important;
+    box-shadow: 0 0 30px rgba(52, 211, 153, 0.15), inset 0 0 20px rgba(52, 211, 153, 0.03);
+    border-radius: 6px;
+    margin: -1px 0;
+  }
+
+  .mem-pack-popular:hover {
+    background: linear-gradient(180deg, rgb(52 211 153 / 0.1), transparent 72%), #06080e;
+    border-color: rgb(52 211 153 / 0.85) !important;
+    box-shadow: 0 0 50px rgba(52, 211, 153, 0.35), 0 0 20px rgba(52, 211, 153, 0.2), inset 0 0 30px rgba(52, 211, 153, 0.07);
+    transform: translateY(-6px);
+  }
+
+  .mem-pack-popular::before {
+    width: calc(100% - 2 * clamp(22px, 3vw, 40px));
+    background: rgb(52 211 153);
+    box-shadow: 0 0 20px rgb(52 211 153 / 0.85);
+  }
 
   .mem-pack::before {
     content: "";

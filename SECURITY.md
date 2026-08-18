@@ -31,4 +31,4 @@ That is **not** the TypeScript source tree. Do not enable source maps in product
 
 ## Reporting
 
-Security issues: hlarosesurprenant@gmail.com
+Security issues: memorify-ops@agentmail.to

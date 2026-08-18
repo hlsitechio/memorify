@@ -2,7 +2,7 @@
 // Called by Edge Function shape-cache.ts to fetch fresh data from Neon
 // Path: /api/shape/query (internal, protected by SHAPE_CACHE_INTERNAL_TOKEN)
 
-import { query } from "./db.ts";
+import { query } from "../lib/db.ts";
 
 export async function handleShapeQuery(req: Request): Promise<Response> {
   const url = new URL(req.url);
@@ -32,7 +32,7 @@ export async function handleShapeQuery(req: Request): Promise<Response> {
       params[idx] = v;
     }
   }
-  if (!params['1']) params['1'] = workspaceId;
+  if (!params['1'] && workspaceId) params['1'] = workspaceId;
 
   if (!workspaceId) {
     return new Response(JSON.stringify({ error: 'workspace_id required' }), {
