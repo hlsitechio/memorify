@@ -1,83 +1,38 @@
-import { useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowRight, Radio } from "lucide-react";
+import { useMemorifyStatus } from "@/hooks/useMemorifyStatus";
 
 export const Waitlist = () => {
-  const [email, setEmail] = useState("");
-  const [useCase, setUseCase] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.includes("@")) return toast.error("Valid email required");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, use_case: useCase || null }),
-      });
-      if (res.ok) {
-        setDone(true);
-        toast.success("You're in. We'll be in touch.");
-      } else if (res.status === 409) {
-        setDone(true);
-        toast.success("You're already on the list");
-      } else {
-        toast.error("Something went wrong. Try again.");
-      }
-    } catch {
-      toast.error("Network error. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const status = useMemorifyStatus();
+  const statusLabel = status.state === "online"
+    ? "Live in production"
+    : status.state === "loading"
+      ? "Checking production"
+      : "Production endpoint";
 
   return (
-    <section id="waitlist" className="py-24 border-t border-border/50 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-radial opacity-60" aria-hidden />
-      <div className="container relative">
-        <div className="max-w-xl mx-auto text-center">
-          <p className="text-xs font-mono text-primary mb-3 tracking-wider">EARLY ACCESS</p>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-            Get a gateway URL.
-          </h2>
-          <p className="mt-5 text-muted-foreground text-lg">
-            Private alpha. We're onboarding teams building serious agent systems first. Tell us what you're building.
-          </p>
-
-          {done ? (
-            <div className="mt-10 p-6 rounded-xl border border-primary/30 bg-card/60 backdrop-blur ring-primary-soft inline-flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-primary" />
-              <span className="font-medium">You're on the list.</span>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="mt-10 space-y-3 text-left">
-              <input
-                type="email"
-                required
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-card border border-border rounded-md px-4 py-3 text-sm focus:outline-none focus:border-primary/50 transition-colors"
-              />
-              <textarea
-                placeholder="What are you building? (optional)"
-                value={useCase}
-                onChange={(e) => setUseCase(e.target.value)}
-                rows={3}
-                className="w-full bg-card border border-border rounded-md px-4 py-3 text-sm focus:outline-none focus:border-primary/50 transition-colors resize-none"
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md bg-gradient-primary text-primary-foreground font-medium glow-primary hover:scale-[1.01] transition-transform disabled:opacity-60"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Request access <ArrowRight className="w-4 h-4" /></>}
-              </button>
-            </form>
-          )}
+    <section className="relative overflow-hidden bg-[#05060a] py-24 lg:py-32">
+      <div className="mem-cta-spectrum" aria-hidden />
+      <div className="mem-site-grid absolute inset-0 opacity-25" aria-hidden />
+      <div className="container relative text-center">
+        <div className={`mx-auto flex w-fit items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] ${status.state === "online" ? "text-emerald-300" : "text-slate-500"}`}>
+          <span className={`mem-status-dot ${status.state === "online" ? "is-online" : ""}`} />
+          {statusLabel}
+        </div>
+        <h2 className="mem-heading mx-auto mt-6 max-w-4xl text-4xl font-semibold leading-[1.08] sm:text-5xl lg:text-6xl">
+          Give the next session the context <span className="mem-gradient-text">the last one earned.</span>
+        </h2>
+        <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-400">
+          Open an existing workspace, issue an agent-bound token, and connect through Memorify's live MCP endpoint.
+        </p>
+        <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+          <a href="/auth" className="mem-primary-button mem-focus h-12 px-6">
+            Open Memorify
+            <ArrowRight className="h-4 w-4" />
+          </a>
+          <a href="https://memorify.dev/mcp" target="_blank" rel="noreferrer" className="mem-secondary-button mem-focus h-12 px-6">
+            <Radio className="h-4 w-4 text-cyan-200" />
+            Inspect /mcp
+          </a>
         </div>
       </div>
     </section>

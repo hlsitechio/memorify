@@ -1,87 +1,86 @@
-import { Brain, Database, FolderTree, Plug, Workflow, Wrench } from "lucide-react";
+import { useStaggeredReveal } from "@/hooks/useScrollReveal";
 
-const services = [
-  { icon: Brain, name: "memory", desc: "remember · recall · link" },
-  { icon: FolderTree, name: "files", desc: "read · write · index" },
-  { icon: Wrench, name: "tools", desc: "register · invoke · stream" },
-  { icon: Plug, name: "connectors", desc: "gmail · drive · linear" },
-  { icon: Database, name: "vector", desc: "embed · query · upsert" },
-  { icon: Workflow, name: "automation", desc: "schedule · webhook · event" },
+const lanes = [
+  {
+    number: "01",
+    eyebrow: "State",
+    title: "Memory that follows the session",
+    description: "Remember, recall, update, list, and delete operations keep durable context available across agent sessions.",
+    tokens: ["memory_remember", "memory_recall", "memory_update"],
+    tone: "cyan",
+  },
+  {
+    number: "02",
+    eyebrow: "Knowledge",
+    title: "Documents agents can actually search",
+    description: "URL ingestion, extracted content, source and chunk metadata, full-text retrieval, and pgvector search.",
+    tokens: ["documents_add_from_url", "documents_search", "documents_view"],
+    tone: "blue",
+  },
+  {
+    number: "03",
+    eyebrow: "Extension",
+    title: "Skills and external MCP servers",
+    description: "Discover connected servers, inspect their tools, and proxy calls without rebuilding an integration in every client.",
+    tokens: ["skills_run", "mcp_tools", "mcp_call"],
+    tone: "violet",
+  },
+  {
+    number: "04",
+    eyebrow: "Control",
+    title: "Identity, access, and an event trail",
+    description: "Agent-bound tokens, gateway access levels, health checks, and event logging.",
+    tokens: ["whoami", "agent_token_create", "events_log"],
+    tone: "amber",
+  },
 ];
 
-const agents = ["Claude Code", "Cursor", "ChatGPT", "Custom"];
-
 export const Architecture = () => {
+  const { containerRef, visibleIndices } = useStaggeredReveal(lanes.length, { threshold: 0.12 });
+
   return (
-    <section className="py-24 border-t border-border/50 relative overflow-hidden">
-      <div className="absolute inset-0 bg-mesh opacity-60" aria-hidden />
+    <section id="architecture" className="relative overflow-hidden border-b border-white/10 bg-[#05060a] py-20 lg:py-28">
+      <div className="mem-site-grid absolute inset-0 opacity-25" aria-hidden />
+      <div className="mem-section-spectrum mem-section-spectrum-right" aria-hidden />
       <div className="container relative">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-xs font-mono text-primary mb-3 tracking-wider">ARCHITECTURE</p>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-            One gateway. Every agent.<br />
-            <span className="text-muted-foreground">Every tool.</span>
-          </h2>
+        <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
+          <div>
+            <p className="mem-kicker">The platform</p>
+            <h2 className="mt-5 text-4xl font-semibold leading-[1.08] text-white sm:text-5xl">
+              One connection. <span className="mem-gradient-text">Four systems</span> behind it.
+            </h2>
+          </div>
+          <p className="max-w-2xl text-lg leading-8 text-slate-400 lg:justify-self-end">
+            Memorify keeps the agent-facing surface narrow while the production stack underneath handles state, retrieval, extension, and control.
+          </p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          {/* Agents row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-            {agents.map((a) => (
-              <div
-                key={a}
-                className="px-4 py-4 rounded-lg border border-border bg-card/60 backdrop-blur text-center text-sm font-medium card-elevated"
-              >
-                {a}
-              </div>
-            ))}
-          </div>
-
-          {/* Connector lines */}
-          <div className="flex justify-center my-2">
-            <div className="relative h-16 w-px bg-gradient-to-b from-border via-primary to-border overflow-hidden">
-              <div className="absolute inset-x-0 h-8 bg-gradient-to-b from-transparent via-primary to-transparent animate-scan" />
-            </div>
-          </div>
-
-          {/* Gateway */}
-          <div className="relative mb-2">
-            <div className="absolute inset-0 bg-gradient-primary blur-2xl opacity-30" aria-hidden />
-            <div className="relative px-6 py-5 rounded-xl border border-primary/40 bg-card backdrop-blur ring-primary-soft">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-                  <span className="font-semibold">Memorify Gateway</span>
-                  <span className="font-mono text-xs text-muted-foreground">{`{ agent, action, input }`}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                  <span className="px-2 py-0.5 rounded bg-secondary border border-border">MCP</span>
-                  <span className="px-2 py-0.5 rounded bg-secondary border border-border">HTTP</span>
-                  <span className="px-2 py-0.5 rounded bg-secondary border border-border">WS</span>
+        <div ref={containerRef} className="mt-14 border-y border-white/10">
+          {lanes.map((lane, index) => (
+            <article
+              key={lane.number}
+              className={`mem-platform-lane mem-platform-lane-${lane.tone} ${visibleIndices.has(index) ? "is-visible" : ""}`}
+            >
+              <div className="flex items-start gap-4">
+                <span className="font-mono text-xs text-white/25">{lane.number}</span>
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">{lane.eyebrow}</p>
+                  <h3 className="mt-2 text-xl font-semibold text-white sm:text-2xl">{lane.title}</h3>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center my-2">
-            <div className="h-10 w-px bg-gradient-to-b from-primary to-border" />
-          </div>
-
-          {/* Services */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {services.map((s) => (
-              <div
-                key={s.name}
-                className="group p-4 rounded-lg border border-border bg-card/60 backdrop-blur card-elevated hover:border-primary/40 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <s.icon className="w-4 h-4 text-primary" />
-                  <span className="font-mono text-sm">/{s.name}</span>
-                </div>
-                <p className="text-xs text-muted-foreground font-mono">{s.desc}</p>
+              <p className="text-sm leading-7 text-slate-400 sm:text-base">{lane.description}</p>
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                {lane.tokens.map((token) => <span key={token} className="mem-tool-token">{token}</span>)}
               </div>
-            ))}
-          </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-600">
+          <span>Netlify Edge</span>
+          <span>Neon Postgres + pgvector</span>
+          <span>Clerk workspaces</span>
+          <span>MCP JSON-RPC 2.0</span>
         </div>
       </div>
     </section>

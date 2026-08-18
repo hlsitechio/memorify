@@ -1,55 +1,95 @@
-import { Cpu } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+
+const links = [
+  { href: "/#protocol", label: "MCP" },
+  { href: "/#architecture", label: "Platform" },
+  { href: "/#primitives", label: "Tools" },
+  { href: "/#control-plane", label: "Control plane" },
+  { href: "/#pricing", label: "Pricing" },
+];
 
 export const Nav = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState<{ id: string } | null>(null);
-  
-  // Check if we're on a public route (no Clerk)
-  const isPublicRoute = ["/", "/protocol", "/primitives"].includes(window.location.pathname);
-  
-  // On public routes, we don't have auth context - simulate no user
-  const effectiveUser = isPublicRoute ? null : user;
+  const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
 
-  const handleSignIn = () => navigate("/auth");
-  const handleSignUp = () => navigate("/auth");
+  useEffect(() => {
+    const onScroll = () => {
+      const current = window.scrollY;
+      const delta = current - lastScrollY.current;
+
+      if (current < 32 || open) setHidden(false);
+      else if (delta > 7 && current > 120) setHidden(true);
+      else if (delta < -7) setHidden(false);
+
+      lastScrollY.current = current;
+    };
+
+    lastScrollY.current = window.scrollY;
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [open]);
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-background/60 border-b border-border/50">
-      <nav className="container flex items-center justify-between h-16">
-        <a href="#" className="flex items-center gap-2 group">
-          <div className="relative w-7 h-7 rounded-md bg-gradient-primary grid place-items-center">
-            <Cpu className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
-            <div className="absolute inset-0 rounded-md bg-gradient-primary blur-md opacity-50 group-hover:opacity-80 transition-opacity" />
-          </div>
-          <span className="font-semibold tracking-tight">Memorify</span>
-          <span className="font-mono text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 ml-1">v0.1</span>
+    <header
+      className={`fixed inset-x-0 top-3 z-50 transition-transform duration-300 ease-decelerate ${
+        hidden ? "-translate-y-24" : "translate-y-0"
+      }`}
+    >
+      <nav className="mem-nav-shell mx-auto flex h-14 w-[calc(100%-1.5rem)] max-w-[1376px] items-center justify-between px-3 sm:px-4">
+        <a href="/#" className="mem-focus flex min-w-0 items-center gap-2.5 rounded-md" aria-label="Memorify home">
+          <span className="mem-brand-mark">
+            <img src="/brand/logo/logo-gateway-mark.svg" alt="" className="h-full w-full" />
+          </span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="mem-brand-word text-[15px] font-semibold">Memorify</span>
+            <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/55 xs:inline">dev</span>
+          </span>
         </a>
-        <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <a href="#protocol" className="hover:text-foreground transition-colors">Protocol</a>
-          <a href="#primitives" className="hover:text-foreground transition-colors">Primitives</a>
-          <a href="#demo" className="hover:text-foreground transition-colors">Live demo</a>
-          <a href="#waitlist" className="hover:text-foreground transition-colors">Access</a>
-          <a href="/protocol" className="hover:text-foreground transition-colors">Protocol</a>
-          <a href="/primitives" className="hover:text-foreground transition-colors">Primitives</a>
+
+        <div className="hidden items-center gap-7 md:flex">
+          {links.map((link) => (
+            <a key={link.href} href={link.href} className="mem-nav-link mem-focus rounded-sm text-sm">
+              {link.label}
+            </a>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          {effectiveUser ? (
-            <Link to="/dashboard" className="text-sm font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
-                Sign in
-              </Link>
-              <Link to="/auth" className="text-sm font-medium px-4 py-2 rounded-md bg-foreground/[0.04] hover:bg-foreground/10 border border-border transition-colors">
-                Sign up
-              </Link>
-            </>
-          )}
+
+        <div className="flex items-center gap-1.5">
+          <Link to="/auth" className="mem-focus hidden rounded-md px-3 py-2 text-sm text-slate-300 transition-colors hover:text-white sm:inline-flex">
+            Sign in
+          </Link>
+          <Link to="/auth" className="mem-primary-button mem-focus h-9 px-3.5 text-sm">
+            Open app
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="mem-icon-button mem-focus md:hidden"
+            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-expanded={open}
+          >
+            {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
         </div>
+
+        {open && (
+          <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] grid gap-1 rounded-lg border border-white/10 bg-[#070a11]/95 p-2 shadow-2xl backdrop-blur-xl md:hidden">
+            {links.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="mem-focus rounded-md px-3 py-3 text-sm text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
       </nav>
     </header>
   );

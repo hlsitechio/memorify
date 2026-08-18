@@ -1,174 +1,108 @@
-import { useEffect, useState } from "react";
-import { Loader2, Send, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowRight, CircleDot, Database, FileSearch, KeyRound, Radio, Workflow } from "lucide-react";
+import { useMemorifyStatus } from "@/hooks/useMemorifyStatus";
 
-// Same-origin Netlify Edge API (legacy backend gateway removed).
-const GATEWAY_URL = `${typeof window !== "undefined" ? window.location.origin : ""}/api/health`;
-// Demo landing pings health only until agent-gateway is rewired on Edge.
-const DEMO_TOKEN = "public_demo_token_memorify_landing";
+const modules = [
+  { name: "Memory", icon: CircleDot },
+  { name: "Documents", icon: FileSearch },
+  { name: "MCP servers", icon: Workflow },
+  { name: "Agent tokens", icon: KeyRound },
+];
 
-type Memory = { id: string; content: string; tags: string[]; created_at: string };
+const activityPreview = [
+  { agent: "claude-code", action: "memory_remember", boundary: "shared memory", toneClass: "text-cyan-200" },
+  { agent: "cursor", action: "documents_search", boundary: "workspace", toneClass: "text-blue-200" },
+  { agent: "hermes", action: "agents_bootstrap", boundary: "agent + workspace", toneClass: "text-violet-200" },
+  { agent: "custom-worker", action: "mcp_call", boundary: "connected server", toneClass: "text-amber-200" },
+];
 
 export const LiveDemo = () => {
-  const [content, setContent] = useState("Memorify will replace MCP juggling for me.");
-  const [tags, setTags] = useState("intent");
-  const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string>("");
-  const [memories, setMemories] = useState<Memory[]>([]);
-  const [tab, setTab] = useState<"remember" | "recall">("remember");
-  const [recallQuery, setRecallQuery] = useState("");
-
-  const refresh = async () => {
-    try {
-      // Soft probe: full agent-gateway not on Edge yet — avoid HTML→JSON crash
-      const res = await fetch(GATEWAY_URL, { method: "GET" });
-      const ct = res.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) return;
-      const json = await res.json();
-      // health shape ≠ memory list; keep empty until Edge gateway ships
-      if (Array.isArray(json.result)) setMemories(json.result);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  const send = async () => {
-    setLoading(true);
-    setResponse("");
-    try {
-      const res = await fetch(GATEWAY_URL, { method: "GET" });
-      const ct = res.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) {
-        toast.error("Gateway not ready");
-        return;
-      }
-      const json = await res.json();
-      setResponse(JSON.stringify({ note: "Agent gateway migrating to Netlify Edge", health: json }, null, 2));
-      toast.message("API live — full memory demo reconnecting soon");
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const status = useMemorifyStatus();
+  const unavailableLabel = status.state === "loading" ? "checking" : "unavailable";
+  const endpointSignals = [
+    { label: "Health API", value: status.healthStatus || unavailableLabel, online: status.state === "online" },
+    { label: "MCP manifest", value: status.tools.length > 0 ? `${status.tools.length} tools` : unavailableLabel, online: status.tools.length > 0 },
+    { label: "Transport", value: status.transport || unavailableLabel, online: Boolean(status.transport) },
+  ];
 
   return (
-    <section id="demo" className="py-24 border-t border-border/50 relative">
-      <div className="container">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <p className="text-xs font-mono text-primary mb-3 tracking-wider flex items-center justify-center gap-2">
-            <Sparkles className="w-3 h-3" /> LIVE GATEWAY
-          </p>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-            This isn't a mockup. <span className="text-gradient">Try it.</span>
-          </h2>
-          <p className="mt-5 text-muted-foreground text-lg">
-            Real endpoint, real database, real protocol. Store a memory below — any visitor's agent can recall it.
-          </p>
+    <section id="control-plane" className="relative overflow-hidden border-b border-white/10 bg-[#08090e] py-20 lg:py-28">
+      <div className="mem-control-glow" aria-hidden />
+      <div className="container relative">
+        <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
+          <div>
+            <p className="mem-kicker">Control plane</p>
+            <h2 className="mem-heading mt-5 text-4xl font-semibold leading-[1.08] sm:text-5xl">
+              The agent stack is visible, <span className="mem-gradient-text-alt">not a black box.</span>
+            </h2>
+          </div>
+          <div className="lg:justify-self-end">
+            <p className="max-w-2xl text-lg leading-8 text-slate-400">
+              The workspace UI brings together agents, memory, documents, skills, connectors, MCP servers, tokens, events, logs, and system health.
+            </p>
+            <a href="/auth" className="mem-inline-link mem-focus mt-5">
+              Open your workspace
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
         </div>
 
-        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-4">
-          {/* Request panel */}
-          <div className="rounded-xl border border-border bg-card/60 backdrop-blur card-elevated overflow-hidden">
-            <div className="flex border-b border-border">
-              {(["remember", "recall"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`flex-1 px-4 py-3 text-sm font-mono transition-colors ${
-                    tab === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  memory.{t}
-                </button>
-              ))}
+        <div className="mem-observatory mt-14">
+          <div className="mem-observatory-map" aria-label="Live Memorify gateway overview">
+            <span className="mem-observatory-ring mem-observatory-ring-one" aria-hidden />
+            <span className="mem-observatory-ring mem-observatory-ring-two" aria-hidden />
+            {modules.map((module, index) => (
+              <div key={module.name} className={`mem-observatory-module mem-observatory-module-${index}`}>
+                <module.icon className="h-3.5 w-3.5" />
+                <span>{module.name}</span>
+              </div>
+            ))}
+            <div className="mem-observatory-core">
+              <span className={`mem-status-dot ${status.state === "online" ? "is-online" : ""}`} />
+              <p>{status.state === "online" ? "gateway online" : status.state === "loading" ? "checking gateway" : "gateway unavailable"}</p>
+              <strong>{status.tools.length > 0 ? status.tools.length : "--"}</strong>
+              <small>built-in MCP tools</small>
             </div>
-            <div className="p-5 space-y-3">
-              {tab === "remember" ? (
-                <>
-                  <Field label="content">
-                    <textarea
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      rows={3}
-                      className="w-full bg-background border border-border rounded-md p-3 text-sm font-mono focus:outline-none focus:border-primary/50 transition-colors resize-none"
-                    />
-                  </Field>
-                  <Field label="tags (comma separated)">
-                    <input
-                      value={tags}
-                      onChange={(e) => setTags(e.target.value)}
-                      className="w-full bg-background border border-border rounded-md p-3 text-sm font-mono focus:outline-none focus:border-primary/50 transition-colors"
-                    />
-                  </Field>
-                </>
-              ) : (
-                <Field label="query (substring match on content/tags)">
-                  <input
-                    value={recallQuery}
-                    onChange={(e) => setRecallQuery(e.target.value)}
-                    placeholder="e.g. preference"
-                    className="w-full bg-background border border-border rounded-md p-3 text-sm font-mono focus:outline-none focus:border-primary/50 transition-colors"
-                  />
-                </Field>
-              )}
-              <button
-                onClick={send}
-                disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-md bg-gradient-primary text-primary-foreground font-medium glow-primary hover:scale-[1.01] transition-transform disabled:opacity-60"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                POST /v1
-              </button>
-              <p className="text-[10px] font-mono text-muted-foreground break-all">{GATEWAY_URL}</p>
+            <div className="mem-observatory-metric mem-observatory-latency">
+              <span>latency</span>
+              <strong>{status.latencyMs ?? "--"}{status.latencyMs !== null && <small> ms</small>}</strong>
+            </div>
+            <div className="mem-observatory-metric mem-observatory-database">
+              <span>database</span>
+              <strong><Database className="h-3.5 w-3.5" /> {status.databaseProvider || "--"}</strong>
             </div>
           </div>
 
-          {/* Response / state panel */}
-          <div className="rounded-xl border border-border bg-card/60 backdrop-blur card-elevated overflow-hidden flex flex-col">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <span className="text-[10px] font-mono tracking-wider text-muted-foreground">RESPONSE</span>
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
+          <div className="mem-observatory-feed">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-violet-200">Representative activity</p>
+              <h3 className="mem-panel-heading mt-3 text-2xl font-semibold">Signals an operator can inspect.</h3>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">Example agent calls are separated from the live endpoint readings below.</p>
             </div>
-            <pre className="p-4 text-xs font-mono overflow-auto no-scrollbar min-h-[180px] max-h-[260px] text-foreground/90 whitespace-pre-wrap">
-              <code>{response || "// Awaiting first call..."}</code>
-            </pre>
-            <div className="border-t border-border px-4 py-3 text-[10px] font-mono tracking-wider text-muted-foreground">
-              RECENT MEMORIES · public namespace
-            </div>
-            <div className="p-3 space-y-2 max-h-[200px] overflow-auto no-scrollbar">
-              {memories.length === 0 && (
-                <p className="text-xs text-muted-foreground font-mono px-2 py-3">No memories yet. Be the first.</p>
-              )}
-              {memories.map((m) => (
-                <div key={m.id} className="px-3 py-2 rounded border border-border/60 bg-secondary/30 text-xs">
-                  <p className="text-foreground/90 line-clamp-2">{m.content}</p>
-                  {m.tags?.length > 0 && (
-                    <div className="mt-1.5 flex gap-1 flex-wrap">
-                      {m.tags.map((t) => (
-                        <span key={t} className="font-mono text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            <div className="mem-signal-grid mt-8">
+              {activityPreview.map((row, index) => (
+                <article key={row.agent} className="mem-signal-event" style={{ animationDelay: `${index * 110}ms` }}>
+                  <div><span>{String(index + 1).padStart(2, "0")}</span><span><Radio className="h-3 w-3" /> example</span></div>
+                  <strong className={row.toneClass}>{row.action}</strong>
+                  <p><span>{row.agent}</span><i />{row.boundary}</p>
+                </article>
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="mem-endpoint-ribbon">
+          <div>
+            <p>Live endpoint responses</p>
+            <span>/api/health + /mcp</span>
+          </div>
+          {endpointSignals.map((signal) => (
+            <div key={signal.label} className="mem-endpoint-signal">
+              <span>{signal.label}</span>
+              <strong className={signal.online ? "is-online" : ""}><i />{signal.value}</strong>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 };
-
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div>
-    <label className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">{label}</label>
-    <div className="mt-1.5">{children}</div>
-  </div>
-);

@@ -8,7 +8,7 @@ const ProtocolPage = () => {
     <main className="min-h-screen bg-background text-foreground">
       <Seo
         title="Protocol — Memorify"
-        description="The Memorify protocol: one verb-based API for memory, tools, files, connectors, and automation. POST {agent, action, input} to gateway.memorify.dev/v1"
+        description="Connect AI agents to Memorify over JSON-RPC 2.0 and streamable HTTP at https://memorify.dev/mcp."
         path="/protocol"
       />
       <Nav />

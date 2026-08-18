@@ -8,7 +8,7 @@ const PrimitivesPage = () => {
     <main className="min-h-screen bg-background text-foreground">
       <Seo
         title="Primitives — Memorify"
-        description="Memorify primitives: native memory, universal connectors, real-time context bus, observability, and agent identity for agent-native apps."
+        description="Memorify primitives: durable memory, searchable documents, workspace skills, connected MCP tools, agent tokens, and event logging through one endpoint."
         path="/primitives"
       />
       <Nav />

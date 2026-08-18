@@ -299,37 +299,40 @@ async function requireCopilotAuth(req: Request, requestedWorkspaceId?: string): 
     req.headers.get("x-workspace-id") ||
     url.searchParams.get("workspace_id") ||
     claims.org_id ||
-    (claims.sub ? `user:${claims.sub}` : "") ||
     "";
-
   if (!workspaceId) {
     return json({ error: "workspace_required", detail: "Select or create a Clerk organization before using Copilot tools." }, 400);
   }
 
-  // Exact match with active Clerk org
-  if (claims.org_id && claims.org_id === workspaceId) {
-    return { user_id: claims.sub, workspace_id: workspaceId, claims };
-  }
+  if (claims.org_id) {
+    if (workspaceId !== claims.org_id) {
+      let ownedAgent = false;
 
-  // User personal workspace
-  if (workspaceId === `user:${claims.sub}` || workspaceId === `org:${claims.sub}` || workspaceId === claims.sub) {
-    return { user_id: claims.sub, workspace_id: workspaceId, claims };
-  }
+      if (workspaceId.startsWith("agent:")) {
+        const agentId = workspaceId.slice("agent:".length);
+        ownedAgent = Boolean(await queryOne(
+          `SELECT id FROM agents WHERE id::text = $1 AND workspace_id = $2`,
+          [agentId, claims.org_id],
+        ));
+      } else if (workspaceId.startsWith("ws_")) {
+        const suffix = workspaceId.slice(3);
+        ownedAgent = Boolean(await queryOne(
+          `SELECT id FROM agents
+           WHERE right(replace(id::text, '-', ''), 12) = $1
+             AND workspace_id = $2`,
+          [suffix, claims.org_id],
+        ));
+      }
 
-  // Agent-scoped workspace (e.g. ws_5f6a7ffe40b3 or agent:<uuid>)
-  if (workspaceId.startsWith("ws_") || workspaceId.startsWith("agent:")) {
-    return { user_id: claims.sub, workspace_id: workspaceId, claims };
-  }
-
-  // Check workspace membership in Neon
-  if (!claims.org_id) {
+      if (!ownedAgent) return json({ error: "org_mismatch" }, 403);
+    }
+  } else {
     const member = await queryOne<{ workspace_id: string }>(
-      `SELECT workspace_id FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
+      `SELECT workspace_id FROM workspace_members
+       WHERE workspace_id = $1 AND user_id = $2`,
       [workspaceId, claims.sub],
     );
-    if (member) {
-      return { user_id: claims.sub, workspace_id: workspaceId, claims };
-    }
+    if (!member) return json({ error: "workspace_forbidden" }, 403);
   }
 
   return {

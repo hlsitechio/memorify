@@ -1,151 +1,106 @@
-import heroVideo from "@/assets/hero-bg.mp4.asset.json";
-import { ArrowRight, Terminal, MousePointer2, CheckCircle2 } from "lucide-react";
-import { useRef, useEffect, useState } from "react";
+import { ArrowDown, ArrowRight, Radio } from "lucide-react";
+import type { CSSProperties } from "react";
+import { useMemorifyStatus } from "@/hooks/useMemorifyStatus";
 
-const HERO_BANNER = "/brand/hero-banner-memorify-metal-text.png";
+const agents = [
+  { name: "Claude", src: "/logos/claude-ai-icon.svg", position: "mem-agent-node-0" },
+  { name: "Cursor", src: "/logos/cursor_dark.svg", position: "mem-agent-node-1" },
+  { name: "OpenAI", src: "/logos/openai_dark.svg", position: "mem-agent-node-2" },
+  { name: "Copilot", src: "/logos/microsoft-copilot.svg", position: "mem-agent-node-3" },
+  { name: "Hermes", src: "/logos/hermes.png", position: "mem-agent-node-4" },
+  { name: "OpenCode", src: "/logos/opencode-dark.svg", position: "mem-agent-node-5" },
+];
+
+const agentStyle = (index: number) => ({
+  "--agent-index": index,
+  "--agent-angle": `${index * 60}deg`,
+  "--agent-delay": `${index * -0.55}s`,
+} as CSSProperties);
 
 export const Hero = () => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [showScroll, setShowScroll] = useState(false);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    const handleLoad = () => setVideoLoaded(true);
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setShowScroll(scrollY < 100);
-    };
-    
-    video.addEventListener("loadeddata", handleLoad);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    
-    return () => {
-      video.removeEventListener("loadeddata", handleLoad);
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
+  const status = useMemorifyStatus();
+  const toolCount = status.tools.length > 0 ? status.tools.length : "--";
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden" aria-labelledby="hero-title">
-      {/* Video background - lazy loaded, with poster fallback */}
-      <div className="absolute inset-0 -z-10" aria-hidden>
-        <img
-          src={HERO_BANNER}
-          alt=""
-          decoding="async"
-          className="absolute inset-0 w-full h-full object-cover opacity-80 [mask-image:radial-gradient(ellipse_78%_66%_at_52%_38%,black_30%,transparent_84%)]"
-        />
-        <video
-          ref={videoRef}
-          src={heroVideo.url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          // @ts-expect-error - fetchPriority is valid HTML
-          fetchPriority="low"
-          poster={HERO_BANNER}
-          className={`w-full h-full object-cover transition-opacity duration-1000 ${
-            videoLoaded ? "opacity-40" : "opacity-0"
-          } [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black_30%,transparent_80%)]`}
-        />
-        <div className="absolute inset-0 bg-grid opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-      </div>
+    <section id="hero" className="mem-hero relative flex min-h-[92svh] overflow-hidden border-b border-white/10" aria-labelledby="hero-title">
+      <img src="/brand/hero-banner-memorify-front-gate.png" alt="" className="mem-hero-image" />
+      <div className="mem-hero-wash" aria-hidden />
+      <div className="mem-spectrum-field" aria-hidden />
+      <div className="mem-site-grid absolute inset-0 opacity-35" aria-hidden />
 
-      <div className="container relative pt-32 pb-24">
-        <div className="max-w-4xl mx-auto text-center animate-float-up">
-          {/* Trust indicator */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/50 bg-card/40 backdrop-blur text-xs font-mono text-muted-foreground mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />
-            Private alpha — gateway live at <code className="text-foreground font-mono">gateway.memorify.dev/v1</code>
-          </div>
-
-          {/* Main headline - concrete value prop */}
-          <h1 id="hero-title" className="text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[1.02] text-balance">
-            One gateway. <span className="text-gradient">One connection.</span><br />
-            Every agent. Every tool.<br />
-            <span className="text-muted-foreground/60 text-4xl md:text-5xl lg:text-6xl font-normal">Once and for all.</span>
-          </h1>
-
-          {/* Sub-headline with specific promise */}
-          <p className="mt-8 text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed text-balance">
-            Give every AI agent the same secure memory, tools, files, and connectors through
-            <strong className="text-foreground"> one private MCP gateway</strong>. Simple to connect,
-            scoped by design, and built so context finally follows the work.
-          </p>
-
-          {/* Key metrics / proof points */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-8 text-sm font-mono text-muted-foreground opacity-80">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>1 endpoint</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>15+ built-in connectors</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>Native memory (not vector-only)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>Real-time context bus</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>Full observability</span>
-            </div>
-          </div>
-
-          {/* CTA buttons */}
-          <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <a
-              href="/auth"
-              className="group inline-flex items-center gap-2 px-6 py-4 rounded-lg bg-gradient-primary text-primary-foreground font-medium glow-primary hover:scale-[1.02] transition-transform shadow-lg"
-              aria-label="Start building with Memorify"
-            >
-              Start for free
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+      <div className="container relative z-10 flex flex-1 flex-col pb-10 pt-28 lg:pb-8 lg:pt-24">
+        <div className="grid flex-1 items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-4">
+          <div className="max-w-[700px]">
+            <a href="https://memorify.dev/api/health" target="_blank" rel="noreferrer" className="mem-live-badge mem-focus">
+              <span className={`mem-status-dot ${status.state === "online" ? "is-online" : ""}`} />
+              <span>{status.state === "online" ? "Production online" : status.state === "loading" ? "Checking production" : "Production endpoint"}</span>
+              {status.latencyMs !== null && <span className="text-white/35">{status.latencyMs} ms</span>}
             </a>
-            <a
-              href="#demo"
-              className="inline-flex items-center gap-2 px-6 py-4 rounded-lg bg-secondary/60 hover:bg-secondary border border-border/50 font-medium transition-colors"
-            >
-              <Terminal className="w-5 h-5" />
-              Try the live demo
-            </a>
-          </div>
 
-          {/* Protocol preview */}
-          <div className="mt-10 p-4 rounded-xl border border-border/50 bg-card/40 backdrop-blur text-left max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-            <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Protocol: POST https://gateway.memorify.dev/v1</p>
-            <pre className="text-xs md:text-sm font-mono text-foreground/90 overflow-x-auto rounded-lg p-3 bg-background/60"><code>{`{
-  "agent": "memory",
-  "action": "remember",
-  "input": {
-    "content": "User prefers dark mode and cyan accents",
-    "tags": ["preference", "ui"]
-  }
-}`}</code></pre>
-          </div>
+            <h1 id="hero-title" className="mem-heading mt-7 max-w-[680px] text-5xl font-semibold leading-[1.02] sm:text-6xl lg:text-7xl">
+              Shared <span className="mem-gradient-text">memory and tools</span> for MCP-capable agents.
+            </h1>
+            <p className="mt-6 max-w-[610px] text-lg leading-8 text-slate-300 sm:text-xl">
+              Memorify is a live MCP gateway and control plane. Agents connect once, recover workspace context, search knowledge, load skills, and call tools on connected external servers with enforced access levels.
+            </p>
 
-          {/* Scroll indicator */}
-          {showScroll && (
-            <div 
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce-slow animate-in fade-in delay-1000"
-              aria-hidden
-            >
-              <MousePointer2 className="w-6 h-6 text-muted-foreground/60 mx-auto" />
-              <p className="text-[10px] font-mono text-muted-foreground/50 mt-1 text-center">Scroll to explore</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a href="/auth" className="mem-primary-button mem-focus h-12 px-5">
+                Open Memorify
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a href="#protocol" className="mem-secondary-button mem-focus h-12 px-5">
+                <Radio className="h-4 w-4 text-cyan-200" />
+                View MCP endpoint
+              </a>
             </div>
-          )}
+
+            <div className="mt-10 grid max-w-[620px] grid-cols-1 gap-4 border-y border-white/10 py-4 xs:grid-cols-3 xs:gap-0">
+              <div>
+                <p className="font-mono text-lg font-semibold text-white">{toolCount}</p>
+                <p className="mt-1 text-xs text-slate-500">built-in MCP tools</p>
+              </div>
+              <div className="xs:border-l xs:border-white/10 xs:pl-5">
+                <p className="font-mono text-sm font-semibold text-white">HTTP + MCP</p>
+                <p className="mt-1 text-xs text-slate-500">one production origin</p>
+              </div>
+              <div className="xs:border-l xs:border-white/10 xs:pl-5">
+                <p className="font-mono text-sm font-semibold text-white">mem_live_</p>
+                <p className="mt-1 text-xs text-slate-500">agent-bound tokens</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mem-agent-network" aria-label="Examples of AI clients around the Memorify MCP gateway">
+            <div className="mem-network-halo" aria-hidden />
+            <div className="mem-network-ring mem-network-ring-one" aria-hidden />
+            <div className="mem-network-ring mem-network-ring-two" aria-hidden />
+            <div className="mem-network-spokes" aria-hidden>
+              {agents.map((agent, index) => <span key={agent.name} style={agentStyle(index)} />)}
+            </div>
+
+            <div className="mem-network-core">
+              <div className="mem-network-core-glow" aria-hidden />
+              <span className="mem-hero-mark relative"><img src="/brand/logo/logo-gateway-mark.svg" alt="Memorify" /></span>
+              <div className="relative mt-3 text-center">
+                <p className="text-sm font-semibold text-white">memorify.dev/mcp</p>
+                <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-cyan-200/65">streamable HTTP</p>
+              </div>
+            </div>
+
+            {agents.map((agent, index) => (
+              <div key={agent.name} className={`mem-agent-node ${agent.position}`} style={agentStyle(index)}>
+                <span className="mem-agent-logo"><img src={agent.src} alt="" /></span>
+                <span>{agent.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
+
+        <a href="#product" className="mem-focus mt-5 inline-flex w-fit items-center gap-2 rounded-sm font-mono text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-cyan-100">
+          See the live platform
+          <ArrowDown className="h-3.5 w-3.5" />
+        </a>
       </div>
     </section>
   );
