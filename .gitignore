@@ -67,11 +67,8 @@ DESIGN_MODERNIZATION_PLAN.md
 ARCHITECTURE.md
 STRUCTURE.md
 MCP_COMMAND_REFERENCE.md
-# Configs & build entries kept locally
-deno.json
+# Scratch scripts & temp files
 deno.lock
-netlify.toml
-index.html
 generate_hero_video.sh
 stack.html
 
