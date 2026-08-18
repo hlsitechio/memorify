@@ -17,6 +17,20 @@ import {
   Trash2,
   Wifi,
   Code,
+  Eye,
+  EyeOff,
+  Cpu,
+  Layers,
+  Globe,
+  FileCode,
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  Command,
+  Zap,
+  Sliders,
+  Settings2,
+  BookOpen,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -37,9 +51,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getMcpUrl } from "@/lib/mcp-url";
 
-type AgentKind = "claude_code" | "github_copilot" | "openai_codex" | "custom";
+export type AgentKind =
+  | "claude_code"
+  | "cursor"
+  | "claude_desktop"
+  | "chatgpt"
+  | "grok"
+  | "windsurf"
+  | "vscode"
+  | "zed"
+  | "github_copilot"
+  | "openai_codex"
+  | "custom";
 
-type Agent = {
+export type Agent = {
   id: string;
   name: string;
   kind: AgentKind | string;
@@ -56,85 +81,175 @@ type FreshToken = {
   createdAt: string;
 };
 
+type ToolMeta = {
+  name: string;
+  description?: string;
+};
+
 type TestState = {
   ok: boolean;
   label: string;
   detail?: string;
+  latencyMs?: number;
+  tools?: ToolMeta[];
 };
 
-type CatalogItem = {
+export type CatalogItem = {
   kind: AgentKind;
   name: string;
   tagline: string;
   description: string;
+  category: "cli" | "ide" | "desktop" | "platform" | "custom";
   icon: typeof Terminal;
   accent: string;
+  bgAccent: string;
   installUrl?: string;
   installLabel?: string;
   ready: boolean;
 };
 
 const MCP_URL = getMcpUrl();
+const MCP_SSE_URL = `${MCP_URL}/sse`;
+const OAUTH_WELL_KNOWN_URL = `${new URL(MCP_URL).origin}/.well-known/oauth-authorization-server`;
 
-const CATALOG: CatalogItem[] = [
+export const CATALOG: CatalogItem[] = [
   {
     kind: "claude_code",
     name: "Claude Code",
-    tagline: "Terminal coding agent",
-    description: "Paste one command. Claude gets Memorify memory, tools, documents, and connectors through the hosted MCP endpoint.",
+    tagline: "Anthropic terminal coding agent",
+    description: "Connect Claude Code CLI in one command. Gives Claude continuous memory, codebase context, and custom workspace tools.",
+    category: "cli",
     icon: Terminal,
     accent: "text-amber-500",
-    installUrl: "https://code.claude.com/docs/en/overview",
+    bgAccent: "bg-amber-500/10 border-amber-500/30",
+    installUrl: "https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview",
     installLabel: "Docs",
     ready: true,
   },
   {
-    kind: "openai_codex",
-    name: "OpenAI Codex CLI",
-    tagline: "MCP native via config.toml",
-    description: "Add the hosted Memorify MCP server to Codex and use the generated agent token as the bearer credential.",
+    kind: "cursor",
+    name: "Cursor IDE",
+    tagline: "AI code editor with native MCP",
+    description: "Add Memorify as an MCP server in Cursor settings to give the agent direct access to knowledge base and documents.",
+    category: "ide",
+    icon: LayoutGrid,
+    accent: "text-cyan-400",
+    bgAccent: "bg-cyan-500/10 border-cyan-500/30",
+    installUrl: "https://docs.cursor.com/context/model-context-protocol",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "claude_desktop",
+    name: "Claude Desktop",
+    tagline: "Anthropic native desktop app",
+    description: "Integrate with Claude Desktop on Mac or Windows via mcp-remote bridge for persistent memory and tool execution.",
+    category: "desktop",
+    icon: Cpu,
+    accent: "text-orange-500",
+    bgAccent: "bg-orange-500/10 border-orange-500/30",
+    installUrl: "https://modelcontextprotocol.io/quickstart/user",
+    installLabel: "Guide",
+    ready: true,
+  },
+  {
+    kind: "chatgpt",
+    name: "ChatGPT & GPTs",
+    tagline: "OpenAI custom actions & connectors",
+    description: "Connect Memorify memory and search directly to your custom GPTs or ChatGPT Developer workspace.",
+    category: "platform",
     icon: Sparkles,
     accent: "text-emerald-500",
-    installUrl: "https://github.com/openai/codex",
+    bgAccent: "bg-emerald-500/10 border-emerald-500/30",
+    installUrl: "https://platform.openai.com/docs/actions",
+    installLabel: "Guide",
+    ready: true,
+  },
+  {
+    kind: "grok",
+    name: "Grok / xAI",
+    tagline: "xAI connectors & MCP tools",
+    description: "Connect xAI Grok to Memorify via OAuth 2.0 or SSE endpoint for real-time tool calling and cross-agent memory.",
+    category: "platform",
+    icon: Globe,
+    accent: "text-blue-400",
+    bgAccent: "bg-blue-500/10 border-blue-500/30",
+    installUrl: "https://x.ai/api",
     installLabel: "Docs",
     ready: true,
   },
   {
-    kind: "github_copilot",
-    name: "GitHub Copilot",
-    tagline: "CLI / agent mode",
-    description: "Use the same hosted MCP URL and token from Copilot environments that support MCP servers.",
-    icon: Bot,
-    accent: "text-violet-500",
-    installUrl: "https://docs.github.com/en/copilot",
+    kind: "windsurf",
+    name: "Windsurf (Codeium)",
+    tagline: "Cascade agentic IDE",
+    description: "Configure Windsurf Cascade agent with Memorify MCP endpoint to share memory across editors.",
+    category: "ide",
+    icon: Zap,
+    accent: "text-teal-400",
+    bgAccent: "bg-teal-500/10 border-teal-500/30",
+    installUrl: "https://codeium.com/windsurf",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "vscode",
+    name: "VS Code / Cline / Roo",
+    tagline: "Roo Code, Cline, GitHub Copilot",
+    description: "Standard JSON config for VS Code extensions supporting the Model Context Protocol.",
+    category: "ide",
+    icon: Code,
+    accent: "text-indigo-400",
+    bgAccent: "bg-indigo-500/10 border-indigo-500/30",
+    installUrl: "https://github.com/cline/cline",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "zed",
+    name: "Zed Editor",
+    tagline: "High-performance Rust editor",
+    description: "Add context server to Zed settings.json for lightning-fast memory recall during coding.",
+    category: "ide",
+    icon: Layers,
+    accent: "text-amber-400",
+    bgAccent: "bg-amber-500/10 border-amber-500/30",
+    installUrl: "https://zed.dev/docs/assistant/model-context-protocol",
     installLabel: "Docs",
     ready: true,
   },
   {
     kind: "custom",
-    name: "Custom agent",
-    tagline: "Bring your own",
-    description: "Any MCP-capable agent can connect with the hosted URL and a scoped Memorify token.",
+    name: "Custom MCP Agent",
+    tagline: "cURL, Python, Node.js, REST",
+    description: "Connect any custom agent, Python script, or server using standard HTTP Stream or SSE transport.",
+    category: "custom",
     icon: Wifi,
-    accent: "text-cyan-500",
+    accent: "text-purple-400",
+    bgAccent: "bg-purple-500/10 border-purple-500/30",
     ready: true,
   },
 ];
 
 const COMING_SOON = [
-  "Microsoft Copilot",
-  "Cursor",
-  "Hermes Agents",
+  "Antigravity Agent",
+  "Microsoft Copilot Studio",
+  "LangChain / LangGraph",
+  "n8n AI Workflow",
+  "Open WebUI",
+  "Hermes Agent Hub",
   "Manus AI",
-  "OpenCode",
   "Pi",
 ];
 
 const apiError = (data: any, fallback: string) =>
   data?.detail || data?.error || data?.data?.detail || data?.data?.error || fallback;
 
-function kindMeta(kind: string) {
-  return CATALOG.find((item) => item.kind === kind) ?? CATALOG[CATALOG.length - 1];
+function kindMeta(kind: string): CatalogItem {
+  return (
+    CATALOG.find((item) => item.kind === kind) ??
+    CATALOG.find((item) => item.kind === "custom") ??
+    CATALOG[0]
+  );
 }
 
 function relativeDate(value: string | null | undefined) {
@@ -148,50 +263,154 @@ function relativeDate(value: string | null | undefined) {
 
 function redactToken(token: string) {
   if (!token) return "";
-  return `${token.slice(0, 14)}...${token.slice(-6)}`;
+  if (token.length <= 16) return token;
+  return `${token.slice(0, 12)}••••••••••••${token.slice(-6)}`;
 }
 
 function bearerHeader(token: string) {
   return `Authorization: Bearer ${token}`;
 }
 
-function configFor(kind: string, token: string, hideToken = false) {
-  const safeToken = hideToken ? "mem_live_[stored-in-json-file]" : (token || "mem_live_...");
-  if (kind === "claude_code") {
-    return `claude mcp add memorify ${MCP_URL} \\
-  --transport http \\
-  --header "${bearerHeader(safeToken)}"`;
+export function configSnippetFor(
+  kind: string,
+  token: string,
+  transport: "http" | "sse" = "http",
+  revealed = false,
+) {
+  const activeToken = revealed && token ? token : token ? redactToken(token) : "mem_live_YOUR_TOKEN";
+  const endpoint = transport === "sse" ? MCP_SSE_URL : MCP_URL;
+
+  switch (kind) {
+    case "claude_code":
+      return `claude mcp add memorify ${endpoint} \\
+  --transport ${transport} \\
+  --header "Authorization: Bearer ${activeToken}"`;
+
+    case "cursor":
+      return JSON.stringify(
+        {
+          mcpServers: {
+            memorify: {
+              url: endpoint,
+              headers: {
+                Authorization: `Bearer ${activeToken}`,
+              },
+            },
+          },
+        },
+        null,
+        2,
+      );
+
+    case "claude_desktop":
+      return JSON.stringify(
+        {
+          mcpServers: {
+            memorify: {
+              command: "npx",
+              args: [
+                "-y",
+                "mcp-remote@latest",
+                endpoint,
+                "--header",
+                `Authorization: Bearer ${activeToken}`,
+              ],
+            },
+          },
+        },
+        null,
+        2,
+      );
+
+    case "windsurf":
+      return JSON.stringify(
+        {
+          mcpServers: {
+            memorify: {
+              serverUrl: endpoint,
+              headers: {
+                Authorization: `Bearer ${activeToken}`,
+              },
+            },
+          },
+        },
+        null,
+        2,
+      );
+
+    case "vscode":
+      return JSON.stringify(
+        {
+          mcpServers: {
+            memorify: {
+              url: endpoint,
+              transport: transport,
+              headers: {
+                Authorization: `Bearer ${activeToken}`,
+              },
+            },
+          },
+        },
+        null,
+        2,
+      );
+
+    case "zed":
+      return JSON.stringify(
+        {
+          context_servers: {
+            memorify: {
+              endpoint: endpoint,
+              headers: {
+                Authorization: `Bearer ${activeToken}`,
+              },
+            },
+          },
+        },
+        null,
+        2,
+      );
+
+    case "chatgpt":
+      return `# ChatGPT Custom Action / Remote MCP Connector Configuration
+Endpoint URL: ${endpoint}
+Authentication Type: Bearer Token / API Key
+Auth Header: Bearer ${activeToken}
+OAuth Authorization URL: ${MCP_URL}/oauth/authorize
+OAuth Token URL: ${MCP_URL}/oauth/token
+OAuth Discovery: ${OAUTH_WELL_KNOWN_URL}`;
+
+    case "grok":
+      return `# Grok / xAI Integration Configuration
+Endpoint URL: ${endpoint}
+Auth Type: Bearer Token or OAuth 2.0
+Bearer Token: ${activeToken}
+OAuth Discovery: ${OAUTH_WELL_KNOWN_URL}`;
+
+    default:
+      return `# Memorify MCP Gateway Connection
+MCP_URL=${endpoint}
+MEMORIFY_AGENT_TOKEN=${activeToken}
+Authorization: Bearer ${activeToken}
+
+# cURL Test:
+curl -X POST ${endpoint} \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${activeToken}" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'`;
   }
-  if (kind === "openai_codex") {
-    return `[mcp_servers.memorify]
-url = "${MCP_URL}"
-headers = { Authorization = "Bearer ${safeToken}" }`;
-  }
-  if (kind === "github_copilot") {
-    return `{
-  "mcpServers": {
-    "memorify": {
-      "url": "${MCP_URL}",
-      "headers": {
-        "Authorization": "Bearer ${safeToken}"
-      }
-    }
-  }
-}`;
-  }
-  return `MCP_URL=${MCP_URL}
-MEMORIFY_AGENT_TOKEN=${safeToken}
-Authorization: Bearer ${safeToken}`;
 }
 
-function connectionPackageFor(agent: Agent, token: string, authType: "bearer" | "oauth" = "bearer") {
+function connectionPackageFor(
+  agent: Agent,
+  token: string,
+  authType: "bearer" | "oauth" = "bearer",
+) {
   const meta = kindMeta(agent.kind);
-  const tokenRef = "<token from memorify.auth.token>";
-  
+
   const basePackage = {
-    schema: "memorify.agent_connection.v1",
+    schema: "memorify.agent_connection.v2",
     created_at: new Date().toISOString(),
-    warning: "This file contains a live Memorify agent token. Store it like a password. Delete or rotate it if shared.",
     agent: {
       id: agent.id,
       name: agent.name,
@@ -199,70 +418,29 @@ function connectionPackageFor(agent: Agent, token: string, authType: "bearer" | 
       label: meta.name,
       workspace_id: agent.workspace_id ?? null,
     },
-    instructions: [
-      "Use memorify.mcp_url as the MCP server endpoint.",
-      "Build the Authorization header from memorify.auth.token and send it on every MCP request.",
-      "Run tools/list first to confirm the connection.",
-      "Run tools/call with name=whoami to confirm this agent identity.",
-    ],
-    install: {
-      openai_codex_config_toml: configFor("openai_codex", token, true),
-      claude_code_command: configFor("claude_code", token, true),
-      github_copilot_mcp_json: configFor("github_copilot", token, true),
-      generic_env: configFor("custom", token, true),
+    endpoints: {
+      http_stream: MCP_URL,
+      sse: MCP_SSE_URL,
+      oauth_discovery: OAUTH_WELL_KNOWN_URL,
+      oauth_authorize: `${MCP_URL}/oauth/authorize`,
+      oauth_token: `${MCP_URL}/oauth/token`,
     },
-    test_request: {
-      method: "POST",
-      url: MCP_URL,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json, text/event-stream",
-        Authorization: "Bearer <token from memorify.auth.token>",
-      },
-      body: {
-        jsonrpc: "2.0",
-        id: "memorify-test",
-        method: "tools/list",
-        params: {},
-      },
+    auth: {
+      type: authType,
+      token: token,
+      header: bearerHeader(token),
+    },
+    client_configs: {
+      claude_code_command: configSnippetFor("claude_code", token, "http", true),
+      cursor_mcp_json: JSON.parse(configSnippetFor("cursor", token, "http", true)),
+      claude_desktop_json: JSON.parse(configSnippetFor("claude_desktop", token, "sse", true)),
+      windsurf_json: JSON.parse(configSnippetFor("windsurf", token, "http", true)),
+      vscode_mcp_json: JSON.parse(configSnippetFor("vscode", token, "http", true)),
+      zed_settings_json: JSON.parse(configSnippetFor("zed", token, "http", true)),
     },
   };
 
-  if (authType === "oauth") {
-    return {
-      ...basePackage,
-      memorify: {
-        mcp_url: MCP_URL,
-        auth: {
-          type: "oauth",
-          client_id: "<client_id from Memorify dashboard>",
-          client_secret: "<client_secret from Memorify dashboard>",
-          authorize_url: `${MCP_URL}/oauth/authorize`,
-          token_url: `${MCP_URL}/oauth/token`,
-          scopes: ["mcp:read", "mcp:write"],
-        },
-        scopes_note: "OAuth 2.0 credentials - exchange for access token via token endpoint.",
-      },
-    };
-  }
-
-  return {
-    ...basePackage,
-    memorify: {
-      mcp_url: MCP_URL,
-      auth: {
-        type: "bearer",
-        token,
-        header: bearerHeader(tokenRef),
-      },
-      scopes_note: "Token scopes are enforced server-side by Memorify and can be revoked from the Agents page.",
-    },
-  };
-}
-
-function agentFilename(agent: Agent) {
-  const safeName = agent.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "agent";
-  return `memorify-${safeName}-${agent.id.slice(0, 8)}.json`;
+  return basePackage;
 }
 
 export function AgentsManager() {
@@ -278,35 +456,42 @@ export function AgentsManager() {
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState<AgentKind | null>(null);
   const [wizardAgent, setWizardAgent] = useState<Agent | null>(null);
+  const [wizardKind, setWizardKind] = useState<AgentKind>("claude_code");
+  const [wizardTransport, setWizardTransport] = useState<"http" | "sse">("http");
   const [wizardAuthType, setWizardAuthType] = useState<"bearer" | "oauth">("bearer");
+  const [showFullToken, setShowFullToken] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testState, setTestState] = useState<Record<string, TestState>>({});
-  const [showToken, setShowToken] = useState(false);
 
   const connected = useMemo(
     () => agents.filter((agent) => agent.status !== "disconnected"),
     [agents],
   );
 
-  const runAction = useCallback(async <T,>(command: string, args: Record<string, unknown> = {}): Promise<T> => {
-    if (!workspaceId) throw new Error("Select or create a workspace first");
-    const token = await getToken();
-    if (!token) throw new Error("Sign in again to continue");
+  const runAction = useCallback(
+    async <T,>(command: string, args: Record<string, unknown> = {}): Promise<T> => {
+      if (!workspaceId) throw new Error("Select or create a workspace first");
+      const token = await getToken();
+      if (!token) throw new Error("Sign in again to continue");
 
-    const res = await fetch("/api/copilot/action", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name: command, workspace_id: workspaceId, args }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || body?.ok === false) throw new Error(apiError(body, `${command} failed`));
-    return (body?.data ?? body) as T;
-  }, [getToken, workspaceId]);
+      const res = await fetch("/api/copilot/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: command, workspace_id: workspaceId, args }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.ok === false) throw new Error(apiError(body, `${command} failed`));
+      return (body?.data ?? body) as T;
+    },
+    [getToken, workspaceId],
+  );
 
   const loadAgents = useCallback(async () => {
     if (!user || !workspaceId) {
@@ -336,7 +521,7 @@ export function AgentsManager() {
 
   const createAgent = async (kind = selectedKind) => {
     if (!workspaceId) {
-      toast.error("Create or select a Clerk organization first");
+      toast.error("Create or select a workspace organization first");
       return;
     }
     const meta = kindMeta(kind);
@@ -359,7 +544,8 @@ export function AgentsManager() {
         }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body.token || !body.agent) throw new Error(apiError(body, "Could not create agent"));
+      if (!res.ok || !body.token || !body.agent)
+        throw new Error(apiError(body, "Could not create agent"));
 
       const nextAgent: Agent = {
         ...body.agent,
@@ -372,9 +558,16 @@ export function AgentsManager() {
         ...current,
         [nextAgent.id]: { token: body.token, createdAt: new Date().toISOString() },
       }));
-      setAgents((current) => [nextAgent, ...current.filter((agent) => agent.id !== nextAgent.id)]);
+      setAgents((current) => [
+        nextAgent,
+        ...current.filter((agent) => agent.id !== nextAgent.id),
+      ]);
       setWizardAgent(nextAgent);
-      setTestState((current) => ({ ...current, [nextAgent.id]: { ok: false, label: "Ready to test" } }));
+      setWizardKind(kind);
+      setTestState((current) => ({
+        ...current,
+        [nextAgent.id]: { ok: false, label: "Ready to test connection" },
+      }));
       toast.success(`${meta.name} agent created`);
     } catch (error: any) {
       toast.error(error?.message ?? "Could not create agent");
@@ -385,15 +578,19 @@ export function AgentsManager() {
 
   const mintToken = async (agent: Agent) => {
     try {
-      const minted = await runAction<{ token: string; expires_at: string | null }>("agents.tokens.mint", {
-        agent_id: agent.id,
-      });
+      const minted = await runAction<{ token: string; expires_at: string | null }>(
+        "agents.tokens.mint",
+        {
+          agent_id: agent.id,
+        },
+      );
       setFreshTokens((current) => ({
         ...current,
         [agent.id]: { token: minted.token, createdAt: new Date().toISOString() },
       }));
       setWizardAgent(agent);
-      toast.success("New token generated");
+      setWizardKind((agent.kind as AgentKind) || "claude_code");
+      toast.success("New agent token generated");
       return minted.token;
     } catch (error: any) {
       toast.error(error?.message ?? "Could not generate token");
@@ -404,7 +601,7 @@ export function AgentsManager() {
   const downloadConnectionFile = (agent: Agent, authType: "bearer" | "oauth") => {
     const token = freshTokens[agent.id]?.token;
     if (!token) {
-      toast.error("No token available to download");
+      toast.error("No token available to download. Please mint a token first.");
       return;
     }
     const data = connectionPackageFor(agent, token, authType);
@@ -417,17 +614,20 @@ export function AgentsManager() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    toast.success("Connection JSON downloaded");
   };
 
   const testMcp = async (agent: Agent) => {
     const token = freshTokens[agent.id]?.token;
     if (!token) {
-      toast.error("Generate a token first");
+      toast.error("Generate an active token first to test");
       return;
     }
     setTestingId(agent.id);
+    const startTime = performance.now();
     try {
-      const res = await fetch(MCP_URL, {
+      const endpoint = wizardTransport === "sse" ? MCP_SSE_URL : MCP_URL;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -436,37 +636,52 @@ export function AgentsManager() {
         },
         body: JSON.stringify({
           jsonrpc: "2.0",
-          id: `memorify-${Date.now()}`,
+          id: `memorify-test-${Date.now()}`,
           method: "tools/list",
           params: {},
         }),
       });
-      const text = await res.text();
-      const ok = res.ok && !text.toLowerCase().includes("invalid");
+      const latencyMs = Math.round(performance.now() - startTime);
+      const data = await res.json().catch(() => null);
+      const ok = res.ok && data?.result?.tools;
+      const toolsList = (data?.result?.tools ?? []) as ToolMeta[];
+
       setTestState((current) => ({
         ...current,
         [agent.id]: {
-          ok,
-          label: ok ? "MCP reachable" : `MCP test failed (${res.status})`,
-          detail: text.slice(0, 180),
+          ok: !!ok,
+          label: ok ? `Connected & Verified (${toolsList.length} tools discovered)` : `Test failed (${res.status})`,
+          detail: ok
+            ? `Server responded with ${toolsList.length} tools available.`
+            : JSON.stringify(data || "Invalid response").slice(0, 200),
+          latencyMs,
+          tools: toolsList,
         },
       }));
-      if (!ok) throw new Error(`MCP test failed (${res.status})`);
+
+      if (!ok) throw new Error(`MCP test failed (status ${res.status})`);
+
       setAgents((current) =>
         current.map((row) =>
-          row.id === agent.id ? { ...row, status: "connected", last_seen_at: new Date().toISOString() } : row,
+          row.id === agent.id
+            ? { ...row, status: "connected", last_seen_at: new Date().toISOString() }
+            : row,
         ),
       );
-      toast.success("MCP connection works");
+      toast.success(`MCP connection verified in ${latencyMs}ms!`);
     } catch (error: any) {
-      toast.error(error?.message ?? "MCP test failed");
+      toast.error(error?.message ?? "MCP connection test failed");
     } finally {
       setTestingId(null);
     }
   };
 
-  const copyText = async (value: string, label = "Copied") => {
+  const copyText = async (value: string, label = "Copied", key?: string) => {
     await navigator.clipboard.writeText(value);
+    if (key) {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
     toast.success(label);
   };
 
@@ -475,7 +690,9 @@ export function AgentsManager() {
     if (!next) return;
     try {
       await runAction("agents.rename", { id: agent.id, name: next });
-      setAgents((current) => current.map((row) => (row.id === agent.id ? { ...row, name: next } : row)));
+      setAgents((current) =>
+        current.map((row) => (row.id === agent.id ? { ...row, name: next } : row)),
+      );
       setRenamingId(null);
       toast.success("Agent renamed");
     } catch (error: any) {
@@ -486,7 +703,11 @@ export function AgentsManager() {
   const disconnectAgent = async (agent: Agent) => {
     try {
       await runAction("agents.disconnect", { id: agent.id });
-      setAgents((current) => current.map((row) => (row.id === agent.id ? { ...row, status: "disconnected" } : row)));
+      setAgents((current) =>
+        current.map((row) =>
+          row.id === agent.id ? { ...row, status: "disconnected" } : row,
+        ),
+      );
       toast.success("Agent disconnected");
     } catch (error: any) {
       toast.error(error?.message ?? "Could not disconnect agent");
@@ -498,13 +719,20 @@ export function AgentsManager() {
     setName(kindMeta(kind).name);
   };
 
+  const openSetupModal = (agent: Agent) => {
+    setWizardAgent(agent);
+    setWizardKind((agent.kind as AgentKind) || "claude_code");
+    setShowFullToken(false);
+  };
+
   const wizardToken = wizardAgent ? freshTokens[wizardAgent.id]?.token ?? "" : "";
+  const activeTest = wizardAgent ? testState[wizardAgent.id] : null;
 
   return (
     <>
       <PageHeader
-        title="Agents"
-        description="Connect AI agents to Memorify through one hosted MCP endpoint."
+        title="Agent Connectors & MCP Hub"
+        description="Connect Claude Code, Cursor, ChatGPT, Grok, Windsurf, VS Code, and custom agents through a unified Model Context Protocol endpoint."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={loadAgents} disabled={loading}>
@@ -513,33 +741,67 @@ export function AgentsManager() {
             </Button>
             <Button size="sm" onClick={() => createAgent()} disabled={!!connecting || !workspaceId}>
               <Plus className="mr-2 h-4 w-4" />
-              Connect agent
+              Connect new agent
             </Button>
           </div>
         }
       />
 
       <div className="space-y-6">
-        <Alert className="border-primary/30 bg-primary/5">
-          <ShieldCheck className="h-4 w-4" />
-          <AlertTitle>Hosted MCP endpoint</AlertTitle>
-          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-mono text-xs text-foreground">{MCP_URL}</span>
-            <Button variant="outline" size="sm" onClick={() => copyText(MCP_URL, "Endpoint copied")}>
-              <Copy className="mr-2 h-3.5 w-3.5" />
-              Copy URL
-            </Button>
-          </AlertDescription>
-        </Alert>
+        {/* Top Universal Endpoints Banner */}
+        <div className="grid gap-3 md:grid-cols-2">
+          <Alert className="border-primary/40 bg-primary/5">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <AlertTitle className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <span>Universal MCP Endpoint (HTTP Stream)</span>
+              <Badge variant="outline" className="text-[10px]">Standard</Badge>
+            </AlertTitle>
+            <AlertDescription className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <code className="font-mono text-xs text-foreground bg-background/80 px-2 py-1 rounded border border-border/60 break-all">
+                {MCP_URL}
+              </code>
+              <Button variant="outline" size="sm" onClick={() => copyText(MCP_URL, "Endpoint URL copied", "top-http")}>
+                {copiedKey === "top-http" ? <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                Copy URL
+              </Button>
+            </AlertDescription>
+          </Alert>
 
+          <Alert className="border-border bg-card">
+            <Globe className="h-4 w-4 text-blue-400" />
+            <AlertTitle className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <span>Server-Sent Events (SSE Transport)</span>
+              <Badge variant="outline" className="text-[10px]">Streaming</Badge>
+            </AlertTitle>
+            <AlertDescription className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <code className="font-mono text-xs text-foreground bg-background/80 px-2 py-1 rounded border border-border/60 break-all">
+                {MCP_SSE_URL}
+              </code>
+              <Button variant="outline" size="sm" onClick={() => copyText(MCP_SSE_URL, "SSE URL copied", "top-sse")}>
+                {copiedKey === "top-sse" ? <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                Copy SSE
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+
+        {/* Quick Connect & Creation Bar */}
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Connect in two steps</CardTitle>
-              <CardDescription>Choose the agent, generate the token, paste the config.</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl">Quick Connect</CardTitle>
+                  <CardDescription>Select an AI environment to generate credentials & ready-to-use configs.</CardDescription>
+                </div>
+                <Badge variant="secondary" className="hidden sm:inline-flex gap-1.5">
+                  <Zap className="h-3 w-3 text-amber-500" />
+                  Model Context Protocol v1.0
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
                 {CATALOG.map((item) => {
                   const Icon = item.icon;
                   const active = selectedKind === item.kind;
@@ -549,34 +811,40 @@ export function AgentsManager() {
                       type="button"
                       onClick={() => selectKind(item.kind)}
                       className={cn(
-                        "rounded-lg border p-4 text-left transition-colors hover:border-primary/50",
-                        active ? "border-primary bg-primary/5" : "border-border bg-background",
+                        "rounded-xl border p-3.5 text-left transition-all hover:border-primary/60 hover:shadow-sm",
+                        active ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-background/60",
                       )}
                     >
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <Icon className={cn("h-5 w-5", item.accent)} />
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className={cn("p-1.5 rounded-lg", item.bgAccent)}>
+                          <Icon className={cn("h-4 w-4", item.accent)} />
+                        </div>
                         {active && <Check className="h-4 w-4 text-primary" />}
                       </div>
-                      <div className="text-sm font-semibold">{item.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{item.tagline}</div>
+                      <div className="text-sm font-semibold leading-tight">{item.name}</div>
+                      <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{item.tagline}</div>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="agent-name">Agent name</Label>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end pt-1">
+                <div className="space-y-1.5">
+                  <Label htmlFor="agent-name" className="text-xs">Custom Agent / Alias Name</Label>
                   <Input
                     id="agent-name"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
-                    placeholder="Claude Code"
+                    placeholder="e.g. Claude Code Terminal"
                   />
                 </div>
-                <Button onClick={() => createAgent()} disabled={!!connecting || !workspaceId} className="sm:min-w-40">
-                  {connecting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-                  Generate token
+                <Button onClick={() => createAgent()} disabled={!!connecting || !workspaceId} className="sm:min-w-44">
+                  {connecting ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  Create & Get Token
                 </Button>
               </div>
             </CardContent>
@@ -584,45 +852,57 @@ export function AgentsManager() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Status</CardTitle>
-              <CardDescription>Workspace connection state.</CardDescription>
+              <CardTitle className="text-base">Workspace Status</CardTitle>
+              <CardDescription className="text-xs">Active connections & auth.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+            <CardContent className="space-y-3 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Workspace</span>
                 <Badge variant={workspaceId ? "secondary" : "destructive"}>{workspaceId ? "Ready" : "Missing"}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Connected</span>
-                <span className="font-mono">{connected.length}</span>
+                <span className="text-muted-foreground">Active Agents</span>
+                <span className="font-mono font-medium">{connected.length}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Endpoint</span>
-                <Badge variant="outline">Netlify MCP</Badge>
+                <span className="text-muted-foreground">OAuth 2.0 Server</span>
+                <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30">Enabled</Badge>
               </div>
               <Separator />
-              <p className="break-all font-mono text-xs text-muted-foreground">{workspaceId || "No active Clerk organization"}</p>
+              <div>
+                <span className="text-muted-foreground block mb-1">Org ID:</span>
+                <p className="break-all font-mono text-[11px] text-muted-foreground bg-muted/40 p-1.5 rounded">
+                  {workspaceId || "No active Clerk organization"}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Agents Listing & Library Tabs */}
         <Tabs defaultValue="connected" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="connected">Connected</TabsTrigger>
-            <TabsTrigger value="library">Library</TabsTrigger>
+            <TabsTrigger value="connected" className="gap-2">
+              <Activity className="h-4 w-4" />
+              Connected Agents ({connected.length})
+            </TabsTrigger>
+            <TabsTrigger value="library" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Client Catalog & Guides ({CATALOG.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="connected" className="space-y-3">
             {connected.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center">
-                <Bot className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                <h3 className="text-base font-semibold">No agents connected yet</h3>
-                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  Generate a token for Claude Code, Codex, GitHub Copilot, or a custom MCP client.
+              <div className="rounded-xl border border-dashed p-10 text-center bg-card/40">
+                <Bot className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
+                <h3 className="text-base font-semibold">No active agent connections yet</h3>
+                <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
+                  Select a client above (Claude Code, Cursor, ChatGPT, Grok, etc.) to generate your live MCP token and get instant setup snippets.
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border bg-card">
+              <div className="overflow-hidden rounded-xl border bg-card divide-y divide-border">
                 {connected.map((agent) => {
                   const meta = kindMeta(agent.kind);
                   const Icon = meta.icon;
@@ -632,9 +912,11 @@ export function AgentsManager() {
                   return (
                     <div
                       key={agent.id}
-                      className="grid gap-3 border-b p-4 last:border-0 md:grid-cols-[28px_minmax(0,1fr)_auto] md:items-center"
+                      className="grid gap-3 p-4 md:grid-cols-[36px_minmax(0,1fr)_auto] md:items-center hover:bg-muted/10 transition-colors"
                     >
-                      <Icon className={cn("h-5 w-5", meta.accent)} />
+                      <div className={cn("p-2 rounded-lg flex items-center justify-center", meta.bgAccent)}>
+                        <Icon className={cn("h-4 w-4", meta.accent)} />
+                      </div>
                       <div className="min-w-0 space-y-1">
                         {renaming ? (
                           <div className="flex max-w-lg gap-2">
@@ -645,6 +927,7 @@ export function AgentsManager() {
                                 if (event.key === "Enter") void renameAgent(agent);
                                 if (event.key === "Escape") setRenamingId(null);
                               }}
+                              autoFocus
                             />
                             <Button size="sm" onClick={() => renameAgent(agent)}>
                               Save
@@ -652,40 +935,54 @@ export function AgentsManager() {
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium">{agent.name}</span>
-                            <Badge variant="secondary" className="capitalize">{agent.status}</Badge>
-                            {fresh && <Badge variant="outline">Token shown once</Badge>}
-                            {tested && <Badge variant={tested.ok ? "secondary" : "destructive"}>{tested.label}</Badge>}
+                            <span className="font-semibold text-sm">{agent.name}</span>
+                            <Badge variant="secondary" className="capitalize text-xs">
+                              {agent.status}
+                            </Badge>
+                            {fresh && (
+                              <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-[10px]">
+                                Fresh Token Active
+                              </Badge>
+                            )}
+                            {tested && (
+                              <Badge
+                                variant={tested.ok ? "secondary" : "destructive"}
+                                className="text-[10px]"
+                              >
+                                {tested.label}
+                              </Badge>
+                            )}
                           </div>
                         )}
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                          <span>{meta.name}</span>
-                          <span>Last seen: {relativeDate(agent.last_seen_at)}</span>
-                          <span className="font-mono">{agent.id.slice(0, 8)}</span>
-                          {fresh && <span className="font-mono">{redactToken(fresh.token)}</span>}
+                          <span className="font-medium text-foreground/80">{meta.name}</span>
+                          <span>Last active: {relativeDate(agent.last_seen_at)}</span>
+                          <span className="font-mono">ID: {agent.id.slice(0, 8)}</span>
+                          {fresh && <span className="font-mono text-[11px]">{redactToken(fresh.token)}</span>}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                        <Button variant="outline" size="sm" onClick={() => setWizardAgent(agent)}>
-                          <Clipboard className="mr-2 h-3.5 w-3.5" />
-                          Setup
+                        <Button variant="default" size="sm" onClick={() => openSetupModal(agent)} className="gap-1.5">
+                          <Sliders className="h-3.5 w-3.5" />
+                          Setup & Config
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => mintToken(agent)}>
-                          <KeyRound className="mr-2 h-3.5 w-3.5" />
-                          Token
+                        <Button variant="outline" size="sm" onClick={() => mintToken(agent)} className="gap-1.5">
+                          <KeyRound className="h-3.5 w-3.5" />
+                          New Token
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => testMcp(agent)}
                           disabled={!freshTokens[agent.id] || testingId === agent.id}
+                          className="gap-1.5"
                         >
                           {testingId === agent.id ? (
-                            <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <Wifi className="mr-2 h-3.5 w-3.5" />
+                            <Wifi className="h-3.5 w-3.5 text-emerald-500" />
                           )}
-                          Test
+                          Test Probe
                         </Button>
                         <Button
                           variant="ghost"
@@ -696,10 +993,14 @@ export function AgentsManager() {
                           }}
                           aria-label="Rename agent"
                         >
-                          <span className="sr-only">Rename</span>
                           <span className="text-xs font-semibold">Aa</span>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => disconnectAgent(agent)} aria-label="Disconnect agent">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => disconnectAgent(agent)}
+                          aria-label="Disconnect agent"
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -711,31 +1012,35 @@ export function AgentsManager() {
           </TabsContent>
 
           <TabsContent value="library">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {CATALOG.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Card key={item.kind}>
+                  <Card key={item.kind} className="flex flex-col justify-between hover:border-primary/40 transition-colors">
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <Icon className={cn("h-5 w-5", item.accent)} />
-                        <Badge variant={item.ready ? "secondary" : "outline"}>{item.ready ? "Ready" : "Soon"}</Badge>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className={cn("p-2 rounded-lg", item.bgAccent)}>
+                          <Icon className={cn("h-5 w-5", item.accent)} />
+                        </div>
+                        <Badge variant="secondary" className="capitalize text-[10px] font-mono">
+                          {item.category}
+                        </Badge>
                       </div>
                       <CardTitle className="text-base">{item.name}</CardTitle>
-                      <CardDescription>{item.tagline}</CardDescription>
+                      <CardDescription className="text-xs">{item.tagline}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="min-h-16 text-sm text-muted-foreground">{item.description}</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => createAgent(item.kind)} disabled={!!connecting || !workspaceId}>
-                          <Plus className="mr-2 h-3.5 w-3.5" />
-                          Connect
+                      <p className="min-h-12 text-xs text-muted-foreground leading-relaxed">{item.description}</p>
+                      <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                        <Button size="sm" onClick={() => createAgent(item.kind)} disabled={!!connecting || !workspaceId} className="flex-1">
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          Quick Connect
                         </Button>
                         {item.installUrl && (
                           <Button variant="outline" size="sm" asChild>
                             <a href={item.installUrl} target="_blank" rel="noreferrer">
-                              <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                              {item.installLabel ?? "Install"}
+                              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                              {item.installLabel ?? "Docs"}
                             </a>
                           </Button>
                         )}
@@ -745,11 +1050,17 @@ export function AgentsManager() {
                 );
               })}
             </div>
-            <div className="mt-4 rounded-lg border bg-muted/30 p-4">
-              <div className="mb-2 text-sm font-medium">Next agents</div>
+
+            <div className="mt-6 rounded-xl border bg-muted/20 p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Upcoming Native Connectors</span>
+                <Badge variant="outline" className="text-[10px]">Roadmap</Badge>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {COMING_SOON.map((label) => (
-                  <Badge key={label} variant="outline">{label}</Badge>
+                  <Badge key={label} variant="secondary" className="text-xs py-1 px-2.5 bg-background/80 border border-border/80">
+                    {label}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -757,169 +1068,530 @@ export function AgentsManager() {
         </Tabs>
       </div>
 
+      {/* Modernized Full Connection Setup Wizard Modal */}
       <Dialog open={!!wizardAgent} onOpenChange={(open) => !open && setWizardAgent(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{wizardAgent ? `Connect ${wizardAgent.name}` : "Connect agent"}</DialogTitle>
-            <DialogDescription>
-              Token secrets are only visible right after generation. Generate a new one if this dialog has no token.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0 rounded-2xl border-border bg-card">
           {wizardAgent && (
-            <div className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-                <div className="rounded-lg border bg-muted/30 p-3">
-                  <div className="text-xs uppercase text-muted-foreground">Endpoint</div>
-                  <div className="mt-1 break-all font-mono text-sm">{MCP_URL}</div>
+            <div className="space-y-0">
+              {/* Header */}
+              <div className="p-6 border-b border-border bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2.5 rounded-xl", kindMeta(wizardKind).bgAccent)}>
+                      {(() => {
+                        const Icon = kindMeta(wizardKind).icon;
+                        return <Icon className={cn("h-6 w-6", kindMeta(wizardKind).accent)} />;
+                      })()}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-bold">
+                        Connect {wizardAgent.name}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        Model Context Protocol (MCP) live configuration & credentials.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    Agent ID: {wizardAgent.id.slice(0, 8)}
+                  </Badge>
                 </div>
-                <Button variant="outline" onClick={() => copyText(MCP_URL, "Endpoint copied")}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy URL
-                </Button>
               </div>
 
-              {wizardToken ? (
-                <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                  <div>
-                    <div className="text-xs uppercase text-muted-foreground">Connection secret</div>
-                    <div className="mt-1 text-sm font-medium">Token stored in downloadable JSON file</div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground break-all">{redactToken(wizardToken)}</div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-                    <div className="space-y-2 flex-1">
-                      <Label>Auth type</Label>
-                      <Select
-                        value={wizardAuthType}
-                        onValueChange={(v) => setWizardAuthType(v as "bearer" | "oauth")}
+              <div className="p-6 space-y-6">
+                {/* Token & Secret Bar */}
+                <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <KeyRound className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                        Agent Authentication Secret
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => setShowFullToken(!showFullToken)}
+                        disabled={!wizardToken}
                       >
-                        <SelectTrigger><SelectValue placeholder="Bearer token" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="bearer">Bearer token (default)</SelectItem>
-                          <SelectItem value="oauth">OAuth 2.0 (for Gemini, etc.)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {showFullToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        {showFullToken ? "Mask secret" : "Reveal full token"}
+                      </Button>
                     </div>
-                    <Button onClick={() => downloadConnectionFile(wizardAgent, wizardAuthType)}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download JSON
-                    </Button>
                   </div>
-                </div>
-              ) : (
-                <Alert>
-                  <KeyRound className="h-4 w-4" />
-                  <AlertTitle>No visible token for this agent</AlertTitle>
-                  <AlertDescription className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>Create a fresh token for this agent. The old tokens stay valid until revoked.</span>
-                    <Button size="sm" onClick={() => mintToken(wizardAgent)}>
-                      <KeyRound className="mr-2 h-3.5 w-3.5" />
-                      Generate token
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
 
-              <Tabs defaultValue={wizardAgent.kind === "custom" ? "custom" : wizardAgent.kind} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="custom">Custom</TabsTrigger>
-                  <TabsTrigger value="claude_code">Claude Code</TabsTrigger>
-                  <TabsTrigger value="github_copilot">Cursor</TabsTrigger>
-                  <TabsTrigger value="openai_codex">VS Code</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="custom" className="mt-4 space-y-4">
-                  <div className="rounded-lg border bg-muted/20 p-4">
-                    <div className="text-sm font-medium mb-1">Custom App Integration</div>
-                    <div className="text-xs text-muted-foreground mb-4">
-                      Enter these credentials exactly as shown into the app's (e.g., Grok) integration settings.
-                    </div>
-                    
+                  {wizardToken ? (
                     <div className="space-y-3">
-                      <div>
-                        <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">1. Endpoint URL</div>
-                        <div className="flex items-center gap-2">
-                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono">{MCP_URL}/sse</code>
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => copyText(`${MCP_URL}/sse`, "Endpoint URL copied")}>
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">2. Authentication Type</div>
-                        <code className="rounded bg-muted px-2 py-1 text-xs font-mono">OAuth 2.0</code> <span className="text-xs text-muted-foreground mx-1">or</span> <code className="rounded bg-muted px-2 py-1 text-xs font-mono">Bearer Token</code>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 rounded-lg bg-muted/60 px-3 py-2 text-xs font-mono break-all border border-border/60">
+                          {showFullToken ? wizardToken : redactToken(wizardToken)}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyText(wizardToken, "Agent token copied to clipboard", "modal-token")}
+                        >
+                          {copiedKey === "modal-token" ? (
+                            <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <Copy className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          Copy
+                        </Button>
                       </div>
 
-                      <div>
-                        <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">3. Agent Token / Client Secret</div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border/40 text-xs">
+                        <span className="text-muted-foreground text-[11px]">
+                          Store securely. Tokens are encrypted server-side and never expire unless revoked.
+                        </span>
                         <div className="flex items-center gap-2">
-                          <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono break-all">
-                            {showToken ? wizardToken : redactToken(wizardToken)}
-                          </code>
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
-                            setShowToken(!showToken);
-                            if (!showToken && wizardToken) copyText(wizardToken, "Token copied");
-                          }}>
-                            {showToken ? <Copy className="h-3.5 w-3.5" /> : <KeyRound className="h-3.5 w-3.5" />}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => downloadConnectionFile(wizardAgent, wizardAuthType)}
+                          >
+                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                            Download JSON Package
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => mintToken(wizardAgent)}
+                          >
+                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            Rotate
                           </Button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="claude_code" className="mt-4 space-y-3">
-                  <div className="text-sm font-medium">Claude Code CLI</div>
-                  <p className="text-xs text-muted-foreground">Run this exact command in your terminal to connect Claude Code to this agent.</p>
-                  <Textarea readOnly value={configFor("claude_code", wizardToken, true)} className="min-h-24 font-mono text-xs" />
-                  <Button variant="outline" onClick={() => copyText(configFor("claude_code", wizardToken, false), "Claude Code command copied")} disabled={!wizardToken}>
-                    <Terminal className="mr-2 h-4 w-4" /> Copy Command
-                  </Button>
-                </TabsContent>
-
-                <TabsContent value="github_copilot" className="mt-4 space-y-3">
-                  <div className="text-sm font-medium">Cursor IDE</div>
-                  <p className="text-xs text-muted-foreground">Add this to your <code>cursor-mcp.json</code> or paste it in the MCP Settings.</p>
-                  <Textarea readOnly value={configFor("github_copilot", wizardToken, true)} className="min-h-32 font-mono text-xs" />
-                  <Button variant="outline" onClick={() => copyText(
-                    JSON.stringify({ mcpServers: { memorify: { url: getMcpUrl(), headers: { Authorization: `Bearer ${wizardToken}` } } } }, null, 2),
-                    "Cursor config copied"
-                  )} disabled={!wizardToken}>
-                    <LayoutGrid className="mr-2 h-4 w-4" /> Copy JSON
-                  </Button>
-                </TabsContent>
-
-                <TabsContent value="openai_codex" className="mt-4 space-y-3">
-                  <div className="text-sm font-medium">Roo Code / VS Code</div>
-                  <p className="text-xs text-muted-foreground">Add this to your <code>cline_mcp_settings.json</code> or Roo Code settings.</p>
-                  <Textarea readOnly value={configFor("openai_codex", wizardToken, true)} className="min-h-24 font-mono text-xs" />
-                  <Button variant="outline" onClick={() => copyText(
-                    `[mcp_servers.memorify]\nurl = "${getMcpUrl()}"\nheaders = { Authorization = "Bearer ${wizardToken}" }`,
-                    "VS Code config copied"
-                  )} disabled={!wizardToken}>
-                    <Code className="mr-2 h-4 w-4" /> Copy TOML
-                  </Button>
-                </TabsContent>
-              </Tabs>
-
-              <div className="flex items-center gap-2 pt-2">
-                <Button onClick={() => testMcp(wizardAgent)} disabled={!wizardToken || testingId === wizardAgent.id} className="w-full sm:w-auto">
-                  {testingId === wizardAgent.id ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Wifi className="mr-2 h-4 w-4" />}
-                  Test Connection
-                </Button>
-              </div>
-
-              {testState[wizardAgent.id] && (
-                <Alert variant={testState[wizardAgent.id].ok ? "default" : "destructive"}>
-                  <Wifi className="h-4 w-4" />
-                  <AlertTitle>{testState[wizardAgent.id].label}</AlertTitle>
-                  {testState[wizardAgent.id].detail && (
-                    <AlertDescription className="break-all font-mono text-xs">
-                      {testState[wizardAgent.id].detail}
-                    </AlertDescription>
+                  ) : (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-muted-foreground">No active token loaded in current session.</span>
+                      <Button size="sm" onClick={() => mintToken(wizardAgent)}>
+                        <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                        Generate Live Token
+                      </Button>
+                    </div>
                   )}
-                </Alert>
-              )}
+                </div>
+
+                {/* Transport & Client Tab Selection */}
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Target AI Client / Platform
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">Transport:</span>
+                      <div className="flex rounded-lg border border-border p-0.5 bg-muted/30">
+                        <button
+                          type="button"
+                          onClick={() => setWizardTransport("http")}
+                          className={cn(
+                            "px-2.5 py-1 text-[11px] rounded font-medium transition-colors",
+                            wizardTransport === "http" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          HTTP Stream
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWizardTransport("sse")}
+                          className={cn(
+                            "px-2.5 py-1 text-[11px] rounded font-medium transition-colors",
+                            wizardTransport === "sse" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          SSE (Server-Sent Events)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Tabs
+                    value={wizardKind}
+                    onValueChange={(val) => setWizardKind(val as AgentKind)}
+                    className="w-full"
+                  >
+                    <TabsList className="grid grid-cols-4 sm:grid-cols-8 h-auto p-1 bg-muted/40 gap-1 rounded-xl">
+                      <TabsTrigger value="claude_code" className="text-xs py-2 px-1 rounded-lg">
+                        Claude Code
+                      </TabsTrigger>
+                      <TabsTrigger value="cursor" className="text-xs py-2 px-1 rounded-lg">
+                        Cursor
+                      </TabsTrigger>
+                      <TabsTrigger value="claude_desktop" className="text-xs py-2 px-1 rounded-lg">
+                        Claude Desktop
+                      </TabsTrigger>
+                      <TabsTrigger value="chatgpt" className="text-xs py-2 px-1 rounded-lg">
+                        ChatGPT
+                      </TabsTrigger>
+                      <TabsTrigger value="grok" className="text-xs py-2 px-1 rounded-lg">
+                        Grok / xAI
+                      </TabsTrigger>
+                      <TabsTrigger value="windsurf" className="text-xs py-2 px-1 rounded-lg">
+                        Windsurf
+                      </TabsTrigger>
+                      <TabsTrigger value="vscode" className="text-xs py-2 px-1 rounded-lg">
+                        VS Code
+                      </TabsTrigger>
+                      <TabsTrigger value="custom" className="text-xs py-2 px-1 rounded-lg">
+                        cURL / Other
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Claude Code CLI Content */}
+                    <TabsContent value="claude_code" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">1-Click Terminal Command</h4>
+                            <p className="text-xs text-muted-foreground">Run this in your terminal inside any project folder to hook up Claude Code.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("claude_code", wizardToken, wizardTransport, true),
+                                "Claude Code command copied!",
+                                "cli-cmd",
+                              )
+                            }
+                            disabled={!wizardToken}
+                          >
+                            {copiedKey === "cli-cmd" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Terminal className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy Command
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("claude_code", wizardToken, wizardTransport, showFullToken)}
+                          className="min-h-24 font-mono text-xs bg-muted/40 select-all"
+                        />
+                        <div className="text-[11px] text-muted-foreground bg-muted/20 p-2.5 rounded-lg border border-border/40 space-y-1">
+                          <span className="font-semibold text-foreground">💡 Pro tip:</span> After adding, type <code>/mcp</code> in Claude Code to see all available Memorify memory, doc search, and custom tools.
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Cursor Content */}
+                    <TabsContent value="cursor" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">Cursor IDE Configuration</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Add to <code>~/.cursor/mcp.json</code> or paste into <strong>Cursor Settings &gt; Features &gt; MCP</strong>.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("cursor", wizardToken, wizardTransport, true),
+                                "Cursor config JSON copied!",
+                                "cursor-json",
+                              )
+                            }
+                            disabled={!wizardToken}
+                          >
+                            {copiedKey === "cursor-json" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy JSON
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("cursor", wizardToken, wizardTransport, showFullToken)}
+                          className="min-h-36 font-mono text-xs bg-muted/40 select-all"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    {/* Claude Desktop Content */}
+                    <TabsContent value="claude_desktop" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">Claude Desktop Config</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Uses official <code>mcp-remote</code> bridge. Paste into <code>claude_desktop_config.json</code>.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("claude_desktop", wizardToken, "sse", true),
+                                "Claude Desktop config copied!",
+                                "claude-desktop-json",
+                              )
+                            }
+                            disabled={!wizardToken}
+                          >
+                            {copiedKey === "claude-desktop-json" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Cpu className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy JSON
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("claude_desktop", wizardToken, "sse", showFullToken)}
+                          className="min-h-36 font-mono text-xs bg-muted/40 select-all"
+                        />
+                        <div className="text-[11px] text-muted-foreground space-y-1">
+                          <p><strong>Config file path:</strong></p>
+                          <p className="font-mono bg-muted/40 p-1 rounded">macOS: ~/Library/Application Support/Claude/claude_desktop_config.json</p>
+                          <p className="font-mono bg-muted/40 p-1 rounded">Windows: %APPDATA%\Claude\claude_desktop_config.json</p>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* ChatGPT Content */}
+                    <TabsContent value="chatgpt" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">ChatGPT & Custom GPTs Setup</h4>
+                            <p className="text-xs text-muted-foreground">Configure as a Custom Action or Developer MCP Connector.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("chatgpt", wizardToken, wizardTransport, true),
+                                "ChatGPT credentials copied!",
+                                "chatgpt-info",
+                              )
+                            }
+                          >
+                            {copiedKey === "chatgpt-info" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy Info
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("chatgpt", wizardToken, wizardTransport, showFullToken)}
+                          className="min-h-36 font-mono text-xs bg-muted/40 select-all"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    {/* Grok / xAI Content */}
+                    <TabsContent value="grok" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">Grok / xAI Connectors</h4>
+                            <p className="text-xs text-muted-foreground">Paste into Grok Tools / Connectors or xAI API integration settings.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("grok", wizardToken, "sse", true),
+                                "Grok config copied!",
+                                "grok-info",
+                              )
+                            }
+                          >
+                            {copiedKey === "grok-info" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Globe className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy Info
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("grok", wizardToken, "sse", showFullToken)}
+                          className="min-h-36 font-mono text-xs bg-muted/40 select-all"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    {/* Windsurf Content */}
+                    <TabsContent value="windsurf" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">Windsurf (Cascade) Config</h4>
+                            <p className="text-xs text-muted-foreground">Add to <code>~/.codeium/windsurf/mcp_config.json</code>.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("windsurf", wizardToken, wizardTransport, true),
+                                "Windsurf config copied!",
+                                "windsurf-json",
+                              )
+                            }
+                          >
+                            {copiedKey === "windsurf-json" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Zap className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy JSON
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("windsurf", wizardToken, wizardTransport, showFullToken)}
+                          className="min-h-32 font-mono text-xs bg-muted/40 select-all"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    {/* VS Code / Cline Content */}
+                    <TabsContent value="vscode" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">VS Code (Roo Code / Cline)</h4>
+                            <p className="text-xs text-muted-foreground">Paste in Roo Code MCP Settings or <code>cline_mcp_settings.json</code>.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("vscode", wizardToken, wizardTransport, true),
+                                "VS Code config copied!",
+                                "vscode-json",
+                              )
+                            }
+                          >
+                            {copiedKey === "vscode-json" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Code className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy JSON
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("vscode", wizardToken, wizardTransport, showFullToken)}
+                          className="min-h-32 font-mono text-xs bg-muted/40 select-all"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    {/* Custom / cURL Content */}
+                    <TabsContent value="custom" className="mt-4 space-y-3">
+                      <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold">cURL & Generic JSON-RPC</h4>
+                            <p className="text-xs text-muted-foreground">Standard JSON-RPC 2.0 payload to interact directly via HTTP POST.</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              copyText(
+                                configSnippetFor("custom", wizardToken, wizardTransport, true),
+                                "cURL snippet copied!",
+                                "custom-curl",
+                              )
+                            }
+                          >
+                            {copiedKey === "custom-curl" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                            Copy cURL
+                          </Button>
+                        </div>
+                        <Textarea
+                          readOnly
+                          value={configSnippetFor("custom", wizardToken, wizardTransport, showFullToken)}
+                          className="min-h-36 font-mono text-xs bg-muted/40 select-all"
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+
+                {/* Diagnostic Probe & Verification */}
+                <div className="rounded-xl border border-border bg-muted/15 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-emerald-500" />
+                        Live Connection Tester & Inspector
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        Simulates a live JSON-RPC <code>tools/list</code> probe against your Netlify Edge gateway.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => testMcp(wizardAgent)}
+                      disabled={!wizardToken || testingId === wizardAgent.id}
+                      className="gap-2"
+                    >
+                      {testingId === wizardAgent.id ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Wifi className="h-4 w-4" />
+                      )}
+                      Test Live Connection
+                    </Button>
+                  </div>
+
+                  {activeTest && (
+                    <div className="pt-2">
+                      <Alert
+                        variant={activeTest.ok ? "default" : "destructive"}
+                        className={cn(
+                          "border",
+                          activeTest.ok ? "border-emerald-500/40 bg-emerald-500/10" : "border-destructive/40 bg-destructive/10",
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          {activeTest.ok ? (
+                            <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <AlertTitle className="text-sm font-semibold">
+                                {activeTest.label}
+                              </AlertTitle>
+                              {activeTest.latencyMs && (
+                                <Badge variant="outline" className="font-mono text-[10px] bg-background">
+                                  ⚡ {activeTest.latencyMs}ms roundtrip
+                                </Badge>
+                              )}
+                            </div>
+                            {activeTest.detail && (
+                              <AlertDescription className="text-xs font-mono break-all text-muted-foreground">
+                                {activeTest.detail}
+                              </AlertDescription>
+                            )}
+
+                            {activeTest.tools && activeTest.tools.length > 0 && (
+                              <div className="pt-2 border-t border-border/40">
+                                <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider block mb-1.5">
+                                  Discovered Workspace Tools:
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {activeTest.tools.map((t) => (
+                                    <Badge
+                                      key={t.name}
+                                      variant="secondary"
+                                      className="font-mono text-[11px] py-0.5 px-2 bg-background border border-border"
+                                    >
+                                      {t.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Alert>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
