@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Seo } from "@/components/Seo";
 import { Nav } from "@/components/memorify/Nav";
 import { Hero } from "@/components/memorify/Hero";
+import { DashboardPreview } from "@/components/memorify/DashboardPreview";
 import { Problem } from "@/components/memorify/Problem";
 import { Architecture } from "@/components/memorify/Architecture";
 import { Protocol } from "@/components/memorify/Protocol";
@@ -38,6 +39,7 @@ const Index = () => {
       />
       <Nav />
       <Hero />
+      <DashboardPreview />
       <Problem />
       <Protocol />
       <Architecture />

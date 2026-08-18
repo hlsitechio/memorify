@@ -2895,4 +2895,14 @@
     from { transform: translate(-50%, -50%) rotate(0deg); }
     to { transform: translate(-50%, -50%) rotate(360deg); }
   }
+
+  .mem-dashboard-preview {
+    transform: perspective(1200px) rotateX(12deg) translateY(40px) scale(0.95);
+    opacity: 0;
+    transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 1.2s ease-out;
+  }
+  .mem-dashboard-preview.is-visible {
+    transform: perspective(1200px) rotateX(0deg) translateY(0) scale(1);
+    opacity: 1;
+  }
 }

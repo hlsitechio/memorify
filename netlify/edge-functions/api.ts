@@ -7,7 +7,7 @@ import { handleV1 } from "../../backend/routes/v1.ts";
 import { handleStripeWebhook } from "../../backend/routes/connectors.ts";
 import { handleUptime } from "../../backend/routes/uptime.ts";
 import { handleHealth } from "../../backend/routes/health.ts";
-import { handleUptimeRobotWebhook } from "../../backend/routes/webhooks.ts";
+import { handleUptimeRobotWebhook, handleClerkWebhook } from "../../backend/routes/webhooks.ts";
 import { handleShapeQuery } from "../../backend/routes/shape-query.ts";
 
 const API_CORS_HEADERS = {
@@ -44,6 +44,10 @@ export default async (req: Request): Promise<Response> => {
 
   if (path === "/api/webhooks/uptimerobot" || path === "/api/uptime/webhook") {
     return handleUptimeRobotWebhook(req);
+  }
+
+  if (path === "/api/webhooks/clerk") {
+    return handleClerkWebhook(req);
   }
 
   if (path === "/api/bootstrap") {
