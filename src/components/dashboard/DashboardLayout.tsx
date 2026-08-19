@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { OrganizationList, useOrganization, useUser } from "@clerk/react";
 import {
   Database,
   Plug,
@@ -223,6 +224,8 @@ function MainNav({ collapsed, onToggleChat }: { collapsed: boolean; onToggleChat
 }
 
 function DashboardLayoutInner() {
+  const { organization, isLoaded: orgLoaded } = useOrganization();
+  const { isLoaded: userLoaded } = useUser();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -252,6 +255,18 @@ function DashboardLayoutInner() {
     })();
     return () => { cancelled = true; };
   }, [currentWs?.id, user?.id]);
+
+  if (orgLoaded && userLoaded && !organization) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+        <div className="mb-8 text-center space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">Welcome to Memorify!</h1>
+          <p className="text-muted-foreground text-sm">Please select or create an organization to access your dashboard.</p>
+        </div>
+        <OrganizationList hidePersonal={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen overflow-hidden flex w-full bg-background text-foreground">
