@@ -1,6 +1,6 @@
-// backend/routes/webhooks.ts — UptimeRobot Webhook Ingestion & Resend Email Dispatcher
 import { json } from "../lib/cors.ts";
 import { Webhook } from "https://esm.sh/svix";
+import { execute } from "../lib/db.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const DEFAULT_ALERT_EMAIL = "hlarosesurprenant@gmail.com";
@@ -210,22 +210,37 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
   // Handle the event
   const eventType = evt.type;
   
-  if (eventType === "user.created") {
-    const { id, email_addresses, first_name, last_name, created_at } = evt.data;
-    
-    // Find the primary email
-    const primaryEmailObj = email_addresses?.find((email: any) => email.id === evt.data.primary_email_address_id) || email_addresses?.[0];
-    const emailAddress = primaryEmailObj?.email_address || "Unknown Email";
-    const name = [first_name, last_name].filter(Boolean).join(" ") || "New User";
-    const signupTime = new Date(created_at || Date.now()).toUTCString();
+  try {
+    if (eventType === "user.created" || eventType === "user.updated") {
+      const { id, email_addresses, first_name, last_name, image_url, created_at } = evt.data;
+      const primaryEmailObj = email_addresses?.find((e: any) => e.id === evt.data.primary_email_address_id) || email_addresses?.[0];
+      const emailAddress = primaryEmailObj?.email_address || null;
+      const full = [first_name, last_name].filter(Boolean).join(" ") || null;
+      
+      await execute(
+        `INSERT INTO app_users (id, email, first_name, last_name, full_name, image_url, last_seen_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())
+         ON CONFLICT (id) DO UPDATE SET
+           email = COALESCE(EXCLUDED.email, app_users.email),
+           first_name = COALESCE(EXCLUDED.first_name, app_users.first_name),
+           last_name = COALESCE(EXCLUDED.last_name, app_users.last_name),
+           full_name = COALESCE(EXCLUDED.full_name, app_users.full_name),
+           image_url = COALESCE(EXCLUDED.image_url, app_users.image_url),
+           updated_at = now()`,
+        [id, emailAddress, first_name || null, last_name || null, full, image_url || null]
+      );
 
-    try {
-      const resendPayload = {
-        from: "Memorify Alerts <onboarding@resend.dev>",
-        to: [DEFAULT_ALERT_EMAIL],
-        reply_to: "memorify-ops@agentmail.to",
-        subject: `🎉 New User Signup: ${emailAddress}`,
-        html: `<!DOCTYPE html>
+      // Only send email on creation
+      if (eventType === "user.created") {
+        const name = full || "New User";
+        const signupTime = new Date(created_at || Date.now()).toUTCString();
+        try {
+          const resendPayload = {
+            from: "Memorify Alerts <onboarding@resend.dev>",
+            to: [DEFAULT_ALERT_EMAIL],
+            reply_to: "memorify-ops@agentmail.to",
+            subject: `🎉 New User Signup: ${emailAddress}`,
+            html: `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:32px 16px;background-color:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -242,7 +257,7 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
     <tr>
       <td style="padding:24px 28px;color:#e2e8f0;font-size:13px;line-height:1.6;">
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#111827;border:1px solid #1f2937;border-radius:8px;margin:16px 0;">
-          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Email:</td><td style="padding:10px 14px;color:#fff;font-weight:bold;font-size:13px;border-bottom:1px solid #1f2937;">${emailAddress}</td></tr>
+          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Email:</td><td style="padding:10px 14px;color:#fff;font-weight:bold;font-size:13px;border-bottom:1px solid #1f2937;">${emailAddress || "Unknown"}</td></tr>
           <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Name:</td><td style="padding:10px 14px;color:#e2e8f0;font-size:12px;border-bottom:1px solid #1f2937;">${name}</td></tr>
           <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">Signed up at:</td><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">${signupTime}</td></tr>
         </table>
@@ -256,23 +271,70 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
   </table>
 </body>
 </html>`,
-        text: `[NEW USER SIGNUP]\nEmail: ${emailAddress}\nName: ${name}\nUser ID: ${id}\nTime: ${signupTime}`
-      };
+            text: `[NEW USER SIGNUP]\nEmail: ${emailAddress}\nName: ${name}\nUser ID: ${id}\nTime: ${signupTime}`
+          };
 
-      const resendRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(resendPayload),
-      });
+          const resendRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(resendPayload),
+          });
 
-      const resendData = await resendRes.json();
-      console.log("Resend Dispatch Success:", resendData);
-    } catch (emailErr) {
-      console.error("Failed to send Resend email:", emailErr);
+          const resendData = await resendRes.json();
+          console.log("Resend Dispatch Success:", resendData);
+        } catch (emailErr) {
+          console.error("Failed to send Resend email:", emailErr);
+        }
+      }
+    } 
+    else if (eventType === "user.deleted") {
+      const { id } = evt.data;
+      await execute(`DELETE FROM app_users WHERE id = $1`, [id]);
     }
+    else if (eventType === "organization.created" || eventType === "organization.updated") {
+      const { id, name, slug, image_url, created_by } = evt.data;
+      await execute(
+        `INSERT INTO workspaces (id, name, slug, image_url, created_by)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           slug = COALESCE(EXCLUDED.slug, workspaces.slug),
+           image_url = COALESCE(EXCLUDED.image_url, workspaces.image_url),
+           updated_at = now()`,
+        [id, name || "Workspace", slug || null, image_url || null, created_by || null]
+      );
+    }
+    else if (eventType === "organization.deleted") {
+      const { id } = evt.data;
+      await execute(`DELETE FROM workspaces WHERE id = $1`, [id]);
+    }
+    else if (eventType === "organizationMembership.created" || eventType === "organizationMembership.updated") {
+      const { organization, public_user_data, role } = evt.data;
+      if (organization?.id && public_user_data?.user_id) {
+        await execute(
+          `INSERT INTO workspace_members (workspace_id, user_id, role)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (workspace_id, user_id) DO UPDATE SET
+             role = EXCLUDED.role,
+             updated_at = now()`,
+          [organization.id, public_user_data.user_id, role || "org:member"]
+        );
+      }
+    }
+    else if (eventType === "organizationMembership.deleted") {
+      const { organization, public_user_data } = evt.data;
+      if (organization?.id && public_user_data?.user_id) {
+        await execute(
+          `DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
+          [organization.id, public_user_data.user_id]
+        );
+      }
+    }
+  } catch (err: any) {
+    console.error("Database sync failed for webhook:", err.message);
   }
 
   return json({ status: "success", type: eventType });
