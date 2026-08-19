@@ -304,7 +304,7 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
         
         if (oldOrg && oldOrg.name && oldOrg.name !== name) {
           const membersRes = await query(
-            `SELECT u.email FROM app_users u JOIN workspace_members m ON u.id = m.user_id WHERE m.workspace_id = $1`,
+            `SELECT u.email FROM app_users u JOIN workspace_members m ON u.id = m.user_id WHERE m.workspace_id = $1 AND m.role = 'org:admin'`,
             [id]
           );
           const emails = membersRes.map((m: any) => m.email).filter(Boolean);
@@ -381,7 +381,7 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
       
       if (org && org.name) {
         const membersRes = await query(
-          `SELECT u.email FROM app_users u JOIN workspace_members m ON u.id = m.user_id WHERE m.workspace_id = $1`,
+          `SELECT u.email FROM app_users u JOIN workspace_members m ON u.id = m.user_id WHERE m.workspace_id = $1 AND m.role = 'org:admin'`,
           [id]
         );
         const emails = membersRes.map((m: any) => m.email).filter(Boolean);
