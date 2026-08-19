@@ -569,6 +569,7 @@ export function AgentsManager() {
         [nextAgent.id]: { ok: false, label: "Ready to test connection" },
       }));
       toast.success(`${meta.name} agent created`);
+      window.dispatchEvent(new CustomEvent("agents-changed"));
     } catch (error: any) {
       toast.error(error?.message ?? "Could not create agent");
     } finally {
@@ -709,6 +710,7 @@ export function AgentsManager() {
         ),
       );
       toast.success("Agent disconnected");
+      window.dispatchEvent(new CustomEvent("agents-changed"));
     } catch (error: any) {
       toast.error(error?.message ?? "Could not disconnect agent");
     }

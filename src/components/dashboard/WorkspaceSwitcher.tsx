@@ -30,8 +30,13 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
   const [agents, setAgents] = useState<AgentRow[]>([]);
 
   useEffect(() => {
-    if (!user) return;
-    action("agents.list", {}).then(({ data }) => setAgents((data as AgentRow[]) ?? []));
+    const fetchAgents = () => {
+      if (!user) return;
+      action("agents.list", {}).then(({ data }) => setAgents((data as AgentRow[]) ?? []));
+    };
+    fetchAgents();
+    window.addEventListener("agents-changed", fetchAgents);
+    return () => window.removeEventListener("agents-changed", fetchAgents);
   }, [user, action]);
 
   const orgRowId = organization?.id ?? "";
@@ -112,7 +117,7 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Agents
             </DropdownMenuLabel>
-            {agents.map((a) => {
+            {agents.filter(a => a.status !== "disconnected").map((a) => {
               const meta = (a.metadata as any) || {};
               const wsId = workspaceIdForAgent(a.id);
               const wsName = (meta.workspace_name as string | undefined) || wsId;
