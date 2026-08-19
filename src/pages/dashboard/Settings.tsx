@@ -300,8 +300,10 @@ export default function Settings() {
 
   const [dangerConfirmName, setDangerConfirmName] = useState("");
   const [isDangerLoading, setIsDangerLoading] = useState(false);
+  const [deletionReason, setDeletionReason] = useState("");
+  const [deletionDetails, setDeletionDetails] = useState("");
 
-  const performDangerAction = async (action: string, successMsg: string) => {
+  const performDangerAction = async (action: string, successMsg: string, payload: any = {}) => {
     try {
       setIsDangerLoading(true);
       const token = await getToken();
@@ -309,7 +311,7 @@ export default function Settings() {
       const res = await fetch("/api/workspace/danger/action", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, ...payload })
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -1975,6 +1977,73 @@ export default function Settings() {
 
           <TabsContent value="danger">
             <div className="space-y-6">
+              {/* Request Organization Deletion */}
+              <section className="rounded-lg border border-destructive/20 bg-card p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-destructive">Ask for Organisation deletion</h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Submit a request to permanently delete your organization and all associated data.
+                    </p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="shrink-0">
+                        Request Deletion
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Request Organization Deletion</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Please let us know why you are leaving so we can improve the platform. Your request will be reviewed by our support team.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                          <Label>Reason for deletion</Label>
+                          <Select value={deletionReason} onValueChange={setDeletionReason}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a reason" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Application problems">Application problems</SelectItem>
+                              <SelectItem value="Technical difficulties">Technical difficulties</SelectItem>
+                              <SelectItem value="Missing features">Missing features</SelectItem>
+                              <SelectItem value="Too expensive">Too expensive</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Additional comments (optional)</Label>
+                          <textarea
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="Tell us more about your experience..."
+                            value={deletionDetails}
+                            onChange={(e) => setDeletionDetails(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => { setDeletionReason(""); setDeletionDetails(""); }}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={!deletionReason || isDangerLoading}
+                          onClick={() => {
+                            const fullReason = deletionDetails ? `${deletionReason} - ${deletionDetails}` : deletionReason;
+                            void performDangerAction("request_deletion", "Deletion request sent to support team", { reason: fullReason });
+                            setDeletionReason("");
+                            setDeletionDetails("");
+                          }}
+                        >
+                          {isDangerLoading ? "Sending..." : "Submit Request"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </section>
+
               {/* Clear Copilot Chat History */}
               <section className="rounded-lg border border-destructive/20 bg-card p-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

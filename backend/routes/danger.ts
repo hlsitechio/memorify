@@ -63,6 +63,55 @@ export async function handleDangerAction(req: Request): Promise<Response> {
       return json({ success: true, revoked_agent_tokens: countAgentTokens, revoked_oauth_tokens: countOAuthTokens });
     }
 
+    if (action === "request_deletion") {
+      const reason = body.reason || "No reason provided";
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      const DEFAULT_ALERT_EMAIL = "hlarosesurprenant@gmail.com";
+
+      if (RESEND_API_KEY) {
+        try {
+          const resendPayload = {
+            from: "Memorify Alerts <onboarding@resend.dev>",
+            to: [DEFAULT_ALERT_EMAIL],
+            reply_to: auth.email || "memorify-ops@agentmail.to",
+            subject: `🚨 Organization Deletion Request: ${workspace_id}`,
+            html: `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:32px 16px;background-color:#030712;font-family:sans-serif;color:#e2e8f0;">
+  <h2 style="color:#ef4444;">Organization Deletion Request</h2>
+  <p><strong>User ID:</strong> ${auth.user_id}</p>
+  <p><strong>Workspace ID:</strong> ${workspace_id}</p>
+  <p><strong>Reason provided:</strong></p>
+  <blockquote style="background:#1e293b;padding:12px;border-left:4px solid #ef4444;margin:0;">
+    ${reason}
+  </blockquote>
+</body>
+</html>`,
+            text: `Organization Deletion Request\nUser ID: ${auth.user_id}\nWorkspace ID: ${workspace_id}\nReason: ${reason}`
+          };
+
+          const resendRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(resendPayload),
+          });
+          
+          if (!resendRes.ok) {
+            console.error("Failed to send deletion request email", await resendRes.text());
+          }
+        } catch (emailErr) {
+          console.error("Failed to send Resend email:", emailErr);
+        }
+      } else {
+        console.warn("RESEND_API_KEY missing, deletion request logged but not emailed:", { workspace_id, reason });
+      }
+      
+      return json({ success: true });
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (err: any) {
     console.error("Danger action failed:", err);
