@@ -1,6 +1,6 @@
 import { json } from "../lib/cors.ts";
 import { Webhook } from "https://esm.sh/svix";
-import { execute } from "../lib/db.ts";
+import { execute, query } from "../lib/db.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const DEFAULT_ALERT_EMAIL = "hlarosesurprenant@gmail.com";
@@ -296,6 +296,71 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
     }
     else if (eventType === "organization.created" || eventType === "organization.updated") {
       const { id, name, slug, image_url, created_by } = evt.data;
+      
+      // Dispatch rename email if applicable
+      if (eventType === "organization.updated" && name) {
+        const oldOrgRes = await query(`SELECT name FROM workspaces WHERE id = $1`, [id]);
+        const oldOrg = oldOrgRes[0] as { name?: string } | undefined;
+        
+        if (oldOrg && oldOrg.name && oldOrg.name !== name) {
+          const membersRes = await query(
+            `SELECT u.email FROM app_users u JOIN workspace_members m ON u.id = m.user_id WHERE m.workspace_id = $1`,
+            [id]
+          );
+          const emails = membersRes.map((m: any) => m.email).filter(Boolean);
+          
+          if (emails.length > 0) {
+            try {
+              const resendPayload = {
+                from: "Memorify Alerts <onboarding@resend.dev>",
+                to: emails,
+                reply_to: "memorify-ops@agentmail.to",
+                subject: `ℹ️ Organization Renamed: ${oldOrg.name} → ${name}`,
+                html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:32px 16px;background-color:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:580px;margin:0 auto;background-color:#0b0f19;border:1px solid #3b82f6;border-radius:12px;overflow:hidden;">
+    <tr>
+      <td style="padding:26px 24px;background:#1e3a8a;border-bottom:1px solid #1e40af;text-align:center;">
+        <span style="display:inline-block;padding:5px 12px;border-radius:9999px;background:rgba(59,130,246,0.2);border:1px solid #60a5fa;color:#bfdbfe;font-size:11px;font-weight:700;text-transform:uppercase;">
+          ℹ️ ORGANIZATION RENAMED
+        </span>
+        <h1 style="color:#fff;font-size:20px;margin:12px 0 4px;">Workspace Updated</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px 28px;color:#e2e8f0;font-size:13px;line-height:1.6;">
+        <p style="margin-top:0;">Hello, your organization has been successfully renamed.</p>
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#111827;border:1px solid #1f2937;border-radius:8px;margin:16px 0;">
+          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;border-bottom:1px solid #1f2937;">Previous Name:</td><td style="padding:10px 14px;color:#fca5a5;text-decoration:line-through;font-size:12px;border-bottom:1px solid #1f2937;">${oldOrg.name}</td></tr>
+          <tr><td style="padding:10px 14px;color:#94a3b8;font-size:12px;">New Name:</td><td style="padding:10px 14px;color:#86efac;font-weight:bold;font-size:13px;">${name}</td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:12px;">All your agents and configurations are completely preserved and are now accessible under the new name.</p>
+        <div style="text-align:center;margin-top:24px;">
+          <a href="https://memorify.dev/dashboard" style="background:#3b82f6;color:#fff;font-weight:700;font-size:13px;padding:12px 28px;border-radius:8px;text-decoration:none;display:inline-block;">
+            Open Dashboard →
+          </a>
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+                text: `[ORGANIZATION RENAMED]\nYour organization ${oldOrg.name} has been renamed to ${name}.\nAll your agents and configurations are completely preserved and are now accessible under the new name.`
+              };
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify(resendPayload),
+              });
+            } catch (err) {
+              console.error("Failed to send Rename email:", err);
+            }
+          }
+        }
+      }
+
       await execute(
         `INSERT INTO workspaces (id, name, slug, image_url, created_by)
          VALUES ($1, $2, $3, $4, $5)
@@ -309,6 +374,63 @@ export async function handleClerkWebhook(req: Request): Promise<Response> {
     }
     else if (eventType === "organization.deleted") {
       const { id } = evt.data;
+      
+      // Dispatch deletion email before actually deleting the org
+      const orgRes = await query(`SELECT name FROM workspaces WHERE id = $1`, [id]);
+      const org = orgRes[0] as { name?: string } | undefined;
+      
+      if (org && org.name) {
+        const membersRes = await query(
+          `SELECT u.email FROM app_users u JOIN workspace_members m ON u.id = m.user_id WHERE m.workspace_id = $1`,
+          [id]
+        );
+        const emails = membersRes.map((m: any) => m.email).filter(Boolean);
+        
+        if (emails.length > 0) {
+          try {
+            const resendPayload = {
+              from: "Memorify Alerts <onboarding@resend.dev>",
+              to: emails,
+              reply_to: "memorify-ops@agentmail.to",
+              subject: `🚨 Action Required: Organization Deleted`,
+              html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:32px 16px;background-color:#030712;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:580px;margin:0 auto;background-color:#0b0f19;border:1px solid #ef4444;border-radius:12px;overflow:hidden;">
+    <tr>
+      <td style="padding:26px 24px;background:#111827;border-bottom:1px solid #1e293b;text-align:center;">
+        <span style="display:inline-block;padding:5px 12px;border-radius:9999px;background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;font-size:11px;font-weight:700;text-transform:uppercase;">
+          🚨 CRITICAL ALERT
+        </span>
+        <h1 style="color:#fff;font-size:20px;margin:12px 0 4px;">Organization Deleted</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px 28px;color:#e2e8f0;font-size:13px;line-height:1.6;">
+        <p style="margin-top:0;">The organization <strong>${org.name}</strong> has been deleted by an administrator.</p>
+        <div style="background:rgba(239,68,68,0.1);border-left:3px solid #ef4444;padding:12px;border-radius:4px;margin:16px 0;color:#fca5a5;font-size:12px;">
+          <strong>Notice:</strong> All associated agents, documents, and memories within this organization have been permanently erased from our servers in accordance with our zero data retention policy.
+        </div>
+        <p style="color:#94a3b8;font-size:12px;">If you believe this was done in error, please contact your administrator immediately.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+              text: `[CRITICAL ALERT]\nThe organization ${org.name} has been deleted by an administrator.\nAll associated agents, documents, and memories have been permanently erased.`
+            };
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify(resendPayload),
+            });
+          } catch (err) {
+            console.error("Failed to send Deletion email:", err);
+          }
+        }
+      }
+
       await execute(`DELETE FROM workspaces WHERE id = $1`, [id]);
     }
     else if (eventType === "organizationMembership.created" || eventType === "organizationMembership.updated") {
