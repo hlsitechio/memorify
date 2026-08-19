@@ -27,8 +27,8 @@ $$;
 -- Agents — one per connected AI agent (Hermes, Claude Code, custom, etc.)
 CREATE TABLE IF NOT EXISTS agents (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,           -- Clerk org_id
-  user_id     text NOT NULL,             -- Clerk user_id (who created it)
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,           -- Clerk org_id
+  user_id     text NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,             -- Clerk user_id (who created it)
   name        text NOT NULL,
   kind        text NOT NULL DEFAULT 'custom',  -- claude_code | cursor | hermes | custom
   status      text NOT NULL DEFAULT 'pending',  -- pending | connected | disconnected
@@ -51,7 +51,7 @@ ALTER TABLE agents ADD COLUMN IF NOT EXISTS access_level text NOT NULL DEFAULT '
 -- Agent tokens — fine-grained scoped tokens for agent-to-agent / MCP auth (Ed25519 JWT)
 CREATE TABLE IF NOT EXISTS agent_tokens (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id    text NOT NULL,           -- Clerk org_id
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,           -- Clerk org_id
   agent_id        uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   jti             text NOT NULL,           -- JWT ID (unique per token)
   token_hash      text NOT NULL UNIQUE,    -- SHA-256 of the full token (not stored plaintext)
@@ -76,7 +76,7 @@ CREATE OR REPLACE TRIGGER trg_agent_tokens_updated
 -- Memories — the core knowledge store
 CREATE TABLE IF NOT EXISTS memories (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   namespace   text NOT NULL DEFAULT 'default',  -- agent:<id> | shared | default
   content     text NOT NULL,
   category    text NOT NULL DEFAULT 'general',
@@ -105,7 +105,7 @@ CREATE INDEX IF NOT EXISTS memory_versions_mem_idx ON memory_versions(memory_id,
 -- Documents — uploaded files, imported URLs
 CREATE TABLE IF NOT EXISTS documents (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text NOT NULL,
   kind        text NOT NULL DEFAULT 'text',  -- text | pdf | image | office
   size        integer NOT NULL DEFAULT 0,
@@ -124,7 +124,7 @@ CREATE INDEX IF NOT EXISTS documents_search_idx ON documents USING gin(search_ve
 CREATE TABLE IF NOT EXISTS document_chunks (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   doc_id       uuid NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  workspace_id text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   chunk_index  integer NOT NULL,
   text         text NOT NULL,
   embedding    vector(1024),                   -- NVIDIA nv-embedqa-e5-v5 = 1024 dim
@@ -139,7 +139,7 @@ CREATE INDEX IF NOT EXISTS document_chunks_embedding_hnsw_idx ON document_chunks
 -- Events — append-only audit/activity log
 CREATE TABLE IF NOT EXISTS events (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   agent_id    uuid REFERENCES agents(id) ON DELETE SET NULL,
   kind        text NOT NULL,           -- memory.remember | skill.run | mcp.call | etc.
   source      text,                    -- agent:<id> | copilot | system
@@ -151,7 +151,7 @@ CREATE INDEX IF NOT EXISTS events_workspace_idx ON events(workspace_id, created_
 -- Skills — reusable prompt + model bundles
 CREATE TABLE IF NOT EXISTS skills (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text NOT NULL,
   slug        text NOT NULL,
   description text,
@@ -170,7 +170,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS skills_slug_idx ON skills(workspace_id, slug);
 -- Connectors — external tool connections (HTTP, Slack, GitHub, etc.)
 CREATE TABLE IF NOT EXISTS connectors (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text NOT NULL,
   kind        text NOT NULL,             -- http | slack | github | postgres | stripe | notion
   status      text NOT NULL DEFAULT 'inactive',  -- active | inactive | error
@@ -183,7 +183,7 @@ CREATE INDEX IF NOT EXISTS connectors_workspace_idx ON connectors(workspace_id);
 -- Plugins — installed extensions
 CREATE TABLE IF NOT EXISTS plugins (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text NOT NULL,
   kind        text NOT NULL DEFAULT 'skill',
   ref_id      uuid,
@@ -195,7 +195,7 @@ CREATE INDEX IF NOT EXISTS plugins_workspace_idx ON plugins(workspace_id);
 -- MCP servers — connected external MCP endpoints
 CREATE TABLE IF NOT EXISTS mcp_servers (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text NOT NULL,
   url         text NOT NULL,
   transport   text NOT NULL DEFAULT 'http',  -- http | sse
@@ -235,7 +235,7 @@ CREATE INDEX IF NOT EXISTS documents_search_idx ON documents USING gin(search_ve
 -- Workspace-scoped config (key-value JSON)
 CREATE TABLE IF NOT EXISTS config (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   key         text NOT NULL,
   value       jsonb NOT NULL DEFAULT '{}'::jsonb,
   description text,
@@ -248,7 +248,7 @@ CREATE INDEX IF NOT EXISTS config_workspace_idx ON config(workspace_id);
 -- Audit log — append-only trail for sensitive operations
 CREATE TABLE IF NOT EXISTS audit_log (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   agent_id    uuid REFERENCES agents(id) ON DELETE SET NULL,
   action      text NOT NULL,           -- token.mint | token.revoke | workspace.delete | skill.delete | mcp_server.add | mcp_server.remove | config.set | config.delete
   resource    text NOT NULL,           -- the resource affected (agent_id, workspace_id, skill_id, server_id, config_key)
@@ -262,8 +262,8 @@ CREATE INDEX IF NOT EXISTS audit_log_action_idx ON audit_log(action, created_at 
 -- API keys — for programmatic access (CLI, MCP auth)
 CREATE TABLE IF NOT EXISTS api_keys (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
-  user_id     text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id     text NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
   name        text NOT NULL,
   key_prefix  text NOT NULL,
   key_hash    text NOT NULL UNIQUE,
@@ -276,7 +276,7 @@ CREATE INDEX IF NOT EXISTS api_keys_hash_idx ON api_keys(key_hash);
 -- Vault — encrypted secrets
 CREATE TABLE IF NOT EXISTS vault_secrets (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text NOT NULL,
   value_encrypted bytea NOT NULL,
   scope       text NOT NULL DEFAULT 'dev',
@@ -290,7 +290,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS vault_name_idx ON vault_secrets(workspace_id, 
 -- Images
 CREATE TABLE IF NOT EXISTS images (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text,
   size        integer NOT NULL DEFAULT 0,
   url         text,
@@ -302,7 +302,7 @@ CREATE INDEX IF NOT EXISTS images_workspace_idx ON images(workspace_id, created_
 -- Voices
 CREATE TABLE IF NOT EXISTS voices (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name        text,
   size        integer NOT NULL DEFAULT 0,
   duration    integer,
@@ -338,7 +338,7 @@ ALTER TABLE voices ADD COLUMN IF NOT EXISTS recorded_at timestamptz NOT NULL DEF
 -- Schemaless collections used by the Database tab
 CREATE TABLE IF NOT EXISTS collections (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id     text,
   name        text NOT NULL,
   slug        text NOT NULL,
@@ -368,7 +368,7 @@ CREATE INDEX IF NOT EXISTS collection_items_data_idx ON collection_items USING g
 -- Agent calls — analytics/telemetry
 CREATE TABLE IF NOT EXISTS agent_calls (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   agent_id    uuid REFERENCES agents(id) ON DELETE SET NULL,
   kind        text,           -- memory | skill | mcp | connector | api
   name        text,           -- e.g. "memory.remember"
@@ -462,7 +462,7 @@ CREATE TABLE IF NOT EXISTS identity_events (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   kind          text NOT NULL,                 -- user.upsert | workspace.upsert | member.upsert
   user_id       text,
-  workspace_id  text,
+  workspace_id  text REFERENCES workspaces(id) ON DELETE CASCADE,
   payload       jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
@@ -472,7 +472,7 @@ CREATE INDEX IF NOT EXISTS identity_events_user_idx ON identity_events(user_id, 
 -- Security logs — CSP violations, auth failures, rate limit hits, etc.
 CREATE TABLE IF NOT EXISTS security_logs (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text,                          -- null for pre-auth / edge-level events
+  workspace_id  text REFERENCES workspaces(id) ON DELETE CASCADE,                          -- null for pre-auth / edge-level events
   event_type    text NOT NULL,                 -- csp_violation | auth_failure | rate_limit | waf_block | etc.
   payload       jsonb NOT NULL DEFAULT '{}'::jsonb,
   severity      text NOT NULL DEFAULT 'info',  -- info | warning | critical
@@ -500,7 +500,7 @@ CREATE OR REPLACE TRIGGER trg_workspace_members_updated
 -- OAuth 2.0 Clients — stores registered OAuth clients (like Gemini)
 CREATE TABLE IF NOT EXISTS mcp_oauth_clients (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id    text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   client_id       text NOT NULL UNIQUE,
   client_secret   text NOT NULL,  -- hashed with bcrypt
   name            text NOT NULL,
@@ -520,8 +520,8 @@ CREATE TABLE IF NOT EXISTS mcp_oauth_auth_codes (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   code            text NOT NULL UNIQUE,
   client_id       uuid NOT NULL REFERENCES mcp_oauth_clients(id) ON DELETE CASCADE,
-  workspace_id    text NOT NULL,
-  user_id         text NOT NULL,  -- Clerk user ID
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id     text NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,  -- Clerk user ID
   workspace_id_claim text NOT NULL,  -- workspace_id the user authorized for
   redirect_uri    text NOT NULL,
   scopes          text[] NOT NULL DEFAULT '{}',
@@ -544,8 +544,8 @@ CREATE TABLE IF NOT EXISTS mcp_oauth_refresh_tokens (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   token_hash      text NOT NULL UNIQUE,  -- bcrypt hash of the refresh token
   client_id       uuid NOT NULL REFERENCES mcp_oauth_clients(id) ON DELETE CASCADE,
-  workspace_id    text NOT NULL,
-  user_id         text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id     text NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
   workspace_id_claim text NOT NULL,
   scopes          text[] NOT NULL DEFAULT '{}',
   access_token_jti text,  -- JTI of the access token this refresh token issued
@@ -561,7 +561,7 @@ CREATE INDEX IF NOT EXISTS mcp_oauth_refresh_tokens_client_idx ON mcp_oauth_refr
 -- ── Copilot chat sessions ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS copilot_sessions (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  text NOT NULL,
+  workspace_id  text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id     text,
   title       text NOT NULL DEFAULT 'Untitled',
   messages    jsonb NOT NULL DEFAULT '[]'::jsonb,
