@@ -124,6 +124,14 @@
 
 [[edge_functions]]
   function = "mcp"
+  path = "/.well-known/oauth-authorization-server/mcp"
+
+[[edge_functions]]
+  function = "mcp"
+  path = "/.well-known/oauth-protected-resource/mcp"
+
+[[edge_functions]]
+  function = "mcp"
   path = "/mcp/.well-known/oauth-protected-resource"
 
 [[edge_functions]]

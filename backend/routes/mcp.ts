@@ -570,10 +570,23 @@ export async function handleMcp(req: Request): Promise<Response> {
   const pathname = url.pathname;
 
   // ── OAuth 2.0 endpoints (no auth required) ───────────────
-  if (pathname === "/mcp/.well-known/oauth-protected-resource" || pathname === "/.well-known/oauth-protected-resource") {
+  // RFC 8414: for issuer "https://memorify.dev/mcp", clients resolve metadata at
+  // /.well-known/oauth-authorization-server/mcp — serve it (plus the protected-
+  // resource equivalent) so the SPA fallback doesn't return index.html there.
+  const WELL_KNOWN_PR = [
+    "/mcp/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/mcp",
+  ];
+  const WELL_KNOWN_AS = [
+    "/mcp/.well-known/oauth-authorization-server",
+    "/.well-known/oauth-authorization-server",
+    "/.well-known/oauth-authorization-server/mcp",
+  ];
+  if (WELL_KNOWN_PR.includes(pathname)) {
     return handleProtectedResourceMetadata(req);
   }
-  if (pathname === "/mcp/.well-known/oauth-authorization-server" || pathname === "/.well-known/oauth-authorization-server") {
+  if (WELL_KNOWN_AS.includes(pathname)) {
     return handleAuthorizationServerMetadata(req);
   }
   if (pathname === "/mcp/oauth/authorize") {
