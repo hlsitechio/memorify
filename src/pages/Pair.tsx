@@ -127,7 +127,7 @@ export default function Pair() {
           toast.error(msg);
           return;
         }
-        setOutcome(decision);
+        setOutcome(decision === "approve" ? "approved" : "denied");
         setPhase("done");
       } finally {
         setBusy(false);

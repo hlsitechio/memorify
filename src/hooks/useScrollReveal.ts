@@ -11,7 +11,7 @@ type ScrollRevealOptions = {
  * Hook for scroll-triggered animations using IntersectionObserver
  * Respects prefers-reduced-motion
  */
-export function useScrollReveal(options: ScrollRevealOptions = {}) {
+export function useScrollReveal<T extends HTMLElement = HTMLElement>(options: ScrollRevealOptions = {}) {
   const {
     threshold = 0.1,
     rootMargin = "0px 0px -50px 0px",
@@ -19,7 +19,7 @@ export function useScrollReveal(options: ScrollRevealOptions = {}) {
     delay = 0,
   } = options;
 
-  const elementRef = useRef<HTMLElement | null>(null);
+  const elementRef = useRef<T | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -75,14 +75,14 @@ export function useScrollReveal(options: ScrollRevealOptions = {}) {
 /**
  * Hook for staggered children animations
  */
-export function useStaggeredReveal(
+export function useStaggeredReveal<T extends HTMLElement = HTMLElement>(
   count: number,
   options: ScrollRevealOptions = {}
 ) {
   const { threshold = 0.1, rootMargin = "0px 0px -50px 0px", delay = 0 } =
     options;
 
-  const containerRef = useRef<HTMLElement | null>(null);
+  const containerRef = useRef<T | null>(null);
   const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
 

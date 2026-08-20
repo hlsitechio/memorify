@@ -2,7 +2,7 @@
 // Codes: user_code = 6 chars unambiguous alphabet; device_code = 256-bit, stored hashed.
 // Ladders: never lock running agents — only the pairing being attacked.
 
-import { query, queryOne } from "./db.ts";
+import { queryOne } from "./db.ts";
 
 export const PAIRING_TTL_SECONDS = 600; // 10 minutes
 export const PAIRING_POLL_INTERVAL = 2; // seconds
@@ -17,7 +17,7 @@ export function generateUserCode(length = USER_CODE_LENGTH): string {
   return out;
 }
 
-export async function generateDeviceCode(): Promise<string> {
+export function generateDeviceCode(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32)); // 256-bit
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -45,7 +45,7 @@ export async function clientIpHash(req: Request): Promise<string> {
     (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ??
     "unknown";
   const salt = Deno.env.get("PAIRING_HASH_SALT") ?? "memorify-pairing-v1";
-  return sha256Hex(`${salt}:${ip}`);
+  return await sha256Hex(`${salt}:${ip}`);
 }
 
 // ── Audit trail ────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ export async function checkIpStartLadder(ipHash: string): Promise<LadderVerdict>
 }
 
 // ── Scope defaults by agent kind ───────────────────────────────────
-export function defaultScopesForKind(kind: string): string[] {
+export function defaultScopesForKind(_kind: string): string[] {
   // MVP: full read/write set; tightened per-kind at the approval screen later
   return [
     "memory:read", "memory:write",

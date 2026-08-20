@@ -49,7 +49,7 @@ const groups = [
 ];
 
 export const Primitives = () => {
-  const { containerRef, visibleIndices } = useStaggeredReveal(groups.length, { threshold: 0.12 });
+  const { containerRef, visibleIndices } = useStaggeredReveal<HTMLDivElement>(groups.length, { threshold: 0.12 });
 
   return (
     <section id="primitives" className="relative overflow-hidden border-b border-white/10 bg-[#06070c] py-20 lg:py-28">

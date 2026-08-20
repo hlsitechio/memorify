@@ -1,4 +1,4 @@
-import { Star, MessageSquare, BarChart2, Users, Award, CheckCircle2, Github, Twitter } from "lucide-react";
+import { Star, BarChart2, Users, Award, CheckCircle2, Github } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const testimonials = [
@@ -49,11 +49,11 @@ const trustBadges = [
 ];
 
 export const SocialProof = () => {
-  const { ref, isVisible } = useScrollReveal({ delay: 100 });
-  const { ref: metricsRef, isVisible: metricsVisible } = useScrollReveal({ delay: 200 });
-  const { ref: testimonialsRef, isVisible: testimonialsVisible } = useScrollReveal({ delay: 200 });
-  const { ref: logosRef, isVisible: logosVisible } = useScrollReveal({ delay: 100 });
-  const { ref: badgesRef, isVisible: badgesVisible } = useScrollReveal({ delay: 200 });
+  const { ref } = useScrollReveal({ delay: 100 });
+  const { ref: metricsRef, isVisible: metricsVisible } = useScrollReveal<HTMLDivElement>({ delay: 200 });
+  const { ref: testimonialsRef, isVisible: testimonialsVisible } = useScrollReveal<HTMLDivElement>({ delay: 200 });
+  const { ref: logosRef, isVisible: logosVisible } = useScrollReveal<HTMLDivElement>({ delay: 100 });
+  const { ref: badgesRef, isVisible: badgesVisible } = useScrollReveal<HTMLDivElement>({ delay: 200 });
 
   return (
     <section id="social-proof" className="py-24 border-t border-border/50 relative overflow-hidden" ref={ref}>

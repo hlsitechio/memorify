@@ -1,4 +1,3 @@
-import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";

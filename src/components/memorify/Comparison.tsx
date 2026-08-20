@@ -65,7 +65,9 @@ const Cell = ({ value, variant }: { value: CellValue; variant: "memorify" | "mcp
         }`}>
           {value.value}
           {value.tooltip && (
-            <HelpCircle className="w-3 h-3 opacity-60" title={value.tooltip} />
+            <span title={value.tooltip}>
+              <HelpCircle className="w-3 h-3 opacity-60" />
+            </span>
           )}
         </span>
       </td>
@@ -90,7 +92,7 @@ const Cell = ({ value, variant }: { value: CellValue; variant: "memorify" | "mcp
 };
 
 export const Comparison = () => {
-  const { ref, isVisible } = useScrollReveal({ delay: 100 });
+  const { ref } = useScrollReveal({ delay: 100 });
 
   return (
     <section id="comparison" className="py-24 border-t border-border/50 relative overflow-hidden" ref={ref}>

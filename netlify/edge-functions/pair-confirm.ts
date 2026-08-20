@@ -15,7 +15,6 @@ import {
   recordAttempt,
 } from "../../backend/lib/pairing.ts";
 
-const CLERK_FRONTEND_API = Deno.env.get("CLERK_FRONTEND_API_URL") ?? "https://clerk.memorify.dev";
 const CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY") ?? "";
 
 type PendingPairing = {
@@ -29,7 +28,7 @@ type PendingPairing = {
 };
 
 async function findPending(userCode: string): Promise<PendingPairing | null> {
-  return queryOne<PendingPairing>(
+  return await queryOne<PendingPairing>(
     `SELECT id, agent_name, agent_kind, requested_scopes, fingerprint, created_at::text, expires_at::text
      FROM pairings
      WHERE user_code = $1 AND status = 'pending' AND expires_at > now()

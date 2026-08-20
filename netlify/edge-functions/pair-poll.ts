@@ -7,7 +7,7 @@
 import { json } from "../../backend/lib/cors.ts";
 import { queryOne, execute } from "../../backend/lib/db.ts";
 import { sha256Hex, recordAttempt } from "../../backend/lib/pairing.ts";
-import { createAgentToken, VALID_SCOPES } from "../../backend/lib/agent-token.ts";
+import { createAgentToken, VALID_SCOPES, type Scope } from "../../backend/lib/agent-token.ts";
 
 type Pairing = {
   id: string;
@@ -93,8 +93,8 @@ export default async (req: Request): Promise<Response> => {
         return json({ error: "invalid_grant", error_description: "code already used" }, 400);
       }
 
-      const scopes = (pairing.requested_scopes ?? [...VALID_SCOPES])
-        .filter((s) => (VALID_SCOPES as readonly string[]).includes(s));
+      const scopes = ((pairing.requested_scopes ?? [...VALID_SCOPES]) as string[])
+        .filter((s) => (VALID_SCOPES as readonly string[]).includes(s)) as Scope[];
 
       const { token } = await createAgentToken({
         workspace_id: pairing.org_id!,

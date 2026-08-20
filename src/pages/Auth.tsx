@@ -140,7 +140,7 @@ const clerkAppearance = {
   },
 };
 
-export default function Auth() {
+export default function Auth({ defaultMode = "signin" }: { defaultMode?: "signin" | "signup" }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading } = useAuth();
@@ -150,7 +150,7 @@ export default function Auth() {
   const wsHandle = searchParams.get("ws");
   const modeParam = searchParams.get("mode");
   const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">(
-    modeParam === "sign-up" ? "sign-up" : "sign-in"
+    defaultMode === "signup" || modeParam === "sign-up" ? "sign-up" : "sign-in"
   );
 
   // Sync mode with state
@@ -406,7 +406,7 @@ export default function Auth() {
                 </div>
 
                 <div className="flex justify-center">
-                  <UserButton afterSignOutUrl="/" />
+                  <UserButton />
                 </div>
 
                 <div className="space-y-3 pt-2">

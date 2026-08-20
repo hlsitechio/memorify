@@ -56,7 +56,7 @@ async function bootstrap_getSigningKey(): Promise<CryptoKey | null> {
   const b64 = Deno.env.get("NEON_JWT_PRIVATE_KEY") ?? "";
   if (!b64) return null;
   const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey(
+  return await crypto.subtle.importKey(
     "pkcs8",
     raw.buffer,
     { name: "Ed25519" },
@@ -188,7 +188,7 @@ async function bootstrap_verifyClerkJwt(token: string): Promise<{
         ok = true;
         break;
       }
-    } catch {}
+    } catch { /* try next key */ }
   }
   if (!ok) throw new Error("bad_signature");
 
