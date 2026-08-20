@@ -11,7 +11,6 @@ const packs = [
     tone: "cyan",
     popular: false,
     note: "Five hundred persistent memories for focused agent workflows.",
-    paymentUrl: "https://buy.stripe.com/test_cNiaEZez1gbp48ybVfbEA00",
   },
   {
     id: "popular",
@@ -23,7 +22,6 @@ const packs = [
     tone: "popular",
     popular: true,
     note: "Two thousand five hundred memory credits for active multi-agent use.",
-    paymentUrl: "https://buy.stripe.com/test_cNi14p76zf7leNcf7rbEA01",
   },
   {
     id: "value",
@@ -35,7 +33,6 @@ const packs = [
     tone: "blue",
     popular: false,
     note: "Ten thousand memory credits — power capacity for your entire fleet.",
-    paymentUrl: "https://buy.stripe.com/test_00w3cxbmP1gv20q8J3bEA02",
   },
 ];
 
@@ -87,10 +84,9 @@ export const Pricing = () => (
               <span>Billing model</span>
               <strong className="text-cyan-200">Pay as you go</strong>
             </div>
+            {/* TODO: point at live Stripe payment links (Dashboard → Payment links, LIVE mode) once created */}
             <a
-              href={pack.paymentUrl}
-              target="_blank"
-              rel="noreferrer"
+              href="/auth"
               className="mem-pack-link mem-focus"
             >
               Get started
