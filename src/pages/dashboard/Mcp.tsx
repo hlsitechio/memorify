@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, RefreshCcw, Trash2, Server, Wrench, Plug2, Play, Sparkles, ChevronDown, Copy, Check, KeyRound, Zap } from "lucide-react";
+import { Plus, RefreshCcw, Trash2, Server, Wrench, Plug2, Play, Sparkles, ChevronDown, Copy, Check, KeyRound, Zap, Search, ExternalLink, LayoutGrid, GitBranch, CloudCog, Database, Activity, BookOpen, FileSearch, MessagesSquare } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getMcpUrl } from "@/lib/mcp-url";
+import { MCP_CATALOG, CATEGORY_META, type CatalogItem, type CatalogCategory } from "@/data/mcpCatalog";
 
 type McpServer = {
   id: string;
@@ -54,6 +56,8 @@ type Preset = {
   tokenPlaceholder?: string;
   allowUrlOverride?: boolean;
   urlHint?: string;
+  /** Optional second credential sent as another header (e.g. Datadog app key) */
+  secondAuth?: { header: string; label: string; placeholder?: string };
 };
 
 type CopilotActionResponse<T = unknown> = {
@@ -383,6 +387,82 @@ const PRESETS: Preset[] = [
   },
 ];
 
+/**
+ * Catalog entries that define their own hosted remote server (no built-in preset yet).
+ * Deduped against PRESETS by URL, so catalog + built-ins never collide.
+ */
+const CATALOG_PRESETS: Preset[] = MCP_CATALOG
+  .filter((c) => c.url && !PRESETS.some((p) => p.url === c.url))
+  .map((c) => ({
+    id: c.id,
+    name: c.name,
+    url: c.url!,
+    transport: c.transport ?? "http",
+    needsToken: !!c.needsToken,
+    tokenLabel: c.tokenLabel ?? "",
+    tokenHint: c.tokenHint ?? "",
+    docsUrl: c.docsUrl,
+    oauth: c.oauth,
+    authHeader: c.authHeader,
+    secondAuth: c.secondAuth,
+    tokenPlaceholder: c.tokenPlaceholder,
+    allowUrlOverride: c.allowUrlOverride,
+    urlHint: c.urlHint,
+  }));
+
+const ALL_PRESETS = [...PRESETS, ...CATALOG_PRESETS];
+
+/** Resolve the connectable preset behind a catalog entry (by presetId, else by URL). */
+const presetForItem = (item: CatalogItem): Preset | undefined =>
+  item.presetId
+    ? ALL_PRESETS.find((p) => p.id === item.presetId)
+    : item.url
+      ? ALL_PRESETS.find((p) => p.url === item.url)
+      : undefined;
+
+const normUrl = (u: string) => u.replace(/\/+$/, "").toLowerCase();
+
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  all: LayoutGrid,
+  vcs: GitBranch,
+  devops: CloudCog,
+  data: Database,
+  observability: Activity,
+  knowledge: BookOpen,
+  mlops: Sparkles,
+  rag: FileSearch,
+  comms: MessagesSquare,
+};
+
+/** Brand logo from svgl.app with light/dark variants; falls back to an initials tile. */
+function ProviderLogo({ item, className }: { item: { name: string; logo?: { light: string; dark?: string } }; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  const box = cn("flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 p-1 text-primary", className);
+  if (!item.logo || failed) {
+    const initials =
+      item.name.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "M";
+    return <div className={box}><span className="text-[10px] font-bold">{initials}</span></div>;
+  }
+  return (
+    <>
+      <img
+        src={item.logo.light}
+        alt={item.name}
+        onError={() => setFailed(true)}
+        className={cn("h-7 w-7 flex-shrink-0 object-contain", className, item.logo.dark && "dark:hidden")}
+      />
+      {item.logo.dark && (
+        <img
+          src={item.logo.dark}
+          alt={item.name}
+          onError={() => setFailed(true)}
+          className={cn("hidden h-7 w-7 flex-shrink-0 object-contain", className, "dark:block")}
+        />
+      )}
+    </>
+  );
+}
+
 export default function Mcp() {
   const { user } = useAuth();
   const { getToken } = useClerkAuth();
@@ -413,22 +493,69 @@ export default function Mcp() {
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const connectedUrls = useMemo(() => new Set(servers.map((s) => s.url)), [servers]);
+  // ----- Integration catalog (browse / search) -----
+  const [catalogCat, setCatalogCat] = useState<CatalogCategory | "all" | "more">("all");
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [presetSecondToken, setPresetSecondToken] = useState("");
 
-  const providerGroups = useMemo(() => {
-    const available = PRESETS.filter((p) => !connectedUrls.has(p.url));
-    return {
-      public: available.filter((p) => !p.needsToken && !p.oauth),
-      token: available.filter((p) => p.needsToken && !p.oauth),
-      oauth: available.filter((p) => p.oauth),
-    };
-  }, [connectedUrls]);
+  const connectedSet = useMemo(() => new Set(servers.map((s) => normUrl(s.url))), [servers]);
+
+  /** Built-in presets not covered by any catalog entry (PayPal, Shopify, …) → "More" tab */
+  const claimedPresetKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const c of MCP_CATALOG) {
+      const p = presetForItem(c);
+      if (p) {
+        keys.add(p.id);
+        keys.add(normUrl(p.url));
+      }
+    }
+    return keys;
+  }, []);
+
+  const morePresets = useMemo(
+    () => ALL_PRESETS.filter((p) => !claimedPresetKeys.has(p.id) && !claimedPresetKeys.has(normUrl(p.url))),
+    [claimedPresetKeys],
+  );
+
+  const catalogQueryLower = catalogQuery.trim().toLowerCase();
+  const catalogRows: CatalogItem[] = useMemo(() => {
+    const q = catalogQueryLower;
+    const hit = (name: string, blurb: string) => !q || name.toLowerCase().includes(q) || blurb.toLowerCase().includes(q);
+    if (catalogCat === "more") {
+      return morePresets
+        .filter((p) => hit(p.name, p.tokenHint ?? ""))
+        .map((p): CatalogItem => ({
+          id: p.id,
+          name: p.name,
+          category: "comms",
+          tagline: p.tokenHint,
+          presetId: p.id,
+          docsUrl: p.docsUrl,
+        }));
+    }
+    if (catalogCat === "all") return MCP_CATALOG.filter((c) => hit(c.name, c.tagline));
+    return MCP_CATALOG.filter((c) => c.category === catalogCat && hit(c.name, c.tagline));
+  }, [catalogCat, catalogQueryLower, morePresets]);
 
   const apiError = (data: any, fallback: string) =>
     data?.detail || data?.error || data?.data?.detail || data?.data?.error || fallback;
 
-  const presetBadge = (p: Preset) => p.oauth ? "oauth" : p.needsToken ? "token ready" : "public ready";
   const presetButton = (p: Preset) => p.oauth ? "Connect" : p.needsToken ? "Add token" : "Add public";
+
+  const catalogBadge = (item: CatalogItem, preset?: Preset, connected = false): { label: string; cls: string } => {
+    if (connected) return { label: "connected", cls: "bg-emerald-500/15 text-emerald-500" };
+    if (preset?.oauth || item.oauth) return { label: "oauth", cls: "bg-amber-500/15 text-amber-500" };
+    if (preset?.needsToken || item.needsToken) return { label: "api key", cls: "bg-sky-500/15 text-sky-500" };
+    if (item.local || !preset) return { label: "local", cls: "bg-violet-500/15 text-violet-500" };
+    return { label: "public", cls: "bg-primary/15 text-primary" };
+  };
+
+  const openLocalSetup = (item: CatalogItem) => {
+    setForm({ name: `${item.name} (local)`, url: "", transport: "http", bearer: "" });
+    setOpen(true);
+    toast.info(`${item.name} runs locally — follow its docs, then paste the server URL here`);
+  };
 
   const runAction = useCallback(async <T,>(name: string, args: Record<string, unknown> = {}): Promise<T> => {
     if (!workspaceId) throw new Error("Select or create a workspace first");
@@ -601,6 +728,9 @@ export default function Mcp() {
       } else if (p.authHeader) auth.headers = { [p.authHeader]: presetToken };
       else auth.bearer = presetToken;
     }
+    if (p.secondAuth && presetSecondToken) {
+      auth.headers = { ...(auth.headers ?? {}), [p.secondAuth.header]: presetSecondToken };
+    }
     const srv = await createServer({
       name: p.name, url: serverUrl, transport: p.transport, auth,
     });
@@ -608,6 +738,7 @@ export default function Mcp() {
     toast.success(`${p.name} added`);
     setPresetOpen(null);
     setPresetToken("");
+    setPresetSecondToken("");
     setPresetUrl("");
     await load();
     void handshake(srv.id);
@@ -719,17 +850,11 @@ export default function Mcp() {
               <DialogContent>
                 <DialogHeader><DialogTitle>Add MCP server</DialogTitle></DialogHeader>
 
-                {/* Quick presets */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Quick connect</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {PRESETS.map((p) => (
-                      <Button key={p.id} variant="outline" size="sm" onClick={() => { setOpen(false); setPresetOpen(p); }}>
-                        <Sparkles className="h-3.5 w-3.5 mr-1.5" /> {p.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+                {/* Hint — the full one-click catalog lives on the page below */}
+                <p className="text-[11px] text-muted-foreground">
+                  For one-click integrations (GitHub, Stripe, Notion, Docker, …) close this dialog and pick one from the
+                  catalog below — this form is for custom or self-hosted servers.
+                </p>
 
                 <div className="my-2 h-px bg-border" />
 
@@ -759,7 +884,7 @@ export default function Mcp() {
       />
 
       {/* Preset dialog */}
-      <Dialog open={!!presetOpen} onOpenChange={(v) => { if (!v) { setPresetOpen(null); setPresetToken(""); setPresetUrl(""); } }}>
+      <Dialog open={!!presetOpen} onOpenChange={(v) => { if (!v) { setPresetOpen(null); setPresetToken(""); setPresetSecondToken(""); setPresetUrl(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Connect {presetOpen?.name}</DialogTitle>
@@ -795,6 +920,18 @@ export default function Mcp() {
                 />
               </div>
             )}
+            {presetOpen?.secondAuth && (
+              <div className="space-y-1.5">
+                <Label>{presetOpen.secondAuth.label}</Label>
+                <Input
+                  type="password"
+                  value={presetSecondToken}
+                  onChange={(e) => setPresetSecondToken(e.target.value)}
+                  placeholder={presetOpen.secondAuth.placeholder ?? "key…"}
+                  autoComplete="new-password"
+                />
+              </div>
+            )}
             {presetOpen?.oauth && (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
                 OAuth opens the provider consent screen. After approval, Memorify stores the access token encrypted,
@@ -803,7 +940,7 @@ export default function Mcp() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setPresetOpen(null); setPresetToken(""); setPresetUrl(""); }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setPresetOpen(null); setPresetToken(""); setPresetSecondToken(""); setPresetUrl(""); }}>Cancel</Button>
             <Button onClick={() => presetOpen && addPreset(presetOpen)}>
               {presetOpen ? presetButton(presetOpen) : "Connect"}
             </Button>
@@ -988,42 +1125,118 @@ Token:  ${generatedToken}`}</pre>
             );
           })}
 
-        {/* Available presets — not yet connected */}
-        {(providerGroups.public.length || providerGroups.token.length || providerGroups.oauth.length) > 0 && (
-          <>
-            <div className="pt-4 pb-1 text-xs uppercase tracking-wide text-muted-foreground">Available to connect</div>
-            {[
-              { label: "Ready now", items: [...providerGroups.public, ...providerGroups.token] },
-              { label: "OAuth", items: providerGroups.oauth },
-            ].map((group) => group.items.length ? (
-              <div key={group.label} className="space-y-2">
-                <div className="text-[11px] font-medium text-muted-foreground">{group.label}</div>
-                {group.items.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card/40 gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Server className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-sm font-semibold truncate">{p.name}</div>
-                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-mono",
-                          p.oauth ? "bg-amber-500/15 text-amber-500" :
-                          p.needsToken ? "bg-sky-500/15 text-sky-500" : "bg-primary/15 text-primary")}>
-                          {presetBadge(p)}
+        {/* Integration catalog — categorized, searchable, svgl.app logos */}
+        <div className="pt-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold">Integration catalog</div>
+              <div className="text-xs text-muted-foreground">
+                {MCP_CATALOG.length + morePresets.length} one-click MCP servers across 8 workflow categories · logos by{" "}
+                <a href="https://svgl.app" target="_blank" rel="noreferrer" className="underline hover:text-foreground">svgl.app</a>
+              </div>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Search integrations…"
+                className="h-8 pl-8"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {CATEGORY_META.map((cat) => {
+              const Icon = CATEGORY_ICON[cat.id] ?? LayoutGrid;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  title={cat.blurb}
+                  onClick={() => setCatalogCat(cat.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    catalogCat === cat.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card/40 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                  {cat.label}
+                </button>
+              );
+            })}
+            {morePresets.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setCatalogCat("more")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  catalogCat === "more"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card/40 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Server className="h-3 w-3" />
+                More ({morePresets.length})
+              </button>
+            )}
+          </div>
+
+          {catalogRows.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">No integrations match your search.</div>
+          ) : (
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {catalogRows.map((c) => {
+                const preset = presetForItem(c);
+                const isConnected = !!preset && connectedSet.has(normUrl(preset.url));
+                const badge = catalogBadge(c, preset, isConnected);
+                return (
+                  <div
+                    key={`${catalogCat}-${c.id}`}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-lg border border-border bg-card/40 p-3 transition-opacity",
+                      isConnected && "opacity-60",
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ProviderLogo item={c} />
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <span className="truncate text-sm font-semibold">{c.name}</span>
+                        <span className={cn("flex-shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px]", badge.cls)}>
+                          {badge.label}
                         </span>
                       </div>
-                      <div className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{p.url}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{p.tokenHint}</div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button size="sm" variant={p.oauth ? "outline" : "default"} onClick={() => setPresetOpen(p)}>
-                        <Plus className="h-3.5 w-3.5 mr-1.5" /> {presetButton(p)}
-                      </Button>
+                    <p className="min-h-[2.2em] text-[11px] leading-snug text-muted-foreground">{c.tagline}</p>
+                    <div className="mt-auto flex items-center gap-2">
+                      {isConnected ? (
+                        <span className="text-[11px] font-medium text-emerald-500">✓ Connected</span>
+                      ) : preset ? (
+                        <Button size="sm" variant={preset.oauth ? "outline" : "default"} onClick={() => setPresetOpen(preset)}>
+                          <Plus className="mr-1.5 h-3.5 w-3.5" /> {presetButton(preset)}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => openLocalSetup(c)}>
+                          Set up locally
+                        </Button>
+                      )}
+                      <a
+                        href={c.docsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Docs
+                      </a>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : null)}
-          </>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

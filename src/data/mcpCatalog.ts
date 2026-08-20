@@ -1,0 +1,609 @@
+/**
+ * MCP integration catalog — every integration Memorify can connect agents to,
+ * grouped by workflow category.
+ *
+ * - Logos are served from svgl.app (https://svgl.app) — light/dark variants.
+ * - Entries with `url` are hosted remote MCP servers and become connectable presets.
+ * - Entries with `local: true` run on the developer machine (stdio) — we link the docs
+ *   and prefill the custom-server dialog instead.
+ * - `presetId` links an entry to an existing built-in preset in Mcp.tsx (same server).
+ */
+
+export type CatalogCategory =
+  | "vcs"
+  | "devops"
+  | "data"
+  | "observability"
+  | "knowledge"
+  | "mlops"
+  | "rag"
+  | "comms";
+
+export type CatalogLogo = { light: string; dark?: string };
+
+export type CatalogItem = {
+  id: string;
+  name: string;
+  category: CatalogCategory;
+  tagline: string;
+  /** svgl.app logo (light/dark variants) */
+  logo?: CatalogLogo;
+  /** Id of the built-in preset in Mcp.tsx when one already exists for this server */
+  presetId?: string;
+  /** Hosted remote MCP endpoint — makes the entry connectable */
+  url?: string;
+  transport?: "http" | "sse";
+  needsToken?: boolean;
+  tokenLabel?: string;
+  tokenHint?: string;
+  tokenPlaceholder?: string;
+  docsUrl: string;
+  oauth?: boolean;
+  /** Send token as this header instead of Authorization: Bearer */
+  authHeader?: string;
+  /** Optional second credential sent as another header (e.g. Datadog app key) */
+  secondAuth?: { header: string; label: string; placeholder?: string };
+  allowUrlOverride?: boolean;
+  urlHint?: string;
+  /** Local / self-hosted stdio server — no hosted endpoint */
+  local?: boolean;
+};
+
+/** svgl.app helpers — light-only and light/dark pairs */
+const L = (n: string): CatalogLogo => ({ light: `https://svgl.app/library/${n}.svg` });
+const LD = (l: string, d: string): CatalogLogo => ({
+  light: `https://svgl.app/library/${l}.svg`,
+  dark: `https://svgl.app/library/${d}.svg`,
+});
+
+export const CATEGORY_META: { id: CatalogCategory | "all"; label: string; blurb: string }[] = [
+  { id: "all", label: "All", blurb: "Every integration" },
+  { id: "vcs", label: "Version Control", blurb: "Git trees, PR pipelines and code-review loops" },
+  { id: "devops", label: "Cloud & DevOps", blurb: "Deploy, manage and scale serverless + containers" },
+  { id: "data", label: "Databases & Search", blurb: "Seed data, migrations and vector indices" },
+  { id: "observability", label: "Monitoring", blurb: "Traces, alerts and system logs" },
+  { id: "knowledge", label: "Docs & Planning", blurb: "Specs, PRDs and team knowledge bases" },
+  { id: "mlops", label: "AI & Media", blurb: "Models, inference and multimodal generation" },
+  { id: "rag", label: "Ingestion & RAG", blurb: "Fetch and digest docs, sites and manuals" },
+  { id: "comms", label: "Comms & Ops", blurb: "Alerts, billing and operational workflows" },
+];
+
+const MCP_REFERENCE_SERVERS = "https://github.com/modelcontextprotocol/servers";
+
+export const MCP_CATALOG: CatalogItem[] = [
+  // 1. Version Control & Code Collaboration
+  {
+    id: "github",
+    name: "GitHub",
+    category: "vcs",
+    tagline: "Introspect repos, manage pull requests, commit code, track issues and trigger Actions.",
+    logo: LD("github_light", "github_dark"),
+    presetId: "githubmcp",
+    docsUrl: "https://github.com/github/github-mcp-server",
+  },
+  {
+    id: "gitlab",
+    name: "GitLab",
+    category: "vcs",
+    tagline: "Manage issues, trigger GitLab CI/CD pipelines and review merge requests.",
+    logo: L("gitlab"),
+    url: "https://gitlab.com/api/v4/mcp",
+    transport: "http",
+    tokenHint: "OAuth — sign in with your GitLab account. Ask your admin to set MCP_OAUTH_GITLAB_* env vars.",
+    docsUrl: "https://gitlab.com/gitlab-org/model-context-protocol",
+    oauth: true,
+  },
+  {
+    id: "bitbucket",
+    name: "Bitbucket",
+    category: "vcs",
+    tagline: "Access source repos, trigger Bitbucket Pipelines and inspect workspace settings.",
+    logo: L("atlassian"),
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — runs on your machine with a Bitbucket app password.",
+  },
+  {
+    id: "gitea",
+    name: "Gitea",
+    category: "vcs",
+    tagline: "Connects to lightweight, self-hosted Git servers for absolute local privacy.",
+    local: true,
+    docsUrl: "https://gitea.com/gitea/gitea-mcp",
+    tokenHint: "Official Gitea MCP server — run it locally against your self-hosted instance.",
+  },
+  {
+    id: "gerrit",
+    name: "Gerrit",
+    category: "vcs",
+    tagline: "Deep, line-by-line developer patch reviews and inspections.",
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — point it at your Gerrit HTTP API.",
+  },
+  {
+    id: "git-local",
+    name: "Git (local CLI)",
+    category: "vcs",
+    tagline: "Stage, diff, log and commit directly on the developer's machine.",
+    local: true,
+    docsUrl: `${MCP_REFERENCE_SERVERS}/tree/main/src/git`,
+    tokenHint: "Official reference server (mcp-server-git) — runs against a local repository path.",
+  },
+  // 2. Cloud, Hosting & Infrastructure
+  {
+    id: "vercel",
+    name: "Vercel",
+    category: "devops",
+    tagline: "Trigger builds, manage domains, update env vars and roll back deployments.",
+    logo: LD("vercel", "vercel_dark"),
+    presetId: "vercel",
+    docsUrl: "https://vercel.com/docs/mcp",
+  },
+  {
+    id: "cloudflare-workers",
+    name: "Cloudflare Workers",
+    category: "devops",
+    tagline: "Build and deploy Edge Workers, KV namespaces, R2 buckets and D1 databases.",
+    logo: L("cloudflare-workers"),
+    presetId: "cloudflare-bindings",
+    docsUrl: "https://developers.cloudflare.com/agents/model-context-protocol/",
+  },
+  {
+    id: "aws",
+    name: "AWS Lambda / S3",
+    category: "devops",
+    tagline: "Trigger serverless functions, upload assets and query CloudWatch logs.",
+    logo: LD("aws_light", "aws_dark"),
+    local: true,
+    docsUrl: "https://github.com/awslabs/mcp",
+    tokenHint: "AWS Labs official servers (Lambda, S3, CloudWatch) — run locally with IAM keys.",
+  },
+  {
+    id: "heroku",
+    name: "Heroku",
+    category: "devops",
+    tagline: "Scale dynos, run database migrations and modify config vars.",
+    logo: L("heroku"),
+    local: true,
+    docsUrl: "https://github.com/heroku/heroku-cli-mcp-server",
+    tokenHint: "Community server wrapping the Heroku CLI — runs on your machine.",
+  },
+  {
+    id: "railway",
+    name: "Railway",
+    category: "devops",
+    tagline: "Provision database templates, update service variables and track deployments.",
+    logo: LD("railway", "railway_dark"),
+    url: "https://mcp.railway.app/sse",
+    transport: "sse",
+    tokenHint: "OAuth — sign in with your Railway account. Ask your admin to set MCP_OAUTH_RAILWAY_* env vars.",
+    docsUrl: "https://docs.railway.com/ai/mcp-server",
+    oauth: true,
+  },
+  {
+    id: "docker",
+    name: "Docker",
+    category: "devops",
+    tagline: "Inspect container runtimes, exec commands inside containers, verify health.",
+    logo: L("docker"),
+    url: "https://mcp.docker.com",
+    transport: "http",
+    tokenHint: "OAuth — sign in with your Docker account (MCP Catalog / gateway).",
+    docsUrl: "https://docs.docker.com/ai/mcp-catalog/",
+    oauth: true,
+  },
+  {
+    id: "render",
+    name: "Render",
+    category: "devops",
+    tagline: "Manage background workers, static sites and cron jobs dynamically.",
+    logo: LD("render_black", "render_white"),
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — use a Render API key against your services.",
+  },
+  // 3. Databases, Vector Search & Caching
+  {
+    id: "neon",
+    name: "Neon Postgres",
+    category: "data",
+    tagline: "Autoscale instances, inspect schemas and execute raw SQL securely.",
+    logo: L("neon"),
+    url: "https://mcp.neon.tech/sse",
+    transport: "sse",
+    tokenHint: "OAuth — connect your Neon account. Ask your admin to set MCP_OAUTH_NEON_* env vars.",
+    docsUrl: "https://neon.com/docs/ai/neon-mcp-server",
+    oauth: true,
+  },
+  {
+    id: "supabase",
+    name: "Supabase",
+    category: "data",
+    tagline: "Manage Postgres tables, write security rules, deploy database functions.",
+    logo: L("supabase"),
+    url: "https://mcp.supabase.com/mcp",
+    transport: "http",
+    tokenHint: "OAuth — connect your Supabase org. Ask your admin to set MCP_OAUTH_SUPABASE_* env vars.",
+    docsUrl: "https://docs.supabase.com/guides/getting-started/mcp",
+    oauth: true,
+  },
+  {
+    id: "pinecone",
+    name: "Pinecone",
+    category: "data",
+    tagline: "Vector queries, insert embeddings and manage metadata indexes for RAG.",
+    url: "https://mcp.pinecone.io/mcp",
+    transport: "http",
+    tokenHint: "OAuth — connect your Pinecone project. Ask your admin to set MCP_OAUTH_PINECONE_* env vars.",
+    docsUrl: "https://docs.pinecone.io",
+    oauth: true,
+  },
+  {
+    id: "milvus",
+    name: "Milvus",
+    category: "data",
+    tagline: "High-speed vector similarity search for production-scale ML applications.",
+    local: true,
+    docsUrl: "https://github.com/zilliztech/mcp-server-milvus",
+    tokenHint: "Official Zilliz server — run locally or against a Zilliz Cloud cluster.",
+  },
+  {
+    id: "upstash",
+    name: "Upstash Redis",
+    category: "data",
+    tagline: "Read/write caching layers, clear session states, monitor queues.",
+    logo: L("upstash"),
+    url: "https://mcp.upstash.com",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Upstash management API key",
+    tokenHint: "Create at console.upstash.com → Account → API Keys. Manages Redis, Kafka and QStash.",
+    docsUrl: "https://docs.upstash.com/faq/mcp",
+    tokenPlaceholder: "uk_…",
+  },
+  {
+    id: "minio",
+    name: "MinIO / S3",
+    category: "data",
+    tagline: "Manage object storage, generate pre-signed URLs, read file blobs.",
+    local: true,
+    docsUrl: "https://github.com/minio/mcp-server-minio",
+    tokenHint: "Official MinIO server — point it at local or cloud object storage.",
+  },
+  {
+    id: "mongodb",
+    name: "MongoDB Atlas",
+    category: "data",
+    tagline: "Introspect collections, optimize queries and run aggregation pipelines.",
+    logo: LD("mongodb-icon-light", "mongodb-icon-dark"),
+    url: "https://mcp.mongodb.com",
+    transport: "http",
+    tokenHint: "OAuth — sign in with Atlas. Ask your admin to set MCP_OAUTH_MONGODB_* env vars.",
+    docsUrl: "https://www.mongodb.com/docs/labs/mcp/",
+    oauth: true,
+  },
+  // 4. Logging, Monitoring & Observability
+  {
+    id: "sentry",
+    name: "Sentry",
+    category: "observability",
+    tagline: "Fetch error stack traces, error frequencies and system alert logs.",
+    logo: L("sentry"),
+    presetId: "sentry",
+    docsUrl: "https://docs.sentry.io/product/sentry-mcp/",
+  },
+  {
+    id: "posthog",
+    name: "PostHog",
+    category: "observability",
+    tagline: "Introspect product analytics, feature flags and frontend telemetry.",
+    logo: L("posthog"),
+    presetId: "posthog",
+    docsUrl: "https://posthog.com/docs/model-context-protocol",
+  },
+  {
+    id: "datadog",
+    name: "Datadog",
+    category: "observability",
+    tagline: "Pull infrastructure metrics, APM traces and active incidents.",
+    logo: L("datadog"),
+    url: "https://mcp.datadoghq.com/sse",
+    transport: "sse",
+    needsToken: true,
+    tokenLabel: "Datadog API key",
+    tokenHint: "Organization Settings → API Keys. Also requires your Application Key below.",
+    docsUrl: "https://docs.datadoghq.com/mcp/",
+    tokenPlaceholder: "DD API key",
+    authHeader: "DD-API-KEY",
+    secondAuth: { header: "DD-APPLICATION-KEY", label: "Datadog application key", placeholder: "DD app key" },
+  },
+  {
+    id: "grafana",
+    name: "Grafana Loki",
+    category: "observability",
+    tagline: "Query aggregated logs, metrics and traces across your stack.",
+    logo: L("grafana"),
+    url: "https://mcp.grafana.com/sse",
+    transport: "sse",
+    tokenHint: "OAuth — connect your Grafana Cloud org. Ask your admin to set MCP_OAUTH_GRAFANA_* env vars.",
+    docsUrl: "https://grafana.com/docs/mcp/",
+    oauth: true,
+  },
+  {
+    id: "llamaindex",
+    name: "LlamaIndex",
+    category: "observability",
+    tagline: "Trace RAG pipeline node evaluations and token cost metrics.",
+    local: true,
+    docsUrl: "https://github.com/run-llama/llama-index-tool-mcp",
+    tokenHint: "Community server bridging LlamaIndex tooling — runs locally.",
+  },
+  {
+    id: "globalping",
+    name: "Globalping",
+    category: "observability",
+    tagline: "Run ping, DNS and traceroute tests from 500+ global locations.",
+    presetId: "globalping",
+    docsUrl: "https://globalping.io/docs/mcp",
+  },
+  // 5. Specs, Roadmaps & Developer Knowledge
+  {
+    id: "linear",
+    name: "Linear",
+    category: "knowledge",
+    tagline: "The startup gold-standard — sync engineering issues, tasks and kanban boards.",
+    logo: L("linear"),
+    presetId: "linearmcp",
+    docsUrl: "https://linear.app/docs/mcp",
+  },
+  {
+    id: "notion",
+    name: "Notion",
+    category: "knowledge",
+    tagline: "Retrieve, read and write PRDs, architecture wikis and design specs.",
+    logo: L("notion"),
+    presetId: "notion",
+    docsUrl: "https://developers.notion.com/docs/mcp",
+  },
+  {
+    id: "confluence",
+    name: "Confluence",
+    category: "knowledge",
+    tagline: "Search enterprise documentation spaces and compliance guidelines.",
+    logo: L("atlassian"),
+    presetId: "atlassian",
+    docsUrl: "https://support.atlassian.com/rovo/docs/setting-up-ides-mcp-and-custom-clients/",
+  },
+  {
+    id: "coda",
+    name: "Coda",
+    category: "knowledge",
+    tagline: "Access team workspace tables, task trackers and roadmap docs.",
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — uses a Coda API token.",
+  },
+  {
+    id: "google-drive",
+    name: "Google Drive / Docs",
+    category: "knowledge",
+    tagline: "Parse spreadsheets, retrieve PDF spec sheets and read proposals.",
+    logo: L("drive"),
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — Google OAuth desktop credentials required.",
+  },
+  {
+    id: "obsidian",
+    name: "Obsidian / Markdown",
+    category: "knowledge",
+    tagline: "Directly ingest local Markdown brain-dumps and vaults.",
+    logo: L("obsidian"),
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — point it at your vault or notes folder.",
+  },
+  // 6. AI Models, Audio & Video Generation
+  {
+    id: "huggingface",
+    name: "Hugging Face",
+    category: "mlops",
+    tagline: "Search ML models, download datasets and run model card metrics.",
+    logo: L("hugging_face"),
+    presetId: "huggingface",
+    docsUrl: "https://huggingface.co/settings/mcp",
+  },
+  {
+    id: "replicate",
+    name: "Replicate",
+    category: "mlops",
+    tagline: "Run open-source image, video and text models via cloud APIs.",
+    logo: LD("replicate_light", "replicate_dark"),
+    url: "https://mcp.replicate.com",
+    transport: "http",
+    tokenHint: "OAuth — connect your Replicate account. Ask your admin to set MCP_OAUTH_REPLICATE_* env vars.",
+    docsUrl: "https://replicate.com/docs/mcp-server",
+    oauth: true,
+  },
+  {
+    id: "elevenlabs",
+    name: "ElevenLabs",
+    category: "mlops",
+    tagline: "Generate lifelike voice audio for multimodal, interactive agent projects.",
+    presetId: "elevenlabs",
+    docsUrl: "https://elevenlabs.io/docs/conversational-ai/customization/mcp",
+  },
+  {
+    id: "openai",
+    name: "OpenAI Platform",
+    category: "mlops",
+    tagline: "Check fine-tuning jobs, update prompts and calculate run costs.",
+    logo: LD("openai", "openai_dark"),
+    local: true,
+    docsUrl: "https://platform.openai.com",
+    tokenHint: "No hosted MCP yet — run a community server locally with your API key.",
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic Workbench",
+    category: "mlops",
+    tagline: "Automate prompt evaluations and measure input token efficiencies.",
+    logo: LD("anthropic_black", "anthropic_white"),
+    local: true,
+    docsUrl: "https://console.anthropic.com/workbench",
+    tokenHint: "Use the Workbench console — or run a community MCP server with your API key.",
+  },
+  {
+    id: "canva",
+    name: "Canva",
+    category: "mlops",
+    tagline: "Fetch design system tokens, CSS variables and layout frameworks.",
+    logo: L("canva"),
+    presetId: "canva",
+    docsUrl: "https://www.canva.dev/docs/connect/canva-mcp-server-api/",
+  },
+  // 7. Document Ingestion, Web Scraping & RAG
+  {
+    id: "context7",
+    name: "Context7",
+    category: "rag",
+    tagline: "Instantly pull up-to-date docs and package schemas for any library.",
+    presetId: "context7",
+    docsUrl: "https://github.com/upstash/context7",
+  },
+  {
+    id: "brave",
+    name: "Brave Search",
+    category: "rag",
+    tagline: "Web search for LLMs that returns clean, code-ready results.",
+    logo: L("brave"),
+    local: true,
+    docsUrl: `${MCP_REFERENCE_SERVERS}/tree/main/src/brave-search`,
+    tokenHint: "Official reference server — needs a Brave Search API key.",
+  },
+  {
+    id: "tavily",
+    name: "Tavily",
+    category: "rag",
+    tagline: "LLM-optimized web search returning clean Markdown results.",
+    url: "https://mcp.tavily.com/mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Tavily API key",
+    tokenHint: "Create at app.tavily.com → API Keys, then edit the URL below to append your key.",
+    docsUrl: "https://docs.tavily.com",
+    tokenPlaceholder: "tvly-…",
+    allowUrlOverride: true,
+    urlHint: "Append ?tavilyApiKey=<your key> to this URL after pasting the key.",
+  },
+  {
+    id: "deepwiki",
+    name: "DeepWiki",
+    category: "rag",
+    tagline: "Automated crawling and indexing of GitHub repository documentation.",
+    presetId: "deepwiki",
+    docsUrl: "https://docs.devin.ai/work-with-devin/deepwiki-mcp",
+  },
+  {
+    id: "firecrawl",
+    name: "Firecrawl",
+    category: "rag",
+    tagline: "Convert any website or complex docs layout into clean Markdown in one call.",
+    logo: LD("firecrawl", "firecrawl-dark"),
+    url: "https://mcp.firecrawl.dev/v2/mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Firecrawl API key",
+    tokenHint: "Create at firecrawl.dev → API Keys. Sent as a Bearer token.",
+    docsUrl: "https://docs.firecrawl.dev/mcp-server/connect",
+    tokenPlaceholder: "fc-…",
+  },
+  {
+    id: "jina",
+    name: "Jina AI Reader",
+    category: "rag",
+    tagline: "Fetch and tokenize raw pages, PDF manuals and source files.",
+    local: true,
+    docsUrl: "https://jina.ai/reader",
+    tokenHint: "Community/local server wrapping the Jina Reader API.",
+  },
+  // 8. Communications, Workflows & Payments
+  {
+    id: "slack",
+    name: "Slack",
+    category: "comms",
+    tagline: "Broadcast build reports, post alerts and run system health checks.",
+    logo: L("slack"),
+    url: "https://mcp.slack.com/sse",
+    transport: "sse",
+    tokenHint: "OAuth — connect your Slack workspace. Ask your admin to set MCP_OAUTH_SLACK_* env vars.",
+    docsUrl: "https://api.slack.com/docs/mcp",
+    oauth: true,
+  },
+  {
+    id: "discord",
+    name: "Discord",
+    category: "comms",
+    tagline: "Post build outputs, monitor bot statuses, send automated notifications.",
+    logo: L("discord"),
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — uses a Discord bot token.",
+  },
+  {
+    id: "resend",
+    name: "Resend",
+    category: "comms",
+    tagline: "Send transactional emails, verify accounts, review mail logs.",
+    logo: LD("resend-icon-black", "resend-icon-white"),
+    url: "https://mcp.resend.com/mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "Resend API key",
+    tokenHint: "Create at resend.com → API Keys. Sent as a Bearer token (OAuth also supported).",
+    docsUrl: "https://resend.com/docs/mcp-server",
+    tokenPlaceholder: "re_…",
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    category: "comms",
+    tagline: "Introspect billing tiers, check subscriptions, verify webhooks.",
+    logo: L("stripe"),
+    presetId: "stripe",
+    docsUrl: "https://docs.stripe.com/mcp",
+  },
+  {
+    id: "twilio",
+    name: "Twilio",
+    category: "comms",
+    tagline: "Send critical SMS alerts, OTP codes and emergency voice calls.",
+    logo: L("twilio"),
+    local: true,
+    docsUrl: MCP_REFERENCE_SERVERS,
+    tokenHint: "Community/local server — needs Twilio Account SID + Auth Token.",
+  },
+  {
+    id: "zapier",
+    name: "Zapier",
+    category: "comms",
+    tagline: "Connect your gateway to 5,000+ external apps with a single token.",
+    presetId: "zapier",
+    docsUrl: "https://docs.zapier.com/mcp/get-started/authentication",
+  },
+  {
+    id: "pagerduty",
+    name: "PagerDuty",
+    category: "comms",
+    tagline: "Trigger, update and resolve on-call incident alerts during outages.",
+    url: "https://mcp.pagerduty.com/mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "PagerDuty API key (user-level)",
+    tokenHint: "Create at PagerDuty → Integrations → API Access Keys. Enter it as: Token token=<key>",
+    docsUrl: "https://pagerduty.github.io/pagerduty-mcp-server/docs/remote-server/setup",
+    tokenPlaceholder: "Token token=<api-key>",
+    authHeader: "Authorization",
+  },
+];
