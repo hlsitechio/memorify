@@ -16,7 +16,7 @@ export default async (req: Request): Promise<Response> => {
   const statements = [
     `CREATE TABLE IF NOT EXISTS mcp_oauth_clients (
       id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      workspace_id    text NOT NULL,
+      workspace_id    text,
       client_id       text NOT NULL UNIQUE,
       client_secret   text NOT NULL,
       name            text NOT NULL,
@@ -62,6 +62,10 @@ export default async (req: Request): Promise<Response> => {
     )`,
     `CREATE INDEX IF NOT EXISTS mcp_oauth_refresh_tokens_hash_idx ON mcp_oauth_refresh_tokens(token_hash)`,
     `CREATE INDEX IF NOT EXISTS mcp_oauth_refresh_tokens_client_idx ON mcp_oauth_refresh_tokens(client_id)`,
+    // OAuth clients register before any user/workspace context exists —
+    // workspace_id is bound at consent time from the Clerk JWT instead.
+    `ALTER TABLE mcp_oauth_clients DROP CONSTRAINT IF EXISTS fk_mcp_oauth_clients_workspace_id`,
+    `ALTER TABLE mcp_oauth_clients ALTER COLUMN workspace_id DROP NOT NULL`,
   ];
 
   for (const sql of statements) {

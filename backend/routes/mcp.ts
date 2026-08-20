@@ -1396,9 +1396,10 @@ async function processSingleRpc(
       // Hash the secret before storing (SHA-256 for Edge compatibility)
       const secretHash = await sha256Hex(clientSecret);
 
-      // Find or create a default workspace for OAuth clients
-      // Use a fixed workspace_id for OAuth-registered clients
-      const workspaceId = "oauth_public";
+      // OAuth clients register BEFORE any user/workspace context exists (RFC 7591
+      // dynamic registration is unauthenticated). The workspace is bound later at
+      // consent time from the Clerk JWT (claims.org_id) in handleOAuthAuthorizePost.
+      const workspaceId: string | null = null;
 
       try {
         await query(
