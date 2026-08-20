@@ -5,7 +5,7 @@ Universal MCP onboarding for [Memorify](https://memorify.dev) — pair **any** A
 ## Quick start
 
 ```bash
-npx memorify pair
+npx https://memorify.dev/cli/memorify.tgz pair
 ```
 
 That's it. The CLI:

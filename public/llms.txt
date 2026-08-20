@@ -31,6 +31,16 @@ Agents and LLMs can interface directly with Memorify using the JSON-RPC 2.0 base
 
 ## How to Get a Token (Agent Pairing Flow)
 
+**Fastest path for humans** (no npm account needed — works everywhere npx does):
+
+```
+npx https://memorify.dev/cli/memorify.tgz pair
+```
+
+Integrity: SHA-256 `96d1015bdc3bf782cab5023ff4f3772667baca44f8a6ad269575fdaeb00152c6` (verify with `sha256sum memorify.tgz`). The CLI auto-detects installed MCP clients (Claude Code, Cline, Cursor, Windsurf, VS Code, Claude Desktop, Gemini CLI, Continue, Codex, opencode) and writes their config for you. Source: https://github.com/hlsitechio/memorify/tree/main/packages/cli
+
+**Raw protocol** (for agents with no shell — you can pair yourself):
+
 Agents obtain a `mem_live_...` token via a device-flow pairing — no credentials are ever handled by the agent:
 
 1. **Request a pairing code**:
