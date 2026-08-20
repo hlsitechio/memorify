@@ -81,3 +81,7 @@ desktop.ini
 
 packages/cli/node_modules/
 packages/cli/dist/
+
+# local dev artifacts
+*.tsbuildinfo
+check_db.ts
