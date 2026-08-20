@@ -40,6 +40,7 @@ import Agents from "./pages/dashboard/Agents";
 import Admin from "./pages/dashboard/Admin";
 import CopilotChat from "./pages/dashboard/CopilotChat";
 import MindMapPreview from "./pages/MindMapPreview";
+import Pair from "./pages/Pair";
 
 const queryClient = new QueryClient();
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
@@ -84,6 +85,14 @@ const PublicRoutes = () => (
     <Route path="/unsubscribe" element={<Unsubscribe />} />
     <Route path="/ws/:handle" element={<WorkspaceHandle />} />
     <Route path="/preview/mind-map" element={<MindMapPreview />} />
+    <Route
+      path="/pair"
+      element={
+        <ClerkAuthBoundary>
+          <Pair />
+        </ClerkAuthBoundary>
+      }
+    />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

@@ -29,6 +29,31 @@ Agents and LLMs can interface directly with Memorify using the JSON-RPC 2.0 base
 - `documents_add_from_url`, `documents_search`: Ingest and retrieve RAG data.
 - `mcp_servers`, `mcp_tools`, `mcp_call`: Proxy capabilities to call external integrated tools.
 
+## How to Get a Token (Agent Pairing Flow)
+
+Agents obtain a `mem_live_...` token via a device-flow pairing — no credentials are ever handled by the agent:
+
+1. **Request a pairing code**:
+   ```
+   POST https://memorify.dev/api/pair/start
+   Content-Type: application/json
+   { "agent_name": "cline", "agent_kind": "vscode", "fingerprint": "optional-hint" }
+   ```
+   Response: `{ "device_code": "...", "user_code": "ABC123", "verification_uri": "https://memorify.dev/pair", "expires_in": 600, "interval": 2 }`
+
+2. **Ask the human to open** `https://memorify.dev/pair` and enter the `user_code`. The human sees who is asking and chooses which workspace the agent joins (the flow is org-blind until approval).
+
+3. **Poll until approved** (respect `interval` — rapid polling kills the pairing):
+   ```
+   POST https://memorify.dev/api/pair/poll
+   { "device_code": "..." }
+   ```
+   Responses: `{ "status": "authorization_pending" }` → keep polling · `429 slow_down` → wait `Retry-After` · `{"status":"approved","access_token":"mem_live_...","mcp_url":"https://memorify.dev/mcp"}` → done · `{"status":"killed"}` or `access_denied` → stop and clean up.
+
+4. **Use the token**: `Authorization: Bearer <access_token>` against `https://memorify.dev/mcp`.
+
+Tokens are Ed25519-signed, workspace-scoped, and revocable from the Memorify dashboard. On cancellation, `POST /api/pair/cancel { "device_code": "..." }` is a polite fire-and-forget.
+
 ## Important Links
 - **Documentation**: [https://memorify.dev/dashboard/docs](https://memorify.dev/dashboard/docs)
 - **GitHub Repository**: [https://github.com/hlsitechio/memorify](https://github.com/hlsitechio/memorify)

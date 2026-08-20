@@ -39,6 +39,22 @@
 # ── Edge Functions ────────────────────────────────────────
 # More specific routes first (bootstrap before /api/*).
 [[edge_functions]]
+  function = "pair-start"
+  path = "/api/pair/start"
+
+[[edge_functions]]
+  function = "pair-poll"
+  path = "/api/pair/poll"
+
+[[edge_functions]]
+  function = "pair-confirm"
+  path = "/api/pair/confirm"
+
+[[edge_functions]]
+  function = "pair-cancel"
+  path = "/api/pair/cancel"
+
+[[edge_functions]]
   function = "bootstrap-agent"
   path = "/api/bootstrap-agent"
 
