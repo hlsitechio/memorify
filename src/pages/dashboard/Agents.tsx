@@ -844,9 +844,16 @@ export function AgentsManager() {
     }
     setOauthRegistering(true);
     try {
+      // Attach the Clerk session token so the backend can bind this client to
+      // the current workspace immediately (registration stays public — an
+      // invalid/missing token just registers an unbound client).
+      const token = await getToken();
       const res = await fetch(`${MCP_URL}/oauth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           client_name: oauthClientName.trim() || "Custom OAuth Client",
           redirect_uris: [redirectUri],
@@ -858,6 +865,8 @@ export function AgentsManager() {
         throw new Error(apiError(body, "Could not register OAuth client"));
       }
       setOauthClient({ client_id: body.client_id, client_secret: body.client_secret });
+      // Refresh so the new client (now workspace-bound) shows in the wizard.
+      await loadAgents();
       toast.success("OAuth client registered — copy the credentials now, the secret is shown only once");
     } catch (error: any) {
       toast.error(error?.message ?? "Could not register OAuth client");

@@ -1412,7 +1412,19 @@ async function processSingleRpc(
       // OAuth clients register BEFORE any user/workspace context exists (RFC 7591
       // dynamic registration is unauthenticated). The workspace is bound later at
       // consent time from the Clerk JWT (claims.org_id) in handleOAuthAuthorizePost.
-      const workspaceId: string | null = null;
+      // EXCEPTION: when the request comes from the signed-in dashboard, we bind the
+      // workspace immediately from the verified Clerk JWT so the client shows up
+      // in GET /api/agents right away (the browser sends its session token).
+      let workspaceId: string | null = null;
+      const bearer = (req.headers.get("authorization") ?? "");
+      if (bearer.toLowerCase().startsWith("bearer ")) {
+        try {
+          const claims = await verifyClerkJwt(bearer.slice(7).trim());
+          if (claims.org_id) workspaceId = claims.org_id;
+        } catch {
+          // Not a valid Clerk session — ignore, register unbound (public DCR).
+        }
+      }
 
       try {
         await query(
@@ -1619,6 +1631,16 @@ async function processSingleRpc(
 
       const userId = claims.sub;
       const workspaceId = claims.org_id || client.workspace_id;
+
+      // Bind the client to the consenting user's workspace (first consent wins).
+      // Without this the client row keeps workspace_id NULL forever and never
+      // appears in GET /api/agents, even after a completed OAuth flow.
+      if (claims.org_id && !client.workspace_id) {
+        await query(
+          `UPDATE mcp_oauth_clients SET workspace_id = $1, updated_at = now() WHERE id = $2 AND workspace_id IS NULL`,
+          [claims.org_id, client.id],
+        ).catch((e) => console.error("oauth client workspace bind failed:", e));
+      }
 
       // Generate authorization code (random, short-lived: 10 minutes)
       const code = `mem_code_${crypto.randomUUID().replace(/-/g, "").slice(0, 32)}`;
