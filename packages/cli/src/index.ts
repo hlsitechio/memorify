@@ -9,7 +9,7 @@
 
 import { spawn } from "node:child_process";
 import { DEFAULT_HOST, startPairing, pollUntilApproved, cancelPairing, PairingDenied } from "./pair.js";
-import { CLIENTS, getClient, saveCredentials, loadToken, type ClientTarget } from "./clients.js";
+import { CLIENTS, getClient, saveCredentials, loadToken, guardProjectSecret, type ClientTarget } from "./clients.js";
 import { runBridge } from "./bridge.js";
 
 const log = (m = "") => process.stderr.write(m + "\n"); // keep stdout clean for --print
@@ -117,8 +117,9 @@ async function cmdPair(args: Args): Promise<void> {
 
   for (const t of targets) {
     const file = await t.write(token, mcpUrl);
+    const guarded = await guardProjectSecret(file);
     const mode = t.stdioOnly ? "stdio bridge" : "native HTTP";
-    log(`  - Configured ${t.label} [${mode}] -> ${file}`);
+    log(`  - Configured ${t.label} [${mode}] -> ${file}${guarded ? " (git-excluded — contains your live token, do not commit)" : ""}`);
   }
   log(`\nDone. Restart your client and the "memorify" MCP server will be available.`);
   log("(Keep your token secret — revoke anytime at memorify.dev/dashboard/agents)");

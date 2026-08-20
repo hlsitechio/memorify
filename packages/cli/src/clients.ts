@@ -48,11 +48,15 @@ function httpEntry(mcpUrl: string, token: string) {
   return { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${token}` } };
 }
 
-/** Server entry for stdio-only clients — runs this same package as a bridge. */
+/** Server entry for stdio-only clients — runs this same package as a bridge.
+ *  SECURITY: use the self-hosted tarball, NOT `memorify` from npm — that name
+ *  is owned by an unrelated third-party package. Never point npx at it with a
+ *  token in env. (Tracked in Linear HLS-62; switch to our scoped npm name if
+ *  we ever publish one.) */
 function bridgeEntry(token: string) {
   return {
     command: "npx",
-    args: ["-y", "memorify@latest", "mcp"],
+    args: ["-y", "https://memorify.dev/cli/memorify.tgz", "mcp"],
     env: { MEMORIFY_TOKEN: token },
   };
 }
@@ -282,5 +286,31 @@ export async function loadToken(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** If a config file lands inside the current project and this is a git repo,
+ *  ensure git ignores it locally so the embedded live token can't be committed
+ *  accidentally. Uses .git/info/exclude — repo-local, never touches the user's
+ *  tracked .gitignore. (Tracked in Linear HLS-62.) */
+export async function guardProjectSecret(file: string): Promise<boolean> {
+  if (!path.resolve(file).startsWith(process.cwd() + path.sep)) return false;
+  try {
+    await fs.access(path.join(process.cwd(), ".git"));
+  } catch {
+    return false; // not a git repo — nothing to guard
+  }
+  const exclude = path.join(process.cwd(), ".git", "info", "exclude");
+  const rel = path.relative(process.cwd(), file).replace(/\\/g, "/");
+  let text = "";
+  try {
+    text = await fs.readFile(exclude, "utf8");
+  } catch {
+    /* no exclude file yet */
+  }
+  if (!text.split("\n").some((l) => l.trim() === rel)) {
+    await fs.mkdir(path.dirname(exclude), { recursive: true });
+    await fs.appendFile(exclude, `\n# memorify: contains live agent token\n${rel}\n`, "utf8");
+  }
+  return true;
 }
 
