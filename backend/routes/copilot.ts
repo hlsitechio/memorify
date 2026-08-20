@@ -3424,7 +3424,10 @@ async function handleObserveCommand(name: string, args: Record<string, unknown>,
   const ws = auth.workspace_id;
   if (name === "events.list") {
     const params: unknown[] = [ws];
-    let sql = `SELECT id, agent_id, kind, source, payload, created_at::text FROM events WHERE workspace_id = $1`;
+    let sql = `SELECT e.id, e.agent_id, a.name AS agent_name, e.kind, e.source, e.payload, e.created_at::text
+               FROM events e
+               LEFT JOIN agents a ON a.id = e.agent_id
+               WHERE e.workspace_id = $1`;
     for (const field of ["kind", "source"]) {
       const value = textOrEmpty(args[field]);
       if (value) {

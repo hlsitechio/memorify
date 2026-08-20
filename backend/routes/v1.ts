@@ -377,6 +377,13 @@ async function handleMemory(action: string, input: Record<string, unknown>, ctx:
 
       const results = await query(sql, params);
 
+      // Log event (activity feed)
+      execute(
+        `INSERT INTO events (workspace_id, agent_id, kind, source, payload)
+         VALUES ($1, $2, 'memory.recall', $3, $4)`,
+        [ws, ctx.agent_id, ns, JSON.stringify({ query: query_text, scope: recallScope, count: results.length })],
+      ).catch(() => {});
+
       // Log access
       execute(
         `INSERT INTO memory_access_log (workspace_id, agent_id, action, scope)
@@ -415,6 +422,13 @@ async function handleMemory(action: string, input: Record<string, unknown>, ctx:
         content_changed: !!content,
       });
 
+      // Log event (activity feed)
+      execute(
+        `INSERT INTO events (workspace_id, agent_id, kind, source, payload)
+         VALUES ($1, $2, 'memory.update', $3, $4)`,
+        [ws, ctx.agent_id, id, JSON.stringify({ memory_id: id, content_changed: !!content })],
+      ).catch(() => {});
+
       return { id, updated: true };
     }
 
@@ -428,6 +442,13 @@ async function handleMemory(action: string, input: Record<string, unknown>, ctx:
 
       // Audit log
       await logAudit(ws, ctx.agent_id, "memory.delete", id, {});
+
+      // Log event (activity feed)
+      execute(
+        `INSERT INTO events (workspace_id, agent_id, kind, source, payload)
+         VALUES ($1, $2, 'memory.delete', $3, $4)`,
+        [ws, ctx.agent_id, id, JSON.stringify({ memory_id: id })],
+      ).catch(() => {});
 
       return { id, deleted: count > 0 };
     }

@@ -23,7 +23,7 @@ import MemoryDetail from "./pages/dashboard/MemoryDetail";
 import MindMap from "./pages/dashboard/MindMap";
 import Connectors from "./pages/dashboard/Connectors";
 import Events from "./pages/dashboard/Events";
-import Logs from "./pages/dashboard/Logs";
+import { Navigate } from "react-router-dom";
 import ApiKeys from "./pages/dashboard/ApiKeys";
 import Settings from "./pages/dashboard/Settings";
 import Skills from "./pages/dashboard/Skills";
@@ -122,7 +122,7 @@ const DashboardRouteTree = () => (
         <Route path="connectors" element={<Connectors />} />
         <Route path="mcp" element={<Mcp />} />
         <Route path="events" element={<Events />} />
-        <Route path="logs" element={<Logs />} />
+        <Route path="logs" element={<Navigate to="/dashboard/events" replace />} />
         <Route path="api-keys" element={<ApiKeys />} />
         <Route path="docs" element={<Docs />} />
         <Route path="docs/:sectionId" element={<Docs />} />

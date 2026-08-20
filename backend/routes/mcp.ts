@@ -8,7 +8,7 @@ import { json, corsHeaders } from "../lib/cors.ts";
 import { verifyAgentToken } from "../lib/agent-token.ts";
 import { handleV1 } from "./v1.ts";
 import { createAgentToken, revokeAgentToken, listAgentTokens, type Scope } from "../lib/agent-token.ts";
-import { query, queryOne } from "../lib/db.ts";
+import { query, queryOne, execute } from "../lib/db.ts";
 import { verifyClerkJwt } from "../lib/clerk.ts";
 
 const ZAPIER_MCP_URL = "https://mcp.zapier.com/api/v1/connect";
@@ -496,6 +496,21 @@ async function initializeRemoteMcpSession(url: string, headers: Record<string, s
     }),
   }).catch(() => null);
   return sessionHeaders;
+}
+
+// Fire-and-forget activity event for the workspace feed (/dashboard/events)
+function logAgentEvent(
+  workspaceId: string,
+  agentId: string | undefined,
+  kind: string,
+  source: string,
+  payload: Record<string, unknown>,
+) {
+  execute(
+    `INSERT INTO events (workspace_id, agent_id, kind, source, payload)
+     VALUES ($1, $2, $3, $4, $5::jsonb)`,
+    [workspaceId, agentId ?? null, kind, source.slice(0, 200), JSON.stringify(payload)],
+  ).catch(() => {});
 }
 
 async function callDynamicTool(workspaceId: string, dynamicTool: DynamicTool, args: Record<string, unknown>) {
@@ -1033,12 +1048,21 @@ async function processSingleRpc(
         }
         try {
           const result = await callDynamicTool(agentPayload.workspace_id, dynamicTool, args);
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "mcp.tool_call", dynamicTool.server_name, {
+            tool: dynamicTool.tool_name,
+            ok: true,
+          });
           return rpc(id, {
             content: Array.isArray(result.content)
               ? result.content
               : [{ type: "text", text: JSON.stringify(result, null, 2) }],
           });
         } catch (e) {
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "mcp.tool_call", dynamicTool.server_name, {
+            tool: dynamicTool.tool_name,
+            ok: false,
+            error: (e as Error).message,
+          });
           return rpc(id, {
             isError: true,
             content: [{ type: "text", text: (e as Error).message }],
@@ -1144,10 +1168,21 @@ async function processSingleRpc(
       const v1Data = await v1Res.json();
 
       if (!v1Data?.ok) {
+        // Memory actions log their own richer events (memory.remember etc.) in v1
+        if (def.agent !== "memory") {
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "tool.call", toolName, {
+            ok: false,
+            error: String(v1Data?.error ?? "tool call failed").slice(0, 300),
+          });
+        }
         return rpc(id, {
           isError: true,
           content: [{ type: "text", text: v1Data?.error ?? "tool call failed" }],
         });
+      }
+
+      if (def.agent !== "memory") {
+        logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "tool.call", toolName, { ok: true });
       }
 
       return rpc(id, {
