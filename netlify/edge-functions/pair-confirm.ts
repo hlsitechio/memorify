@@ -38,18 +38,32 @@ async function findPending(userCode: string): Promise<PendingPairing | null> {
   );
 }
 
-/** Verify the approver actually belongs to the Clerk org they selected. Fail closed. */
+/** Verify the approver actually belongs to the Clerk org they selected. Fail closed.
+ *  VERIFIED LIVE: GET api.clerk.com/v1/organizations/{org}/memberships?user_id={uid} → { data: [...] }
+ *  Fallback on Clerk API ambiguity: workspace_members row in Neon (synced by useNeonBootstrap). */
 async function userInOrg(userId: string, orgId: string): Promise<boolean> {
   if (!CLERK_SECRET_KEY) return false;
   try {
     const res = await fetch(
-      `${CLERK_FRONTEND_API}/v1/organizations/${encodeURIComponent(orgId)}/memberships?user_id=${encodeURIComponent(userId)}&limit=1`,
+      `https://api.clerk.com/v1/organizations/${encodeURIComponent(orgId)}/memberships?user_id=${encodeURIComponent(userId)}&limit=1`,
       { headers: { Authorization: `Bearer ${CLERK_SECRET_KEY}` } },
     );
-    if (!res.ok) return false;
-    const data = await res.json();
-    const list = Array.isArray(data) ? data : (data.response ?? data.data ?? []);
-    return Array.isArray(list) && list.some((m: { status?: string }) => m.status === undefined || m.status === "active");
+    if (res.ok) {
+      const body = await res.json();
+      const list = Array.isArray(body) ? body : (body.data ?? []);
+      return Array.isArray(list) && list.length > 0;
+    }
+    if (res.status === 404) return false;
+    // Network/auth ambiguity → fall through to Neon check rather than hard-failing humans
+  } catch {
+    // fall through
+  }
+  try {
+    const row = await queryOne<{ user_id: string }>(
+      `SELECT user_id FROM workspace_members WHERE workspace_id = $1 AND user_id = $2 LIMIT 1`,
+      [orgId, userId],
+    );
+    return !!row;
   } catch {
     return false;
   }
