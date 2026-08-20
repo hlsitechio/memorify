@@ -566,6 +566,23 @@ export const MCP_CATALOG: CatalogItem[] = [
     tokenPlaceholder: "re_…",
   },
   {
+    id: "agentmail",
+    name: "AgentMail",
+    category: "comms",
+    tagline: "Give agents their own email inboxes — send, read, thread and reply to mail.",
+    // svgl.app does not carry AgentMail yet — use the official brand mark from their site.
+    logo: { light: "https://agentmail.to/favicon.ico" },
+    url: "https://mcp.agentmail.to/mcp",
+    transport: "http",
+    needsToken: true,
+    tokenLabel: "AgentMail API key",
+    tokenHint:
+      "Create at console.agentmail.to → Settings → API Keys. Sent as an x-api-key header (OAuth is also supported).",
+    tokenPlaceholder: "am_…",
+    authHeader: "x-api-key",
+    docsUrl: "https://docs.agentmail.to/integrations/mcp",
+  },
+  {
     id: "stripe",
     name: "Stripe",
     category: "comms",
