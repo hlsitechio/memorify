@@ -58,7 +58,9 @@ test_agents/
 codex_summary/
 mindmap/
 docs/
-scripts/
+# Scratch scripts & temp files (release-cli.mjs is force-added: it's part of the build)
+scripts/*
+!scripts/release-cli.mjs
 brand/
 extension/
 RUNBOOK.md
