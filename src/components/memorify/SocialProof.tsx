@@ -1,4 +1,4 @@
-import { Star, MessageSquare, BarChart2, Users, Award, CheckCircle2, Github, Twitter, Discord } from "lucide-react";
+import { Star, MessageSquare, BarChart2, Users, Award, CheckCircle2, Github, Twitter } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const testimonials = [

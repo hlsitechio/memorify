@@ -1387,8 +1387,11 @@ function EnvironmentChecker() {
 
       const results: Record<string, { required: boolean; present: boolean; value?: string }> = {};
       
+      // Browser-safe env access: import.meta.env only exposes VITE_* vars,
+      // so server-side secrets will (correctly) show as not present to the client.
+      const browserEnv = import.meta.env as Record<string, string | undefined>;
       for (const key of required) {
-        const value = Deno.env.get(key);
+        const value = browserEnv[key];
         results[key] = {
           required: true,
           present: !!value,
@@ -1396,8 +1399,8 @@ function EnvironmentChecker() {
         };
       }
 
-      // Also check for any other env vars that might be set
-      for (const [key, value] of Object.entries(Deno.env.toObject())) {
+      // Also check for any other VITE_* env vars that might be set
+      for (const [key, value] of Object.entries(browserEnv)) {
         if (!results[key]) {
           results[key] = {
             required: false,

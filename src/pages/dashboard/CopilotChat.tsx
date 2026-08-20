@@ -157,10 +157,11 @@ export default function CopilotChat() {
     
     // Build a message that references the uploaded document
     const docRef = `📎 Uploaded: ${result.name} (${(file.size / 1024).toFixed(0)} KB)`;
+    let docRefWithRag: string | null = null;
     if (result.rag) {
       const chunks = result.rag.chunks || 0;
       const embedded = result.rag.embedded || 0;
-      const docRefWithRag = `${docRef} — ${chunks} chunks, ${embedded} embedded`;
+      docRefWithRag = `${docRef} — ${chunks} chunks, ${embedded} embedded`;
       setInput(docRefWithRag);
     } else {
       setInput(docRef);

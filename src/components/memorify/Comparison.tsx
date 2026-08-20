@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Check, X, Minus, HelpCircle } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
@@ -137,7 +138,7 @@ export const Comparison = () => {
             </thead>
             <tbody>
               {features.map((section, sectionIndex) => (
-                <React.Fragment key={section.category}>
+                <Fragment key={section.category}>
                   {/* Section header row */}
                   <tr className="bg-card/40 backdrop-blur border-y border-border/30">
                     <th colSpan={4} className="px-4 py-3 text-left text-sm font-semibold text-foreground">
@@ -160,7 +161,7 @@ export const Comparison = () => {
                       <Cell value={item.custom} variant="custom" />
                     </tr>
                   ))}
-                </React.Fragment>
+                </Fragment>
               ))}
             </tbody>
           </table>
