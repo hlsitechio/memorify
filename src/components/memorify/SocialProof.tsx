@@ -1,4 +1,4 @@
-import { Star, BarChart2, Users, Award, CheckCircle2, Github } from "lucide-react";
+import { Star, Award, CheckCircle2 } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const testimonials = [
@@ -25,13 +25,6 @@ const testimonials = [
   },
 ];
 
-const metrics = [
-  { value: "23", label: "Built-in MCP tools", icon: Users },
-  { value: "8", label: "Built-in connectors", icon: Github },
-  { value: "< 12ms", label: "P99 latency", icon: BarChart2 },
-  { value: "4", label: "Agent access levels", icon: Star },
-];
-
 const logos = [
   { name: "Anthropic", category: "Foundation models", src: "/logos/anthropic_white.svg" },
   { name: "Cursor", category: "AI IDE", src: "/logos/cursor_dark.svg" },
@@ -50,7 +43,6 @@ const trustBadges = [
 
 export const SocialProof = () => {
   const { ref } = useScrollReveal({ delay: 100 });
-  const { ref: metricsRef, isVisible: metricsVisible } = useScrollReveal<HTMLDivElement>({ delay: 200 });
   const { ref: testimonialsRef, isVisible: testimonialsVisible } = useScrollReveal<HTMLDivElement>({ delay: 200 });
   const { ref: logosRef, isVisible: logosVisible } = useScrollReveal<HTMLDivElement>({ delay: 100 });
   const { ref: badgesRef, isVisible: badgesVisible } = useScrollReveal<HTMLDivElement>({ delay: 200 });
@@ -69,25 +61,6 @@ export const SocialProof = () => {
           <p className="mt-5 text-muted-foreground text-lg">
             Teams at the frontier of AI agents use Memorify to ship faster and debug less.
           </p>
-        </div>
-
-        {/* Metrics */}
-        <div ref={metricsRef} className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-16 transition-all duration-700 ${metricsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-          {metrics.map((metric, i) => (
-            <div
-              key={metric.label}
-              className="p-6 rounded-xl border border-border/50 bg-card/40 backdrop-blur card-elevated animate-in slide-in-from-bottom-4"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center">
-                  <metric.icon className="w-5 h-5 text-primary" />
-                </div>
-                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{metric.label}</p>
-              </div>
-              <p className="text-3xl md:text-4xl font-semibold font-mono text-foreground">{metric.value}</p>
-            </div>
-          ))}
         </div>
 
         {/* Testimonials carousel */}

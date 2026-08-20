@@ -19,7 +19,6 @@ const agentStyle = (index: number) => ({
 
 export const Hero = () => {
   const status = useMemorifyStatus();
-  const toolCount = status.tools.length > 0 ? status.tools.length : "--";
 
   return (
     <section id="hero" className="mem-hero relative flex min-h-[92svh] overflow-hidden border-b border-white/10" aria-labelledby="hero-title">
@@ -53,21 +52,6 @@ export const Hero = () => {
                 <Radio className="h-4 w-4 text-cyan-200" />
                 View MCP endpoint
               </a>
-            </div>
-
-            <div className="mt-10 grid max-w-[620px] grid-cols-1 gap-4 border-y border-white/10 py-4 xs:grid-cols-3 xs:gap-0">
-              <div>
-                <p className="font-mono text-lg font-semibold text-white">{toolCount}</p>
-                <p className="mt-1 text-xs text-slate-500">built-in MCP tools</p>
-              </div>
-              <div className="xs:border-l xs:border-white/10 xs:pl-5">
-                <p className="font-mono text-sm font-semibold text-white">HTTP + MCP</p>
-                <p className="mt-1 text-xs text-slate-500">one production origin</p>
-              </div>
-              <div className="xs:border-l xs:border-white/10 xs:pl-5">
-                <p className="font-mono text-sm font-semibold text-white">mem_live_</p>
-                <p className="mt-1 text-xs text-slate-500">agent-bound tokens</p>
-              </div>
             </div>
           </div>
 
