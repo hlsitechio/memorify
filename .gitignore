@@ -77,3 +77,5 @@ Thumbs.db
 desktop.ini
 
 
+packages/cli/node_modules/
+packages/cli/dist/

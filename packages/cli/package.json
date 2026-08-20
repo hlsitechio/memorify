@@ -1,0 +1,34 @@
+{
+  "name": "memorify",
+  "version": "0.1.0",
+  "description": "Universal MCP onboarding for Memorify — pair any AI coding client in one command",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "bin": {
+    "memorify": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "cline",
+    "cursor",
+    "windsurf",
+    "copilot",
+    "agent-memory"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
