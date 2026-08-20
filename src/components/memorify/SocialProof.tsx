@@ -26,19 +26,19 @@ const testimonials = [
 ];
 
 const metrics = [
-  { value: "1,247", label: "Agents connected", icon: Users },
-  { value: "2.3M+", label: "Memories stored", icon: Star },
+  { value: "23", label: "Built-in MCP tools", icon: Users },
+  { value: "8", label: "Built-in connectors", icon: Github },
   { value: "< 12ms", label: "P99 latency", icon: BarChart2 },
-  { value: "15+", label: "Built-in connectors", icon: Github },
+  { value: "4", label: "Agent access levels", icon: Star },
 ];
 
 const logos = [
-  { name: "Anthropic", category: "Foundation models" },
-  { name: "Cursor", category: "AI IDE" },
-  { name: "Replit", category: "Dev platform" },
-  { name: "Linear", category: "Issue tracking" },
-  { name: "Vercel", category: "Deployment" },
-  { name: "Neon", category: "Database" },
+  { name: "Anthropic", category: "Foundation models", src: "/logos/anthropic_white.svg" },
+  { name: "Cursor", category: "AI IDE", src: "/logos/cursor_dark.svg" },
+  { name: "Replit", category: "Dev platform", src: "/logos/replit.svg" },
+  { name: "Linear", category: "Issue tracking", src: "/logos/linear.svg" },
+  { name: "Vercel", category: "Deployment", src: "/logos/vercel-dark.svg" },
+  { name: "Neon", category: "Database", src: "/logos/neon.svg" },
 ];
 
 const trustBadges = [
@@ -123,8 +123,8 @@ export const SocialProof = () => {
         <div ref={logosRef} className={`mb-16 transition-all duration-700 ${logosVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
           <div className="flex flex-wrap justify-center items-center gap-12 opacity-40 hover:opacity-100 transition-opacity">
             {logos.map((logo) => (
-              <div key={logo.name} className="flex flex-col items-center gap-1" title={`${logo.name} — ${logo.category}`}>
-                <span className="font-semibold text-foreground/60 text-lg tracking-tight">{logo.name}</span>
+              <div key={logo.name} className="flex flex-col items-center gap-1.5" title={`${logo.name} — ${logo.category}`}>
+                <img src={logo.src} alt={`${logo.name} logo`} className="h-7 w-auto" loading="lazy" />
                 <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wider">{logo.category}</span>
               </div>
             ))}

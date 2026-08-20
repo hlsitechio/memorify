@@ -1348,7 +1348,11 @@ export default function Settings() {
               <div className="mb-4">
                 <h2 className="text-sm font-semibold">AI Agents</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Connect and manage agents. Access levels live under Roles.
+                  Connect and manage agents — the fastest path is{" "}
+                  <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[10px]">
+                    npx https://memorify.dev/cli/memorify.tgz pair
+                  </code>
+                  . Access levels live under Roles.
                 </p>
               </div>
               <AgentsManager embedded />

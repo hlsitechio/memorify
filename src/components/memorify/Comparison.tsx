@@ -24,7 +24,7 @@ const features = [
   {
     category: "Tools & Connectors",
     items: [
-      { name: "Built-in connectors", memorify: "15+ (Gmail, Drive, Linear, Slack, GitHub...)", mcp: "0 (bring your own)", custom: "Build each" },
+      { name: "Built-in connectors", memorify: "8 (Slack, GitHub, Gmail, Notion, Stripe, Postgres, AgentMail, HTTP)", mcp: "0 (bring your own)", custom: "Build each" },
       { name: "OAuth handled", memorify: "Yes (Clerk + token vault)", mcp: "Per-connector", custom: "Per-connector" },
       { name: "Tool registration", memorify: "Dynamic via /v1", mcp: "Static manifest", custom: "Build it" },
       { name: "MCP server proxy", memorify: "Yes (fan-out)", mcp: "N/A", custom: "Build it" },
@@ -174,7 +174,7 @@ export const Comparison = () => {
               <h3 className="font-semibold">Memorify</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              One endpoint. 15+ connectors. Native memory. Real-time sync. Full observability. Zero maintenance.
+              One endpoint. 8 connectors. Native memory. Real-time sync. Full observability. Zero maintenance.
             </p>
           </div>
           <div className="p-6 rounded-xl border border-amber-500/30 bg-amber-500/5">

@@ -41,6 +41,7 @@ export default function Pair() {
   const [orgId, setOrgId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<"approved" | "denied" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const orgs = useMemo(
     () =>
@@ -53,6 +54,7 @@ export default function Pair() {
   );
 
   const formatted = code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  const orgName = orgs.find((o) => o.id === orgId)?.name;
 
   const api = useCallback(
     async (body: Record<string, unknown>) => {
@@ -75,19 +77,23 @@ export default function Pair() {
       return;
     }
     setBusy(true);
+    setError(null);
     try {
       const { ok, status, data } = await api({ code: formatted, action: "lookup" });
       if (status === 429) {
         const secs = Number(data.retry_after ?? 0);
-        toast.error(`Too many attempts — locked for ${Math.ceil(secs / 60)} minute(s).`);
+        const msg = `Too many attempts — locked for ${Math.ceil(secs / 60)} minute(s).`;
+        setError(msg);
+        toast.error(msg);
         return;
       }
       if (!ok) {
-        toast.error(
+        const msg =
           data.error === "unauthorized"
             ? "Sign in to approve pairing requests"
-            : "Code not found. Check the code shown by your agent.",
-        );
+            : "Code not found. Check the code shown by your agent.";
+        setError(msg);
+        toast.error(msg);
         return;
       }
       setPairing(data.pairing as PairingInfo);
@@ -105,14 +111,20 @@ export default function Pair() {
         return;
       }
       setBusy(true);
+      setError(null);
       try {
         const { ok, data } = await api({ code: formatted, action: "decide", decision, org_id: orgId });
         if (!ok) {
-          toast.error(
+          const msg =
             data.error === "not_an_org_member"
               ? "You're not a member of that workspace"
-              : (data.error ?? "Failed"),
-          );
+              : data.error === "code_not_found"
+                ? "This pairing code is no longer valid (it may have expired or been used)."
+                : data.error === "internal_error"
+                  ? "Something went wrong on our side — the pairing was not approved. Please try again."
+                  : (data.error ?? "Failed");
+          setError(msg);
+          toast.error(msg);
           return;
         }
         setOutcome(decision);
@@ -171,6 +183,11 @@ export default function Pair() {
               <Button className="w-full" onClick={onLookup} disabled={busy || formatted.length !== 6}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Continue <ArrowRight className="h-4 w-4" /></>}
               </Button>
+              {error && (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {error}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -208,6 +225,11 @@ export default function Pair() {
                   <p className="text-xs text-destructive">You don't belong to any workspaces yet.</p>
                 )}
               </div>
+              {error && (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {error}
+                </p>
+              )}
               <div className="flex gap-2">
                 <Button className="flex-1" onClick={() => onDecide("approve")} disabled={busy || !orgId}>
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ShieldCheck className="h-4 w-4" /> Approve</>}
@@ -226,10 +248,17 @@ export default function Pair() {
               {outcome === "approved" ? (
                 <>
                   <BadgeCheck className="mx-auto h-10 w-10 text-green-600" />
-                  <p className="font-medium">Approved</p>
-                  <p className="text-sm text-muted-foreground">
-                    Return to your agent — it will pick up its token automatically.
+                  <p className="font-medium">
+                    Approved — {pairing?.agent_name ?? "agent"} is connected
+                    {orgName ? ` to ${orgName}` : ""}
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    Return to your terminal. The agent picks up its token automatically on its next poll —
+                    usually within a few seconds — and then writes its own config.
+                  </p>
+                  <Button asChild variant="link" className="text-xs text-muted-foreground">
+                    <Link to="/dashboard/agents">Manage agents in the dashboard</Link>
+                  </Button>
                 </>
               ) : (
                 <>
@@ -240,7 +269,7 @@ export default function Pair() {
               )}
               <Button
                 variant="outline"
-                onClick={() => { setPhase("enter"); setCode(""); setPairing(null); setOutcome(null); }}
+                onClick={() => { setPhase("enter"); setCode(""); setPairing(null); setOutcome(null); setError(null); }}
               >
                 Pair another agent
               </Button>

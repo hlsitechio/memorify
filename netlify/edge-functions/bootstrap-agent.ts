@@ -16,6 +16,12 @@ const BOOTSTRAP_AGENT_KINDS = new Set([
   "claude_code",
   "github_copilot",
   "openai_codex",
+  "opencode",
+  "cline",
+  "kilo_code",
+  "hermes",
+  "openclaw",
+  "pi",
   "custom",
 ]);
 

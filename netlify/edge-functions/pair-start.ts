@@ -18,8 +18,10 @@ import {
 } from "../../backend/lib/pairing.ts";
 
 const ALLOWED_KINDS = new Set([
-  "claude_code", "cursor", "claude_desktop", "chatgpt", "grok",
-  "windsurf", "vscode", "zed", "github_copilot", "openai_codex", "custom",
+  "claude_code", "github_copilot", "openai_codex", "opencode", "cline",
+  "kilo_code", "hermes", "openclaw", "pi", "custom",
+  // legacy kinds kept so existing agents keep validating
+  "cursor", "claude_desktop", "chatgpt", "grok", "windsurf", "vscode", "zed",
 ]);
 
 export default async (req: Request): Promise<Response> => {

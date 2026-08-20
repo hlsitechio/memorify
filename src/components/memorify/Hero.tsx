@@ -4,11 +4,11 @@ import { useMemorifyStatus } from "@/hooks/useMemorifyStatus";
 
 const agents = [
   { name: "Claude", src: "/logos/claude-ai-icon.svg", position: "mem-agent-node-0" },
-  { name: "Cursor", src: "/logos/cursor_dark.svg", position: "mem-agent-node-1" },
-  { name: "OpenAI", src: "/logos/openai_dark.svg", position: "mem-agent-node-2" },
-  { name: "Copilot", src: "/logos/microsoft-copilot.svg", position: "mem-agent-node-3" },
-  { name: "Hermes", src: "/logos/hermes.png", position: "mem-agent-node-4" },
-  { name: "OpenCode", src: "/logos/opencode-dark.svg", position: "mem-agent-node-5" },
+  { name: "Copilot", src: "/logos/copilot_dark.svg", position: "mem-agent-node-1" },
+  { name: "Codex", src: "/logos/codex.svg", position: "mem-agent-node-2" },
+  { name: "Cline", src: "/logos/cline.svg", position: "mem-agent-node-3" },
+  { name: "OpenCode", src: "/logos/opencode-dark.svg", position: "mem-agent-node-4" },
+  { name: "OpenClaw", src: "/logos/openclaw.svg", position: "mem-agent-node-5" },
 ];
 
 const agentStyle = (index: number) => ({

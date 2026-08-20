@@ -217,6 +217,29 @@ export const CLIENTS: ClientTarget[] = [
       return file;
     },
   },
+  {
+    id: "kilo-code",
+    label: "Kilo Code (.kilocode/mcp_settings.json)",
+    async detect() {
+      return exists(path.join(process.cwd(), ".kilocode"));
+    },
+    async write(token, mcpUrl) {
+      return mergeMcpServers(
+        path.join(process.cwd(), ".kilocode", "mcp_settings.json"),
+        { type: "streamableHttp", url: mcpUrl, headers: { Authorization: `Bearer ${token}` } },
+      );
+    },
+  },
+  {
+    id: "openclaw",
+    label: "OpenClaw (~/.openclaw/openclaw.json, via stdio bridge)",
+    async detect() {
+      return exists(path.join(home(), ".openclaw"));
+    },
+    async write(token) {
+      return mergeMcpServers(path.join(home(), ".openclaw", "openclaw.json"), bridgeEntry(token));
+    },
+  },
 
 ];
 

@@ -78,9 +78,11 @@ export default async (req: Request): Promise<Response> => {
     const token = extractBearer(req);
     if (!token) return json({ error: "unauthorized" }, 401);
     let userId: string;
+    let userEmail: string | undefined;
     try {
       const claims = await verifyClerkJwt(token);
       userId = claims.sub;
+      userEmail = claims.email;
     } catch {
       return json({ error: "unauthorized" }, 401);
     }
@@ -167,6 +169,16 @@ export default async (req: Request): Promise<Response> => {
       await recordAttempt({ pairing_id: pairing.id, user_id: userId, ip_hash: ipHash, outcome: "approve_denied_not_member" });
       return json({ error: "not_an_org_member" }, 403);
     }
+
+    // Ensure the approver's app_users row exists (FK target for workspaces/members/agents).
+    // /pair is a standalone route — useNeonBootstrap may never have run for this user.
+    await execute(
+      `INSERT INTO app_users (id, email, last_seen_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (id) DO UPDATE SET email = COALESCE(EXCLUDED.email, app_users.email),
+         last_seen_at = now(), updated_at = now()`,
+      [userId, userEmail ?? null],
+    );
 
     // Ensure the workspace row exists + approver is a member (mirror bootstrap-agent)
     const org = await queryOne<{ name: string | null }>(

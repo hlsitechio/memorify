@@ -1,5 +1,6 @@
 import { Check, Copy, ExternalLink, LockKeyhole } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useMemorifyStatus } from "@/hooks/useMemorifyStatus";
 
 const stages = [
   {
@@ -64,7 +65,12 @@ const stages = [
 export const Protocol = () => {
   const [active, setActive] = useState(0);
   const [copied, setCopied] = useState(false);
+  const status = useMemorifyStatus();
   const stage = stages[active];
+  const stageLabel =
+    stage.method === "tools/list"
+      ? `${status.tools.length > 0 ? status.tools.length : 23} built-in tools`
+      : stage.resultLabel;
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -160,7 +166,7 @@ export const Protocol = () => {
                   <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-300">Response shape</span>
                   <span className="flex items-center gap-1.5 font-mono text-[9px] text-slate-500"><LockKeyhole className="h-3 w-3" /> with valid auth</span>
                 </div>
-                <h3 className="mem-panel-heading mt-5 text-xl font-semibold">{stage.resultLabel}</h3>
+                <h3 className="mem-panel-heading mt-5 text-xl font-semibold">{stageLabel}</h3>
                 <div className="mt-5 grid gap-2">
                   {stage.resultItems.map((item, index) => (
                     <div key={item} className="mem-result-item" style={{ animationDelay: `${index * 90}ms` }}>

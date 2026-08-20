@@ -2,13 +2,18 @@ import { useState } from "react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const clients = [
-  { name: "Claude", src: "/logos/claude-ai-icon.svg" },
-  { name: "Cursor", src: "/logos/cursor_dark.svg" },
-  { name: "OpenAI", src: "/logos/openai_dark.svg" },
-  { name: "Copilot", src: "/logos/microsoft-copilot.svg" },
-  { name: "Hermes", src: "/logos/hermes.png" },
-  { name: "OpenCode", src: "/logos/opencode-dark.svg" },
+  { name: "Claude Code", src: "/logos/claude-ai-icon.svg" },
+  { name: "GitHub Copilot", src: "/logos/copilot_dark.svg" },
   { name: "Codex", src: "/logos/codex.svg" },
+  { name: "Cline", src: "/logos/cline.svg" },
+  { name: "Kilo Code", src: "/logos/kilocode-dark.svg" },
+  { name: "OpenCode", src: "/logos/opencode-dark.svg" },
+  { name: "Cursor", src: "/logos/cursor_dark.svg" },
+  { name: "Windsurf", src: "/logos/windsurf-dark.svg" },
+  { name: "Grok", src: "/logos/grok-dark.svg" },
+  { name: "OpenClaw", src: "/logos/openclaw.svg" },
+  { name: "Hermes", src: "/logos/hermes.png" },
+  { name: "PI", src: "/logos/pi-dev.png" },
 ];
 
 const bootstrapSignals = [

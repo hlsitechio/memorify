@@ -3,7 +3,6 @@ import { useAuth as useClerkAuth, useOrganization } from "@clerk/react";
 import {
   Bot,
   Check,
-  Clipboard,
   Copy,
   Download,
   ExternalLink,
@@ -22,14 +21,10 @@ import {
   Cpu,
   Layers,
   Globe,
-  FileCode,
-  Activity,
   CheckCircle2,
   AlertTriangle,
-  Command,
   Zap,
   Sliders,
-  Settings2,
   BookOpen,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -41,10 +36,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,16 +47,23 @@ import { getMcpUrl } from "@/lib/mcp-url";
 
 export type AgentKind =
   | "claude_code"
-  | "cursor"
-  | "claude_desktop"
-  | "chatgpt"
-  | "grok"
-  | "windsurf"
-  | "vscode"
-  | "zed"
   | "github_copilot"
   | "openai_codex"
-  | "custom";
+  | "opencode"
+  | "cline"
+  | "kilo_code"
+  | "hermes"
+  | "openclaw"
+  | "pi"
+  | "cursor"
+  | "grok"
+  | "windsurf"
+  | "custom"
+  // Legacy kinds kept so agents already registered in the database still typecheck.
+  | "claude_desktop"
+  | "chatgpt"
+  | "vscode"
+  | "zed";
 
 export type Agent = {
   id: string;
@@ -103,6 +104,8 @@ export type CatalogItem = {
   icon: typeof Terminal;
   accent: string;
   bgAccent: string;
+  /** Real brand logo (SVG from svgl.app) — shown when present, icon is the fallback. */
+  logo?: string;
   installUrl?: string;
   installLabel?: string;
   ready: boolean;
@@ -110,6 +113,7 @@ export type CatalogItem = {
 
 const MCP_URL = getMcpUrl();
 const MCP_SSE_URL = `${MCP_URL}/sse`;
+const PAIR_COMMAND = "npx https://memorify.dev/cli/memorify.tgz pair";
 const OAUTH_WELL_KNOWN_URL = `${new URL(MCP_URL).origin}/.well-known/oauth-authorization-server`;
 
 export const CATALOG: CatalogItem[] = [
@@ -122,98 +126,160 @@ export const CATALOG: CatalogItem[] = [
     icon: Terminal,
     accent: "text-amber-500",
     bgAccent: "bg-amber-500/10 border-amber-500/30",
+    logo: "/logos/claude-ai-icon.svg",
     installUrl: "https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview",
     installLabel: "Docs",
     ready: true,
   },
   {
+    kind: "github_copilot",
+    name: "GitHub Copilot",
+    tagline: "Copilot CLI & VS Code agent mode",
+    description: "Pair GitHub Copilot CLI or VS Code agent mode with Memorify for shared memory across repos, PRs, and terminal sessions.",
+    category: "cli",
+    icon: Sparkles,
+    accent: "text-purple-300",
+    bgAccent: "bg-purple-500/10 border-purple-500/30",
+    logo: "/logos/copilot_dark.svg",
+    installUrl: "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "openai_codex",
+    name: "Codex",
+    tagline: "OpenAI terminal coding agent",
+    description: "Connect Codex CLI in one command. Persistent memory and workspace tools for every Codex session.",
+    category: "cli",
+    icon: Cpu,
+    accent: "text-emerald-400",
+    bgAccent: "bg-emerald-500/10 border-emerald-500/30",
+    logo: "/logos/codex.svg",
+    installUrl: "https://developers.openai.com/codex/",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "opencode",
+    name: "OpenCode",
+    tagline: "Open-source terminal coding agent",
+    description: "Connect OpenCode in one command. Shared memory, skills, and tools across all your OpenCode projects.",
+    category: "cli",
+    icon: Code,
+    accent: "text-orange-400",
+    bgAccent: "bg-orange-500/10 border-orange-500/30",
+    logo: "/logos/opencode-dark.svg",
+    installUrl: "https://opencode.ai",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "cline",
+    name: "Cline",
+    tagline: "Autonomous VS Code coding agent",
+    description: "Connect Cline in VS Code for persistent workspace memory that survives context resets between tasks.",
+    category: "ide",
+    icon: Bot,
+    accent: "text-indigo-400",
+    bgAccent: "bg-indigo-500/10 border-indigo-500/30",
+    logo: "/logos/cline.svg",
+    installUrl: "https://github.com/cline/cline",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "kilo_code",
+    name: "Kilo Code",
+    tagline: "Open-source VS Code agent",
+    description: "Connect Kilo Code in VS Code. Plan, build, and fix with an agent that remembers every previous session.",
+    category: "ide",
+    icon: Zap,
+    accent: "text-amber-400",
+    bgAccent: "bg-amber-500/10 border-amber-500/30",
+    logo: "/logos/kilocode-dark.svg",
+    installUrl: "https://kilocode.ai",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "hermes",
+    name: "Hermes Agents",
+    tagline: "Autonomous multi-agent workflows",
+    description: "Connect Hermes agents to Memorify for shared memory, plans, and tool access across the full agent fleet.",
+    category: "platform",
+    icon: Globe,
+    accent: "text-cyan-400",
+    bgAccent: "bg-cyan-500/10 border-cyan-500/30",
+    logo: "/logos/hermes.png",
+    ready: true,
+  },
+  {
+    kind: "openclaw",
+    name: "OpenClaw",
+    tagline: "Personal AI agent gateway",
+    description: "Connect OpenClaw to Memorify so your personal agent keeps long-term memory and workspace context.",
+    category: "platform",
+    icon: Layers,
+    accent: "text-red-400",
+    bgAccent: "bg-red-500/10 border-red-500/30",
+    logo: "/logos/openclaw.svg",
+    installUrl: "https://openclaw.ai",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
+    kind: "pi",
+    name: "PI",
+    tagline: "pi.dev agent platform",
+    description: "Connect PI agents from pi.dev to Memorify for shared memory and tool execution across your agent stack.",
+    category: "platform",
+    icon: LayoutGrid,
+    accent: "text-violet-400",
+    bgAccent: "bg-violet-500/10 border-violet-500/30",
+    logo: "/logos/pi-dev.png",
+    installUrl: "https://pi.dev/",
+    installLabel: "Site",
+    ready: true,
+  },
+  {
     kind: "cursor",
-    name: "Cursor IDE",
+    name: "Cursor",
     tagline: "AI code editor with native MCP",
-    description: "Add Memorify as an MCP server in Cursor settings to give the agent direct access to knowledge base and documents.",
+    description: "Add Memorify as an MCP server in Cursor for shared memory and workspace tools across every AI edit.",
     category: "ide",
     icon: LayoutGrid,
     accent: "text-cyan-400",
     bgAccent: "bg-cyan-500/10 border-cyan-500/30",
+    logo: "/logos/cursor_dark.svg",
     installUrl: "https://docs.cursor.com/context/model-context-protocol",
     installLabel: "Docs",
     ready: true,
   },
   {
-    kind: "claude_desktop",
-    name: "Claude Desktop",
-    tagline: "Anthropic native desktop app",
-    description: "Integrate with Claude Desktop on Mac or Windows via mcp-remote bridge for persistent memory and tool execution.",
-    category: "desktop",
-    icon: Cpu,
-    accent: "text-orange-500",
-    bgAccent: "bg-orange-500/10 border-orange-500/30",
-    installUrl: "https://modelcontextprotocol.io/quickstart/user",
-    installLabel: "Guide",
-    ready: true,
-  },
-  {
-    kind: "chatgpt",
-    name: "ChatGPT & GPTs",
-    tagline: "OpenAI custom actions & connectors",
-    description: "Connect Memorify memory and search directly to your custom GPTs or ChatGPT Developer workspace.",
-    category: "platform",
-    icon: Sparkles,
-    accent: "text-emerald-500",
-    bgAccent: "bg-emerald-500/10 border-emerald-500/30",
-    installUrl: "https://platform.openai.com/docs/actions",
-    installLabel: "Guide",
-    ready: true,
-  },
-  {
     kind: "grok",
-    name: "Grok / xAI",
-    tagline: "xAI connectors & MCP tools",
-    description: "Connect xAI Grok to Memorify via OAuth 2.0 or SSE endpoint for real-time tool calling and cross-agent memory.",
-    category: "platform",
+    name: "Grok",
+    tagline: "xAI coding agent & MCP tools",
+    description: "Connect Grok to Memorify for real-time tool calling and cross-agent memory shared with the rest of your fleet.",
+    category: "cli",
     icon: Globe,
     accent: "text-blue-400",
     bgAccent: "bg-blue-500/10 border-blue-500/30",
+    logo: "/logos/grok-dark.svg",
     installUrl: "https://x.ai/api",
     installLabel: "Docs",
     ready: true,
   },
   {
     kind: "windsurf",
-    name: "Windsurf (Codeium)",
+    name: "Windsurf",
     tagline: "Cascade agentic IDE",
-    description: "Configure Windsurf Cascade agent with Memorify MCP endpoint to share memory across editors.",
+    description: "Configure the Windsurf Cascade agent with Memorify MCP to share memory across editors and sessions.",
     category: "ide",
     icon: Zap,
     accent: "text-teal-400",
     bgAccent: "bg-teal-500/10 border-teal-500/30",
+    logo: "/logos/windsurf-dark.svg",
     installUrl: "https://codeium.com/windsurf",
-    installLabel: "Docs",
-    ready: true,
-  },
-  {
-    kind: "vscode",
-    name: "VS Code / Cline / Roo",
-    tagline: "Roo Code, Cline, GitHub Copilot",
-    description: "Standard JSON config for VS Code extensions supporting the Model Context Protocol.",
-    category: "ide",
-    icon: Code,
-    accent: "text-indigo-400",
-    bgAccent: "bg-indigo-500/10 border-indigo-500/30",
-    installUrl: "https://github.com/cline/cline",
-    installLabel: "Docs",
-    ready: true,
-  },
-  {
-    kind: "zed",
-    name: "Zed Editor",
-    tagline: "High-performance Rust editor",
-    description: "Add context server to Zed settings.json for lightning-fast memory recall during coding.",
-    category: "ide",
-    icon: Layers,
-    accent: "text-amber-400",
-    bgAccent: "bg-amber-500/10 border-amber-500/30",
-    installUrl: "https://zed.dev/docs/assistant/model-context-protocol",
     installLabel: "Docs",
     ready: true,
   },
@@ -231,14 +297,11 @@ export const CATALOG: CatalogItem[] = [
 ];
 
 const COMING_SOON = [
+  "Zed Editor",
+  "Claude Desktop",
+  "Gemini CLI",
   "Antigravity Agent",
-  "Microsoft Copilot Studio",
   "LangChain / LangGraph",
-  "n8n AI Workflow",
-  "Open WebUI",
-  "Hermes Agent Hub",
-  "Manus AI",
-  "Pi",
 ];
 
 const apiError = (data: any, fallback: string) =>
@@ -250,6 +313,25 @@ function kindMeta(kind: string): CatalogItem {
     CATALOG.find((item) => item.kind === "custom") ??
     CATALOG[0]
   );
+}
+
+/** Logos for legacy agent kinds that predate the CLI-first catalog — existing agents keep their real brand mark. */
+const LEGACY_LOGOS: Record<string, string> = {
+  claude_desktop: "/logos/claude-ai-icon.svg",
+  chatgpt: "/logos/openai_dark.svg",
+  vscode: "/logos/vscode.svg",
+  zed: "/logos/zed-logo_dark.svg",
+};
+
+/** Renders the real brand logo when available (sourced from svgl.app), else the lucide icon. */
+function BrandMark({ kind, className }: { kind: string; className?: string }) {
+  const item = kindMeta(kind);
+  const logo = item.logo ?? LEGACY_LOGOS[kind];
+  if (logo) {
+    return <img src={logo} alt="" aria-hidden className={cn("object-contain", className)} />;
+  }
+  const Icon = item.icon;
+  return <Icon className={cn(className, item.accent)} />;
 }
 
 function relativeDate(value: string | null | undefined) {
@@ -750,6 +832,32 @@ export function AgentsManager() {
       />
 
       <div className="space-y-6">
+        {/* Universal CLI Pairing Banner */}
+        <Alert className="border-emerald-500/40 bg-emerald-500/5">
+          <Terminal className="h-4 w-4 text-emerald-500" />
+          <AlertTitle className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <span>Universal Agent Pairing (Recommended)</span>
+            <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30">Device Flow</Badge>
+          </AlertTitle>
+          <AlertDescription className="mt-2 space-y-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <code className="font-mono text-xs text-foreground bg-background/80 px-2 py-1 rounded border border-border/60 break-all">
+                {PAIR_COMMAND}
+              </code>
+              <Button variant="outline" size="sm" onClick={() => copyText(PAIR_COMMAND, "Pair command copied", "top-pair")}>
+                {copiedKey === "top-pair" ? <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                Copy command
+              </Button>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Works anywhere npx does — no npm account needed. Auto-detects installed clients (Claude Code, Codex,
+              GitHub Copilot, opencode, Cline, Kilo Code, Cursor, Windsurf, OpenClaw), opens your browser to approve
+              the pairing, and writes the MCP config for you. Tokens are workspace-scoped and never pass through
+              a chat window.
+            </p>
+          </AlertDescription>
+        </Alert>
+
         {/* Top Universal Endpoints Banner */}
         <div className="grid gap-3 md:grid-cols-2">
           <Alert className="border-primary/40 bg-primary/5">
@@ -794,7 +902,7 @@ export function AgentsManager() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl">Quick Connect</CardTitle>
-                  <CardDescription>Select an AI environment to generate credentials & ready-to-use configs.</CardDescription>
+                  <CardDescription>Manual mode: pick an environment to mint a token and get ready-to-use configs. For most clients, use the universal pairing command above instead.</CardDescription>
                 </div>
                 <Badge variant="secondary" className="hidden sm:inline-flex gap-1.5">
                   <Zap className="h-3 w-3 text-amber-500" />
@@ -805,7 +913,6 @@ export function AgentsManager() {
             <CardContent className="space-y-4">
               <div className="grid gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
                 {CATALOG.map((item) => {
-                  const Icon = item.icon;
                   const active = selectedKind === item.kind;
                   return (
                     <button
@@ -819,7 +926,7 @@ export function AgentsManager() {
                     >
                       <div className="mb-2 flex items-center justify-between">
                         <div className={cn("p-1.5 rounded-lg", item.bgAccent)}>
-                          <Icon className={cn("h-4 w-4", item.accent)} />
+                          <BrandMark kind={item.kind} className="h-4 w-4" />
                         </div>
                         {active && <Check className="h-4 w-4 text-primary" />}
                       </div>
@@ -900,14 +1007,29 @@ export function AgentsManager() {
                 <Bot className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
                 <h3 className="text-base font-semibold">No active agent connections yet</h3>
                 <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
-                  Select a client above (Claude Code, Cursor, ChatGPT, Grok, etc.) to generate your live MCP token and get instant setup snippets.
+                  Run <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[11px]">{PAIR_COMMAND}</code> on
+                  your machine to pair any client in seconds — the browser flow keeps tokens out of your chat. Prefer
+                  manual setup? Pick a client below to mint a token and copy ready-made configs.
                 </p>
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyText(PAIR_COMMAND, "Pair command copied", "empty-pair")}
+                  >
+                    {copiedKey === "empty-pair" ? (
+                      <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <Terminal className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Copy pair command
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="overflow-hidden rounded-xl border bg-card divide-y divide-border">
                 {connected.map((agent) => {
                   const meta = kindMeta(agent.kind);
-                  const Icon = meta.icon;
                   const fresh = freshTokens[agent.id];
                   const tested = testState[agent.id];
                   const renaming = renamingId === agent.id;
@@ -917,7 +1039,7 @@ export function AgentsManager() {
                       className="grid gap-3 p-4 md:grid-cols-[36px_minmax(0,1fr)_auto] md:items-center hover:bg-muted/10 transition-colors"
                     >
                       <div className={cn("p-2 rounded-lg flex items-center justify-center", meta.bgAccent)}>
-                        <Icon className={cn("h-4 w-4", meta.accent)} />
+                        <BrandMark kind={agent.kind} className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 space-y-1">
                         {renaming ? (
@@ -1016,13 +1138,12 @@ export function AgentsManager() {
           <TabsContent value="library">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {CATALOG.map((item) => {
-                const Icon = item.icon;
                 return (
                   <Card key={item.kind} className="flex flex-col justify-between hover:border-primary/40 transition-colors">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between mb-1">
                         <div className={cn("p-2 rounded-lg", item.bgAccent)}>
-                          <Icon className={cn("h-5 w-5", item.accent)} />
+                          <BrandMark kind={item.kind} className="h-5 w-5" />
                         </div>
                         <Badge variant="secondary" className="capitalize text-[10px] font-mono">
                           {item.category}
@@ -1080,10 +1201,7 @@ export function AgentsManager() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={cn("p-2.5 rounded-xl", kindMeta(wizardKind).bgAccent)}>
-                      {(() => {
-                        const Icon = kindMeta(wizardKind).icon;
-                        return <Icon className={cn("h-6 w-6", kindMeta(wizardKind).accent)} />;
-                      })()}
+                      <BrandMark kind={wizardKind} className="h-6 w-6" />
                     </div>
                     <div>
                       <DialogTitle className="text-xl font-bold">
@@ -1146,7 +1264,8 @@ export function AgentsManager() {
 
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border/40 text-xs">
                         <span className="text-muted-foreground text-[11px]">
-                          Store securely. Tokens are encrypted server-side and never expire unless revoked.
+                          Store securely — this is the only time it is shown. Tokens are workspace-scoped and can be revoked any time from this page. Prefer{" "}
+                          <code className="font-mono text-[10px]">{PAIR_COMMAND}</code> so tokens never pass through the browser.
                         </span>
                         <div className="flex items-center gap-2">
                           <Button
