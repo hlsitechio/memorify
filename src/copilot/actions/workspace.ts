@@ -67,6 +67,8 @@ export const workspaceCommands: CommandDef[] = [
   cmd("connectors.sync", "Record a connector sync request.", ["/dashboard/connectors", "/dashboard"], { id }, ["id"]),
   cmd("connectors.oauth.start", "Begin connector OAuth setup if the connector supports it.", ["/dashboard/connectors", "/dashboard"], { name, kind: { type: "string" }, callback_url: { type: "string" } }, ["name", "kind"]),
 
+  cmd("workspace.credits", "Return the workspace memory-credit balance (from one-time pack purchases) and recent purchase history.", ["/dashboard", "/dashboard/settings", "/dashboard/docs"]),
+
   cmd("knowledge.search", "Search memories, documents, voices, images, and skills.", ["/dashboard", "/dashboard/memory", "/dashboard/documents"], { q, limit }, ["q"]),
   cmd("knowledge.rehydrate", "Return a compact context bundle for the workspace.", ["/dashboard"], { limit }),
   cmd("knowledge.related", "Find items related to a memory/document/skill id.", ["/dashboard"], { id, type: { type: "string" }, limit }, ["id"]),

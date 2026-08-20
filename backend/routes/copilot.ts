@@ -2334,6 +2334,23 @@ async function handleAgentsWorkspaceCommand(name: string, args: Record<string, u
   if (name === "workspace.info") {
     return { workspace_id: ws, user_id: auth.user_id, org_id: auth.claims.org_id ?? null };
   }
+  if (name === "workspace.credits") {
+    const bal = await queryOne<{ balance: string }>(
+      `SELECT COALESCE(SUM(credits), 0)::text AS balance
+       FROM credit_ledger
+       WHERE workspace_id = $1 AND status = 'credited'`,
+      [ws],
+    );
+    const recent = await query<Record<string, unknown>>(
+      `SELECT credits, amount_total, status, email, created_at::text AS created_at
+       FROM credit_ledger
+       WHERE workspace_id = $1
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [ws],
+    );
+    return { workspace_id: ws, balance: Number(bal?.balance ?? "0"), recent_purchases: recent };
+  }
   throw new Error(`server command not implemented: ${name}`);
 }
 

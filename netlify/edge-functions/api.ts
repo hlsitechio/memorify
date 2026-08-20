@@ -4,7 +4,7 @@ import { handleBootstrap } from "../../backend/routes/bootstrap.ts";
 import { handleAgentsAdmin } from "../../backend/routes/agents-admin.ts";
 import { handleCopilotAction, handleCopilotChat, handleCopilotModels, handleCopilotModelStatus, handleCopilotSettings, handleCopilotUpload, handleGitHubOAuthCallback, handleMcpOAuthCallback } from "../../backend/routes/copilot.ts";
 import { handleV1 } from "../../backend/routes/v1.ts";
-import { handleStripeWebhook } from "../../backend/routes/connectors.ts";
+import { handleStripePaymentsWebhook } from "../../backend/routes/stripe-webhook.ts";
 import { handleUptime } from "../../backend/routes/uptime.ts";
 import { handleHealth } from "../../backend/routes/health.ts";
 import { handleUptimeRobotWebhook, handleClerkWebhook } from "../../backend/routes/webhooks.ts";
@@ -100,15 +100,9 @@ export default async (req: Request): Promise<Response> => {
   }
 
   if (path === "/api/stripe/webhook") {
-    // Get workspace from auth header or query
-    const auth = req.headers.get("authorization");
-    const workspaceId = url.searchParams.get("workspace_id");
-    if (!workspaceId && !auth) {
-      return api_json({ error: "workspace_id required" }, 400);
-    }
-    // For now, we'll get workspace from auth - in production this should extract from JWT
-    const ws = workspaceId || "default";
-    return handleStripeWebhook(req, ws);
+    // Server-to-server call from Stripe — signature-verified inside the handler.
+    // No Clerk auth: Stripe cannot send our session JWTs.
+    return handleStripePaymentsWebhook(req);
   }
 
   if (path === "/api/migrate-embeddings") {
