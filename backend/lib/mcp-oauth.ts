@@ -138,16 +138,24 @@ export async function discoverMcpOAuthEndpoints(serverUrl: string): Promise<McpO
   const grantTypes = Array.isArray(asMetadata?.grant_types_supported)
     ? (asMetadata!.grant_types_supported as unknown[]).map(str).filter(Boolean)
     : ["authorization_code", "refresh_token"];
-  const scopesSupported = Array.isArray(asMetadata?.scopes_supported)
-    ? (asMetadata!.scopes_supported as unknown[]).map(str).filter(Boolean)
-    : [];
+  // Scopes may be advertised in either document — Canva lists them in the
+  // RFC 9728 protected-resource metadata, most providers in the AS metadata.
+  const scopesSupported = [
+    ...(Array.isArray(asMetadata?.scopes_supported)
+      ? (asMetadata!.scopes_supported as unknown[]).map(str).filter(Boolean)
+      : []),
+    ...(Array.isArray(metadata?.scopes_supported)
+      ? (metadata!.scopes_supported as unknown[]).map(str).filter(Boolean)
+      : []),
+  ];
+  const uniqueScopes = [...new Set(scopesSupported)];
   return {
     resource: str(metadata?.resource) || serverUrl,
     authorizationServer,
     authorizationEndpoint,
     tokenEndpoint,
     registrationEndpoint: str(asMetadata?.registration_endpoint),
-    scopesSupported,
+    scopesSupported: uniqueScopes,
     refreshGrantSupported: grantTypes.includes("refresh_token"),
     offlineAccessSupported: scopesSupported.includes("offline_access"),
     codeChallengeMethods: Array.isArray(asMetadata?.code_challenge_methods_supported)
