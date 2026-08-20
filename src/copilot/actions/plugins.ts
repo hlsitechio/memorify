@@ -22,15 +22,16 @@ export const pluginCommands: CommandDef[] = [
   },
   {
     name: "apps.connect",
-    description: "Connect an app by slug. OAuth apps return authorize_url; token MCP apps return token_required until a token is provided; public MCP apps sync immediately.",
+    description: "Connect an app by slug or name. OAuth apps return authorize_url; token MCP apps return token_required until a token is provided; public MCP apps sync immediately; local-only servers return local_setup_required with docs.",
     scope: "server",
     routes: ROUTES,
     parameters: {
       type: "object",
       properties: {
-        slug: { type: "string" },
+        slug: { type: "string", description: "App slug from apps.list (e.g. 'gitlab', 'agentmail'). A normalized name also works." },
         token: { type: "string", description: "Only provide for token-based MCP apps. Never echo it back to the user." },
-        name: { type: "string" },
+        second_token: { type: "string", description: "Optional second credential (e.g. Datadog application key). Never echo it back to the user." },
+        name: { type: "string", description: "Fallback app name when the slug is unknown." },
       },
       required: ["slug"],
     },

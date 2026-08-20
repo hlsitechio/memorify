@@ -406,6 +406,14 @@ async function remoteAuthHeaders(server: { auth_type: string; auth_config: Recor
     const encrypted = config.access_token_encrypted ?? config.token_encrypted;
     const token = encrypted ? await decryptSecret(encrypted, workspaceId) : textOrEmpty(config.access_token);
     if (token) headers.Authorization = `Bearer ${token}`;
+  } else if (server.auth_type === "query_token") {
+    // token is applied to the URL by remoteMcpRequestUrl
+  }
+  // "headers" auth can also carry an encrypted bearer alongside custom
+  // headers (e.g. Bearer token + second credential header).
+  if (server.auth_type === "headers" && config.bearer_token_encrypted && !headers.Authorization) {
+    const token = await decryptSecret(config.bearer_token_encrypted, workspaceId);
+    if (token) headers.Authorization = `Bearer ${token}`;
   }
   const customHeaders = objectOrEmpty(config.headers);
   for (const [key, value] of Object.entries(customHeaders)) {
@@ -429,7 +437,10 @@ async function remoteMcpRequestUrl(url: string, authConfig: Record<string, unkno
   const token = await decryptSecret(encrypted, workspaceId);
   if (!token) return requestUrl;
   const parsed = new URL(requestUrl);
-  parsed.searchParams.set("token", token);
+  const param = typeof authConfig.query_token_param === "string" && authConfig.query_token_param
+    ? authConfig.query_token_param
+    : "token";
+  parsed.searchParams.set(param, token);
   return parsed.toString();
 }
 

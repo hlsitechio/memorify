@@ -52,12 +52,19 @@ type AppCatalogItem = {
   name: string;
   category: string;
   description: string;
-  connect: "connector_oauth" | "mcp_oauth" | "mcp_public" | "mcp_token";
+  connect: "connector_oauth" | "mcp_oauth" | "mcp_public" | "mcp_token" | "local";
   provider?: string;
   mcp_url?: string;
   transport?: "http" | "sse";
   token_label?: string;
   token_hint?: string;
+  /** Send the token as this header instead of Authorization: Bearer (e.g. x-api-key). */
+  auth_header?: string;
+  /** Optional second credential sent as another header (e.g. Datadog application key). */
+  second_auth?: { header: string; label: string };
+  /** Query-string parameter name for token-in-URL flows (e.g. Tavily's tavilyApiKey). */
+  query_token_param?: string;
+  docs_url?: string;
 };
 
 const SYSTEM_PROMPT = `You are Memorify Copilot, the signed-in dashboard assistant for an AI-agent memory system.
@@ -1401,6 +1408,12 @@ async function authHeaders(server: { auth_type: string; auth_config: Record<stri
       if (typeof value === "string") headers[key] = value;
     }
   }
+  // "headers" auth can also carry an encrypted bearer alongside custom
+  // headers (e.g. Bearer token + second credential header).
+  if (server.auth_type === "headers" && config.bearer_token_encrypted && !headers.Authorization) {
+    const token = workspaceId ? await decryptSecret(config.bearer_token_encrypted, workspaceId) : null;
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
   if (config.headers && typeof config.headers === "object") {
     for (const [key, value] of Object.entries(config.headers as Record<string, unknown>)) {
       if (typeof value === "string") headers[key] = value;
@@ -1436,7 +1449,10 @@ async function mcpRequestUrl(url: string, authConfig: Record<string, unknown>, w
   const token = await decryptSecret(encrypted, workspaceId);
   if (!token) return requestUrl;
   const parsed = new URL(requestUrl);
-  parsed.searchParams.set("token", token);
+  const param = typeof authConfig.query_token_param === "string" && authConfig.query_token_param
+    ? authConfig.query_token_param
+    : "token";
+  parsed.searchParams.set(param, token);
   return parsed.toString();
 }
 
@@ -1628,6 +1644,51 @@ const APP_CATALOG: AppCatalogItem[] = [
   { slug: "stripe", name: "Stripe", category: "Payments", description: "Token MCP access to payments, invoices, customers, and subscriptions.", connect: "mcp_token", provider: "stripe", mcp_url: "https://mcp.stripe.com", transport: "http", token_label: "Stripe restricted key", token_hint: "Use a restricted key, not a full secret key." },
   { slug: "zapier", name: "Zapier", category: "Automation", description: "Token MCP access to Zapier's 9,000+ apps and dynamic tool discovery.", connect: "mcp_token", provider: "zapier", mcp_url: ZAPIER_MCP_URL, transport: "http", token_label: "Zapier connection token or full token URL", token_hint: "Use a Zapier connection token with the default URL, or paste the full https://mcp.zapier.com/api/v1/connect?token=... URL. Use the MCP tab for Zapier Embed secrets." },
   { slug: "elevenlabs", name: "ElevenLabs", category: "AI", description: "Token MCP access to TTS, voice cloning, and dubbing tools.", connect: "mcp_token", provider: "elevenlabs", mcp_url: "https://mcp.elevenlabs.io/mcp", transport: "http", token_label: "ElevenLabs API key", token_hint: "Create a key in ElevenLabs account settings." },
+
+  // ── Hosted entries synced with the 52-integration frontend catalog
+  //    (src/data/mcpCatalog.ts) so the Copilot can connect them too. ──
+  { slug: "gitlab", name: "GitLab", category: "Dev", description: "OAuth MCP access to projects, issues, merge requests, and pipelines.", connect: "mcp_oauth", provider: "gitlab", mcp_url: "https://gitlab.com/api/v4/mcp", transport: "http" },
+  { slug: "railway", name: "Railway", category: "DevOps", description: "OAuth MCP access to Railway projects, services, and deployments.", connect: "mcp_oauth", provider: "railway", mcp_url: "https://mcp.railway.app/sse", transport: "sse" },
+  { slug: "docker", name: "Docker", category: "DevOps", description: "OAuth MCP access to Docker containers, builds, and organizations.", connect: "mcp_oauth", provider: "docker", mcp_url: "https://mcp.docker.com", transport: "http" },
+  { slug: "neon", name: "Neon Postgres", category: "Data", description: "OAuth MCP access to Neon Postgres databases, branches, and SQL.", connect: "mcp_oauth", provider: "neon", mcp_url: "https://mcp.neon.tech/sse", transport: "sse" },
+  { slug: "supabase", name: "Supabase", category: "Data", description: "OAuth MCP access to Supabase projects, tables, and SQL.", connect: "mcp_oauth", provider: "supabase", mcp_url: "https://mcp.supabase.com/mcp", transport: "http" },
+  { slug: "pinecone", name: "Pinecone", category: "Data", description: "OAuth MCP access to Pinecone indexes, collections, and vectors.", connect: "mcp_oauth", provider: "pinecone", mcp_url: "https://mcp.pinecone.io/mcp", transport: "http" },
+  { slug: "mongodb", name: "MongoDB Atlas", category: "Data", description: "OAuth MCP access to Atlas clusters, collections, and aggregations.", connect: "mcp_oauth", provider: "mongodb", mcp_url: "https://mcp.mongodb.com", transport: "http" },
+  { slug: "upstash", name: "Upstash Redis", category: "Data", description: "Token MCP access to Upstash Redis, Kafka, and QStash.", connect: "mcp_token", provider: "upstash", mcp_url: "https://mcp.upstash.com", transport: "http", token_label: "Upstash management API key", token_hint: "Create at console.upstash.com → Account → API Keys. Manages Redis, Kafka and QStash." },
+  { slug: "datadog", name: "Datadog", category: "Ops", description: "Token MCP access to Datadog metrics, traces, logs, and monitors.", connect: "mcp_token", provider: "datadog", mcp_url: "https://mcp.datadoghq.com/sse", transport: "sse", token_label: "Datadog API key", token_hint: "Organization Settings → API Keys. Also pass the application key as second_token.", auth_header: "DD-API-KEY", second_auth: { header: "DD-APPLICATION-KEY", label: "Datadog application key" } },
+  { slug: "grafana", name: "Grafana Loki", category: "Ops", description: "OAuth MCP access to Grafana logs, metrics, and traces.", connect: "mcp_oauth", provider: "grafana", mcp_url: "https://mcp.grafana.com/sse", transport: "sse" },
+  { slug: "replicate", name: "Replicate", category: "AI", description: "OAuth MCP access to run image, video, and text models on Replicate.", connect: "mcp_oauth", provider: "replicate", mcp_url: "https://mcp.replicate.com", transport: "http" },
+  { slug: "tavily", name: "Tavily", category: "Search", description: "Token MCP access to Tavily web search, extract, and crawl.", connect: "mcp_token", provider: "tavily", mcp_url: "https://mcp.tavily.com/mcp", transport: "http", token_label: "Tavily API key", token_hint: "Create at app.tavily.com → API Keys. Appended to the server URL as a query parameter.", query_token_param: "tavilyApiKey" },
+  { slug: "firecrawl", name: "Firecrawl", category: "Search", description: "Token MCP access to Firecrawl scraping, crawling, and extraction.", connect: "mcp_token", provider: "firecrawl", mcp_url: "https://mcp.firecrawl.dev/v2/mcp", transport: "http", token_label: "Firecrawl API key", token_hint: "Create at firecrawl.dev → API Keys. Sent as a Bearer token." },
+  { slug: "slack", name: "Slack", category: "Messaging", description: "OAuth MCP access to Slack messaging, channels, and canvases.", connect: "mcp_oauth", provider: "slack", mcp_url: "https://mcp.slack.com/sse", transport: "sse" },
+  { slug: "resend", name: "Resend", category: "Messaging", description: "Token MCP access to send transactional email via Resend.", connect: "mcp_token", provider: "resend", mcp_url: "https://mcp.resend.com/mcp", transport: "http", token_label: "Resend API key", token_hint: "Create at resend.com → API Keys. Sent as a Bearer token." },
+  { slug: "agentmail", name: "AgentMail", category: "Messaging", description: "Token MCP access to AgentMail inboxes, messages, and drafts.", connect: "mcp_token", provider: "agentmail", mcp_url: "https://mcp.agentmail.to/mcp", transport: "http", token_label: "AgentMail API key", token_hint: "Create at console.agentmail.to → Settings → API Keys. Sent as an x-api-key header.", auth_header: "x-api-key" },
+  { slug: "pagerduty", name: "PagerDuty", category: "Ops", description: "Token MCP access to PagerDuty incidents, services, and on-calls.", connect: "mcp_token", provider: "pagerduty", mcp_url: "https://mcp.pagerduty.com/mcp", transport: "http", token_label: "PagerDuty API token", token_hint: "Create a general-access REST API token. Sent in the Authorization header.", auth_header: "Authorization" },
+  { slug: "linear", name: "Linear", category: "Productivity", description: "OAuth MCP access to Linear issues, projects, and cycles.", connect: "mcp_oauth", provider: "linear", mcp_url: "https://mcp.linear.app/mcp", transport: "http" },
+  { slug: "confluence", name: "Confluence", category: "Docs", description: "OAuth MCP access to Confluence spaces and pages (Atlassian MCP).", connect: "mcp_oauth", provider: "atlassian", mcp_url: "https://mcp.atlassian.com/v1/sse", transport: "sse" },
+
+  // ── Local / self-hosted stdio servers (from the same catalog). Not
+  //    connectable from the cloud dashboard — surfaced so the Copilot can
+  //    explain the setup path instead of failing with "app not found". ──
+  { slug: "bitbucket", name: "Bitbucket", category: "Dev", description: "Local stdio MCP server for Bitbucket repos and pipelines.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "gitea", name: "Gitea", category: "Dev", description: "Local MCP server for self-hosted Gitea instances.", connect: "local", docs_url: "https://gitea.com/gitea/gitea-mcp" },
+  { slug: "gerrit", name: "Gerrit", category: "Dev", description: "Local MCP server for Gerrit patch reviews.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "git-local", name: "Git (local CLI)", category: "Dev", description: "Local reference server for staging, diffing, and committing in a local repository.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers/tree/main/src/git" },
+  { slug: "aws", name: "AWS Lambda / S3", category: "DevOps", description: "AWS Labs official servers (Lambda, S3, CloudWatch) — run locally with IAM keys.", connect: "local", docs_url: "https://github.com/awslabs/mcp" },
+  { slug: "heroku", name: "Heroku", category: "DevOps", description: "Community server wrapping the Heroku CLI — runs locally.", connect: "local", docs_url: "https://github.com/heroku/heroku-cli-mcp-server" },
+  { slug: "render", name: "Render", category: "DevOps", description: "Community/local server for Render services — uses a Render API key.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "milvus", name: "Milvus", category: "Data", description: "Zilliz MCP server for Milvus vector search — run locally or against Zilliz Cloud.", connect: "local", docs_url: "https://github.com/zilliztech/mcp-server-milvus" },
+  { slug: "minio", name: "MinIO / S3", category: "Data", description: "Official MinIO server for object storage — local or cloud.", connect: "local", docs_url: "https://github.com/minio/mcp-server-minio" },
+  { slug: "llamaindex", name: "LlamaIndex", category: "Ops", description: "Community server bridging LlamaIndex tooling — runs locally.", connect: "local", docs_url: "https://github.com/run-llama/llama-index-tool-mcp" },
+  { slug: "coda", name: "Coda", category: "Docs", description: "Community/local server for Coda docs — uses a Coda API token.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "google-drive", name: "Google Drive / Docs", category: "Docs", description: "Community/local server for Google Drive and Docs — needs desktop OAuth credentials.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "obsidian", name: "Obsidian / Markdown", category: "Docs", description: "Community/local server for Obsidian vaults and Markdown notes.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "openai", name: "OpenAI Platform", category: "AI", description: "No hosted MCP yet — run a community server locally with your API key.", connect: "local", docs_url: "https://platform.openai.com" },
+  { slug: "anthropic", name: "Anthropic Workbench", category: "AI", description: "Use the Workbench console — or run a community MCP server with your API key.", connect: "local", docs_url: "https://console.anthropic.com/workbench" },
+  { slug: "brave", name: "Brave Search", category: "Search", description: "Official reference server — needs a Brave Search API key.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search" },
+  { slug: "jina", name: "Jina AI Reader", category: "Search", description: "Community/local server wrapping the Jina Reader API.", connect: "local", docs_url: "https://jina.ai/reader" },
+  { slug: "discord", name: "Discord", category: "Messaging", description: "Community/local server — uses a Discord bot token.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
+  { slug: "twilio", name: "Twilio", category: "Messaging", description: "Community/local server — needs Twilio Account SID + Auth Token.", connect: "local", docs_url: "https://github.com/modelcontextprotocol/servers" },
 ];
 
 async function upsertAppPlugin(workspaceId: string, config: Record<string, unknown>) {
@@ -1677,15 +1738,20 @@ function publicApp(item: AppCatalogItem, installed: boolean) {
       ? "oauth"
       : item.connect === "mcp_token"
         ? "token"
-        : "public",
+        : item.connect === "local"
+          ? "local"
+          : "public",
     provider: item.provider ?? item.slug,
     token_label: item.token_label ?? "",
     token_hint: item.token_hint ?? "",
+    auth_header: item.auth_header ?? "",
+    second_auth: item.second_auth ?? null,
+    docs_url: item.docs_url ?? "",
     installed,
   };
 }
 
-async function connectMcpApp(item: AppCatalogItem, auth: CopilotAuth, token = "") {
+async function connectMcpApp(item: AppCatalogItem, auth: CopilotAuth, token = "", secondToken = "") {
   const ws = auth.workspace_id;
   let mcpUrl = textOrEmpty(item.mcp_url);
   if (!mcpUrl) throw new Error("mcp_url required");
@@ -1705,6 +1771,12 @@ async function connectMcpApp(item: AppCatalogItem, auth: CopilotAuth, token = ""
         name: item.name,
         token_label: item.token_label || `${item.name} token`,
         token_hint: item.token_hint || "Paste a least-privilege token for this platform.",
+        ...(item.second_auth
+          ? {
+              second_token_label: item.second_auth.label,
+              second_token_hint: `Also pass second_token — it is sent as the ${item.second_auth.header} header.`,
+            }
+          : {}),
       };
     }
     if (zapier) {
@@ -1729,6 +1801,32 @@ async function connectMcpApp(item: AppCatalogItem, auth: CopilotAuth, token = ""
           connected_at: new Date().toISOString(),
         };
       }
+    } else if (item.query_token_param) {
+      // Token-in-URL flow (e.g. Tavily): https://…/mcp?<param>=<token>
+      const encrypted = await encryptSecret(credential, ws);
+      authType = "query_token";
+      authConfig = {
+        provider,
+        query_token_encrypted: encrypted,
+        query_token_hint: encrypted.hint,
+        query_token_param: item.query_token_param,
+        token_transport: "query",
+        connected_at: new Date().toISOString(),
+      };
+    } else if (item.auth_header) {
+      // Custom-header auth (e.g. AgentMail x-api-key, Datadog DD-API-KEY,
+      // PagerDuty Authorization). Mirrors what the dashboard sends when the
+      // user connects the same preset from /dashboard/mcp.
+      const headers: Record<string, string> = { [item.auth_header]: credential };
+      if (item.second_auth && textOrEmpty(secondToken)) {
+        headers[item.second_auth.header] = textOrEmpty(secondToken);
+      }
+      authType = "headers";
+      authConfig = {
+        provider,
+        headers,
+        connected_at: new Date().toISOString(),
+      };
     } else {
       const encrypted = await encryptSecret(credential, ws);
       authType = "bearer";
@@ -1838,10 +1936,34 @@ async function handleAppsCommand(name: string, args: Record<string, unknown>, au
   }
 
   if (name === "apps.connect") {
-    const slug = textOrEmpty(args.slug).toLowerCase();
-    if (!slug) throw new Error("slug required");
-    const item = APP_CATALOG.find((candidate) => candidate.slug === slug);
-    if (!item) throw new Error("app not found");
+    const slug = textOrEmpty(args.slug).trim().toLowerCase();
+    const query = textOrEmpty(args.name).trim().toLowerCase() || slug;
+    if (!query) throw new Error("slug required");
+    // Resolve by slug first, then fall back to a normalized name/provider
+    // match so the model's best guess ("Hugging Face", "hugging-face") lands
+    // instead of erroring and burning retry turns.
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const normalized = normalize(query);
+    const item = APP_CATALOG.find((candidate) => candidate.slug === slug) ??
+      APP_CATALOG.find((candidate) =>
+        normalize(candidate.slug) === normalized ||
+        normalize(candidate.name) === normalized ||
+        normalize(candidate.provider ?? "") === normalized);
+    if (!item) {
+      const available = APP_CATALOG.map((candidate) => candidate.slug).join(", ");
+      throw new Error(`app not found: "${query}". Run apps.list first, or use one of: ${available}`);
+    }
+
+    if (item.connect === "local") {
+      return {
+        mode: "local_setup_required",
+        slug: item.slug,
+        name: item.name,
+        detail: `${item.name} runs as a local stdio MCP server on the user's machine and cannot be connected from the cloud dashboard.`,
+        docs_url: item.docs_url ?? "",
+        next_step: "Share the docs link and tell the user to run the server locally, then add it via Dashboard → MCP → Add custom server.",
+      };
+    }
 
     if (item.connect === "connector_oauth") {
       if ((item.provider ?? item.slug) === "github") {
@@ -1868,7 +1990,7 @@ async function handleAppsCommand(name: string, args: Record<string, unknown>, au
     }
 
     if (item.connect === "mcp_public" || item.connect === "mcp_token") {
-      return await connectMcpApp(item, auth, textOrEmpty(args.token));
+      return await connectMcpApp(item, auth, textOrEmpty(args.token), textOrEmpty(args.second_token));
     }
   }
 
@@ -1887,23 +2009,32 @@ async function syncMcpServer(workspaceId: string, serverId: string) {
     const requestUrl = await mcpRequestUrl(server.url, server.auth_config, workspaceId);
     headers = await initializeMcpSession(requestUrl, headers);
 
-    const res = await fetch(requestUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: crypto.randomUUID(),
-        method: "tools/list",
-        params: {},
-      }),
-    });
-    const data = await readMcpJsonResponse(res);
-    if (!res.ok || data.error) {
-      throw new Error(mcpErrorMessage(data, `tools/list failed: HTTP ${res.status}`));
-    }
+    // Follow tools/list nextCursor pagination (cap pages defensively).
+    const tools: unknown[] = [];
+    let cursor = "";
+    let pages = 0;
+    do {
+      const res = await fetch(requestUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: crypto.randomUUID(),
+          method: "tools/list",
+          params: cursor ? { cursor } : {},
+        }),
+      });
+      const data = await readMcpJsonResponse(res);
+      if (!res.ok || data.error) {
+        throw new Error(mcpErrorMessage(data, `tools/list failed: HTTP ${res.status}`));
+      }
 
-    const result = objectOrEmpty((data as Record<string, unknown>).result);
-    const tools = Array.isArray(result.tools) ? result.tools : [];
+      const result = objectOrEmpty((data as Record<string, unknown>).result);
+      const pageTools = Array.isArray(result.tools) ? result.tools : [];
+      tools.push(...pageTools);
+      cursor = typeof result.nextCursor === "string" && result.nextCursor ? result.nextCursor : "";
+      pages++;
+    } while (cursor && pages < 10);
     await execute(`DELETE FROM mcp_tools WHERE mcp_server_id = $1`, [serverId]);
     for (const tool of tools) {
       const t = tool as Record<string, unknown>;
