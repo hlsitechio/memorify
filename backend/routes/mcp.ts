@@ -1400,11 +1400,16 @@ async function processSingleRpc(
       // Use a fixed workspace_id for OAuth-registered clients
       const workspaceId = "oauth_public";
 
-      await query(
-        `INSERT INTO mcp_oauth_clients (workspace_id, client_id, client_secret, name, redirect_uris, scopes)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [workspaceId, clientId, secretHash, clientName, redirectUris, scopes],
-      );
+      try {
+        await query(
+          `INSERT INTO mcp_oauth_clients (workspace_id, client_id, client_secret, name, redirect_uris, scopes)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [workspaceId, clientId, secretHash, clientName, redirectUris, scopes],
+        );
+      } catch (e) {
+        console.error("oauth register insert failed:", e);
+        return json({ error: "server_error", error_description: (e as Error).message }, 500);
+      }
 
       return json({
         client_id: clientId,
