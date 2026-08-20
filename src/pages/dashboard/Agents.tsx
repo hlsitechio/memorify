@@ -5,7 +5,7 @@ import {
   Check,
   Copy,
   Download,
-  ExternalLink,
+
   KeyRound,
   LayoutGrid,
   Plus,
@@ -25,7 +25,7 @@ import {
   AlertTriangle,
   Zap,
   Sliders,
-  BookOpen,
+
   Activity,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -989,20 +989,15 @@ export function AgentsManager() {
           </Card>
         </div>
 
-        {/* Agents Listing & Library Tabs */}
-        <Tabs defaultValue="connected" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="connected" className="gap-2">
-              <Activity className="h-4 w-4" />
+        {/* Connected Agents */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Connected Agents ({connected.length})
-            </TabsTrigger>
-            <TabsTrigger value="library" className="gap-2">
-              <BookOpen className="h-4 w-4" />
-              Client Catalog & Guides ({CATALOG.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="connected" className="space-y-3">
+            </h3>
+          </div>
+          <div className="space-y-3">
             {connected.length === 0 ? (
               <div className="rounded-xl border border-dashed p-10 text-center bg-card/40">
                 <Bot className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
@@ -1134,62 +1129,22 @@ export function AgentsManager() {
                 })}
               </div>
             )}
-          </TabsContent>
+          </div>
 
-          <TabsContent value="library">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {CATALOG.map((item) => {
-                return (
-                  <Card key={item.kind} className="flex flex-col justify-between hover:border-primary/40 transition-colors">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className={cn("p-2 rounded-lg", item.bgAccent)}>
-                          <BrandMark kind={item.kind} className="h-5 w-5" />
-                        </div>
-                        <Badge variant="secondary" className="capitalize text-[10px] font-mono">
-                          {item.category}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-base">{item.name}</CardTitle>
-                      <CardDescription className="text-xs">{item.tagline}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="min-h-12 text-xs text-muted-foreground leading-relaxed">{item.description}</p>
-                      <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-                        <Button size="sm" onClick={() => createAgent(item.kind)} disabled={!!connecting || !workspaceId} className="flex-1">
-                          <Plus className="mr-1.5 h-3.5 w-3.5" />
-                          Quick Connect
-                        </Button>
-                        {item.installUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={item.installUrl} target="_blank" rel="noreferrer">
-                              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                              {item.installLabel ?? "Docs"}
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          <div className="rounded-xl border bg-muted/20 p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Upcoming Native Connectors</span>
+              <Badge variant="outline" className="text-[10px]">Roadmap</Badge>
             </div>
-
-            <div className="mt-6 rounded-xl border bg-muted/20 p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Upcoming Native Connectors</span>
-                <Badge variant="outline" className="text-[10px]">Roadmap</Badge>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {COMING_SOON.map((label) => (
-                  <Badge key={label} variant="secondary" className="text-xs py-1 px-2.5 bg-background/80 border border-border/80">
-                    {label}
-                  </Badge>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {COMING_SOON.map((label) => (
+                <Badge key={label} variant="secondary" className="text-xs py-1 px-2.5 bg-background/80 border border-border/80">
+                  {label}
+                </Badge>
+              ))}
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
 
       {/* Modernized Full Connection Setup Wizard Modal */}
