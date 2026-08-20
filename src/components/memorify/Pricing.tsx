@@ -1,5 +1,6 @@
 import { ArrowUpRight, Database, Sparkles } from "lucide-react";
 
+// Live one-time Stripe payment links (LIVE mode, acct_1U3xt6RldxEycfsH)
 const packs = [
   {
     id: "starter",
@@ -11,6 +12,7 @@ const packs = [
     tone: "cyan",
     popular: false,
     note: "Five hundred persistent memories for focused agent workflows.",
+    href: "https://buy.stripe.com/cNiaEZez1gbp48ybVfbEA00",
   },
   {
     id: "popular",
@@ -22,6 +24,7 @@ const packs = [
     tone: "popular",
     popular: true,
     note: "Two thousand five hundred memory credits for active multi-agent use.",
+    href: "https://buy.stripe.com/cNi14p76zf7leNcf7rbEA01",
   },
   {
     id: "value",
@@ -33,6 +36,7 @@ const packs = [
     tone: "blue",
     popular: false,
     note: "Ten thousand memory credits — power capacity for your entire fleet.",
+    href: "https://buy.stripe.com/00w3cxbmP1gv20q8J3bEA02",
   },
 ];
 
@@ -84,9 +88,8 @@ export const Pricing = () => (
               <span>Billing model</span>
               <strong className="text-cyan-200">Pay as you go</strong>
             </div>
-            {/* TODO: point at live Stripe payment links (Dashboard → Payment links, LIVE mode) once created */}
             <a
-              href="/auth"
+              href={pack.href}
               className="mem-pack-link mem-focus"
             >
               Get started
