@@ -10,6 +10,7 @@ import { handleV1 } from "./v1.ts";
 import { createAgentToken, revokeAgentToken, listAgentTokens, type Scope } from "../lib/agent-token.ts";
 import { query, queryOne, execute } from "../lib/db.ts";
 import { verifyClerkJwt } from "../lib/clerk.ts";
+import { fetchWithTimeout, mcpOAuthAccessToken } from "../lib/mcp-oauth.ts";
 
 const ZAPIER_MCP_URL = "https://mcp.zapier.com/api/v1/connect";
 const ZAPIER_OLD_MCP_URL = "https://mcp.zapier.com/api/mcp/mcp";
@@ -391,7 +392,10 @@ async function decryptSecret(payload: unknown, workspaceId: string): Promise<str
   return new TextDecoder().decode(plaintext);
 }
 
-async function remoteAuthHeaders(server: { auth_type: string; auth_config: Record<string, unknown> }, workspaceId: string): Promise<Record<string, string>> {
+async function remoteAuthHeaders(
+  server: { id?: string; url?: string; auth_type: string; auth_config: Record<string, unknown> },
+  workspaceId: string,
+): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     Accept: "application/json, text/event-stream",
     "Content-Type": "application/json",
@@ -403,8 +407,16 @@ async function remoteAuthHeaders(server: { auth_type: string; auth_config: Recor
     const token = await decryptSecret(config.bearer_token_encrypted, workspaceId);
     if (token) headers.Authorization = `Bearer ${token}`;
   } else if (server.auth_type === "oauth") {
-    const encrypted = config.access_token_encrypted ?? config.token_encrypted;
-    const token = encrypted ? await decryptSecret(encrypted, workspaceId) : textOrEmpty(config.access_token);
+    // Auto-refreshing path: short-lived access tokens (Clerk ~60s) are
+    // renewed transparently and the rotated tokens persisted.
+    const token = server.id && server.url
+      ? await mcpOAuthAccessToken(
+        { id: server.id, url: server.url, auth_type: server.auth_type, auth_config: config },
+        workspaceId,
+      )
+      : (config.access_token_encrypted ?? config.token_encrypted)
+        ? await decryptSecret(config.access_token_encrypted ?? config.token_encrypted, workspaceId)
+        : textOrEmpty(config.access_token);
     if (token) headers.Authorization = `Bearer ${token}`;
   } else if (server.auth_type === "query_token") {
     // token is applied to the URL by remoteMcpRequestUrl
@@ -476,7 +488,7 @@ async function readRemoteMcpJson(res: Response) {
 }
 
 async function initializeRemoteMcpSession(url: string, headers: Record<string, string>): Promise<Record<string, string>> {
-  const initRes = await fetch(url, {
+  const initRes = await fetchWithTimeout(url, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -489,15 +501,13 @@ async function initializeRemoteMcpSession(url: string, headers: Record<string, s
         clientInfo: { name: "memorify-mcp-proxy", version: "0.1.0" },
       },
     }),
-  }).catch(() => null);
-  if (!initRes) return headers;
-
+  });
   const sessionId = initRes.headers.get("MCP-Session-Id") || initRes.headers.get("Mcp-Session-Id") || initRes.headers.get("mcp-session-id");
   await readRemoteMcpJson(initRes).catch(() => null);
   if (!sessionId) return headers;
 
   const sessionHeaders = { ...headers, "MCP-Session-Id": sessionId };
-  await fetch(url, {
+  await fetchWithTimeout(url, {
     method: "POST",
     headers: sessionHeaders,
     body: JSON.stringify({
@@ -505,7 +515,7 @@ async function initializeRemoteMcpSession(url: string, headers: Record<string, s
       method: "notifications/initialized",
       params: {},
     }),
-  }).catch(() => null);
+  });
   return sessionHeaders;
 }
 
@@ -525,8 +535,8 @@ function logAgentEvent(
 }
 
 async function callDynamicTool(workspaceId: string, dynamicTool: DynamicTool, args: Record<string, unknown>) {
-  const server = await queryOne<{ url: string; auth_type: string; auth_config: Record<string, unknown> }>(
-    `SELECT url, auth_type, auth_config
+  const server = await queryOne<{ id: string; url: string; auth_type: string; auth_config: Record<string, unknown> }>(
+    `SELECT id, url, auth_type, auth_config
      FROM mcp_servers
      WHERE id = $1 AND workspace_id = $2 AND enabled = true`,
     [dynamicTool.server_id, workspaceId],
@@ -536,7 +546,7 @@ async function callDynamicTool(workspaceId: string, dynamicTool: DynamicTool, ar
   let headers = await remoteAuthHeaders(server, workspaceId);
   const requestUrl = await remoteMcpRequestUrl(server.url, server.auth_config, workspaceId);
   headers = await initializeRemoteMcpSession(requestUrl, headers);
-  const res = await fetch(requestUrl, {
+  const res = await fetchWithTimeout(requestUrl, {
     method: "POST",
     headers,
     body: JSON.stringify({

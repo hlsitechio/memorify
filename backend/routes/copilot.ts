@@ -6,6 +6,14 @@ import { extractBearer, verifyClerkJwt, type ClerkClaims } from "../lib/clerk.ts
 import { execute, query, queryOne } from "../lib/db.ts";
 import { processDocumentForRag, searchDocuments } from "../lib/rag.ts";
 import { createAgentToken, listAgentTokens, listWorkspaceAgents, mintAgentToken, revokeAgent, revokeAgentToken, VALID_SCOPES } from "../lib/agent-token.ts";
+import {
+  discoverMcpOAuthEndpoints,
+  fetchWithTimeout,
+  mcpOAuthAccessToken,
+  mcpOAuthScopeString,
+  registerMcpOAuthClient,
+  type McpOAuthEndpoints,
+} from "../lib/mcp-oauth.ts";
 
 type CopilotAuth = {
   user_id: string;
@@ -121,6 +129,115 @@ function mcpOAuthClient(provider: string, fallbackUrl = "") {
     callbackUrl: Deno.env.get(`MCP_OAUTH_${key}_CALLBACK_URL`) || `${appOrigin()}/api/mcp/oauth/callback`,
     resource: Deno.env.get(`MCP_OAUTH_${key}_RESOURCE`) || fallbackUrl,
   };
+}
+
+type ResolvedMcpOAuthClient = {
+  clientId: string;
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  scopes: string;
+  callbackUrl: string;
+  resource: string;
+  source: "env" | "stored" | "dynamic";
+};
+
+/**
+ * Resolve the OAuth client for an MCP provider, in order:
+ *   1. complete env override (MCP_OAUTH_<PROVIDER>_*),
+ *   2. a client previously registered via dynamic registration,
+ *   3. RFC 9728/8414 discovery + RFC 7591 dynamic registration (zero-config).
+ * Registrations are persisted per workspace/provider so reconnects reuse them.
+ */
+async function resolveMcpOAuthClient(
+  provider: string,
+  serverUrl: string,
+  workspaceId: string,
+  allowRegister = true,
+): Promise<ResolvedMcpOAuthClient> {
+  const env = mcpOAuthClient(provider, serverUrl);
+  if (env.clientId && env.authorizeUrl && env.tokenUrl) {
+    return {
+      clientId: env.clientId,
+      clientSecret: env.clientSecret,
+      authorizeUrl: env.authorizeUrl,
+      tokenUrl: env.tokenUrl,
+      scopes: env.scopes,
+      callbackUrl: env.callbackUrl,
+      resource: env.resource,
+      source: "env",
+    };
+  }
+
+  const stored = await getConfigObject(workspaceId, `oauth.mcp.client.${provider}`);
+  const storedClientId = textOrEmpty(stored.client_id);
+  const storedAuthorizeUrl = textOrEmpty(stored.authorize_url);
+  const storedTokenUrl = textOrEmpty(stored.token_url);
+  if (storedClientId && storedAuthorizeUrl && storedTokenUrl) {
+    return {
+      clientId: storedClientId,
+      clientSecret: textOrEmpty(stored.client_secret),
+      authorizeUrl: storedAuthorizeUrl,
+      tokenUrl: storedTokenUrl,
+      scopes: textOrEmpty(stored.scopes),
+      callbackUrl: env.callbackUrl,
+      resource: textOrEmpty(stored.resource) || env.resource,
+      source: "stored",
+    };
+  }
+
+  let endpoints: McpOAuthEndpoints;
+  try {
+    endpoints = await discoverMcpOAuthEndpoints(serverUrl);
+  } catch (e) {
+    const envPrefix = `MCP_OAUTH_${envKeyProvider(provider)}`;
+    throw new Error(
+      `${(e as Error).message}. To use a pre-registered client instead, set ${envPrefix}_CLIENT_ID, ${envPrefix}_AUTHORIZE_URL, and ${envPrefix}_TOKEN_URL.`,
+    );
+  }
+
+  let clientId = env.clientId;
+  let clientSecret = env.clientSecret;
+  if (!clientId) {
+    if (!allowRegister || !endpoints.registrationEndpoint) {
+      const envPrefix = `MCP_OAUTH_${envKeyProvider(provider)}`;
+      throw new Error(
+        endpoints.registrationEndpoint
+          ? `MCP OAuth client for ${provider} is not registered yet — reconnect the server, or set ${envPrefix}_CLIENT_ID.`
+          : `${provider} does not support dynamic client registration. Set ${envPrefix}_CLIENT_ID, ${envPrefix}_AUTHORIZE_URL, and ${envPrefix}_TOKEN_URL.`,
+      );
+    }
+    const registered = await registerMcpOAuthClient(endpoints, env.callbackUrl);
+    clientId = registered.clientId;
+    clientSecret = registered.clientSecret;
+  }
+
+  const resolved: ResolvedMcpOAuthClient = {
+    clientId,
+    clientSecret,
+    authorizeUrl: endpoints.authorizationEndpoint,
+    tokenUrl: endpoints.tokenEndpoint,
+    scopes: env.scopes || mcpOAuthScopeString(endpoints),
+    callbackUrl: env.callbackUrl,
+    resource: env.resource || endpoints.resource,
+    source: "dynamic",
+  };
+  await upsertConfigValue(
+    workspaceId,
+    `oauth.mcp.client.${provider}`,
+    {
+      client_id: resolved.clientId,
+      client_secret: resolved.clientSecret,
+      authorize_url: resolved.authorizeUrl,
+      token_url: resolved.tokenUrl,
+      scopes: resolved.scopes,
+      resource: resolved.resource,
+      registration_endpoint: endpoints.registrationEndpoint,
+      registered_at: new Date().toISOString(),
+    },
+    "MCP OAuth client (dynamic registration or env override)",
+  );
+  return resolved;
 }
 
 function parseJson(raw: string | undefined): unknown {
@@ -846,15 +963,16 @@ async function startMcpOAuth(args: Record<string, unknown>, auth: CopilotAuth) {
   const transport = textOrEmpty(args.transport) || "http";
   if (!["http", "sse"].includes(transport)) throw new Error("transport must be http or sse");
 
-  const client = mcpOAuthClient(provider, serverUrl);
-  const envPrefix = `MCP_OAUTH_${envKeyProvider(provider)}`;
-  if (!client.clientId || !client.authorizeUrl || !client.tokenUrl) {
+  let client: ResolvedMcpOAuthClient;
+  try {
+    client = await resolveMcpOAuthClient(provider, serverUrl, auth.workspace_id);
+  } catch (e) {
     return {
       ok: false,
       error: "mcp_oauth_not_configured",
       provider,
-      detail: `Set ${envPrefix}_CLIENT_ID, ${envPrefix}_AUTHORIZE_URL, and ${envPrefix}_TOKEN_URL in Netlify. Add ${envPrefix}_CLIENT_SECRET when the provider requires a confidential client.`,
-      callback_url: client.callbackUrl,
+      detail: (e as Error).message,
+      callback_url: `${appOrigin()}/api/mcp/oauth/callback`,
     };
   }
 
@@ -939,8 +1057,12 @@ export async function handleMcpOAuthCallback(req: Request): Promise<Response> {
     return mcpOAuthRedirect("error", "oauth_state_expired");
   }
 
-  const client = mcpOAuthClient(provider, serverUrl);
-  if (!client.clientId || !client.tokenUrl) return mcpOAuthRedirect("error", "mcp_oauth_not_configured", { provider });
+  let client: ResolvedMcpOAuthClient;
+  try {
+    client = await resolveMcpOAuthClient(provider, serverUrl, workspaceId, false);
+  } catch (e) {
+    return mcpOAuthRedirect("error", (e as Error).message, { provider });
+  }
 
   const tokenBody = new URLSearchParams({
     grant_type: "authorization_code",
@@ -952,7 +1074,7 @@ export async function handleMcpOAuthCallback(req: Request): Promise<Response> {
   if (client.clientSecret) tokenBody.set("client_secret", client.clientSecret);
   if (client.resource) tokenBody.set("resource", client.resource);
 
-  const tokenRes = await fetch(client.tokenUrl, {
+  const tokenRes = await fetchWithTimeout(client.tokenUrl, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -966,17 +1088,24 @@ export async function handleMcpOAuthCallback(req: Request): Promise<Response> {
     return mcpOAuthRedirect("error", textOrEmpty(tokenData.error) || `token_http_${tokenRes.status}`, { provider });
   }
 
+  const expiresIn = typeof tokenData.expires_in === "number" && tokenData.expires_in > 0 ? tokenData.expires_in : 3600;
   const accessTokenEncrypted = await encryptSecret(accessToken, workspaceId);
   const refreshToken = textOrEmpty(tokenData.refresh_token);
   const authConfig: Record<string, unknown> = {
     provider,
+    client_id: client.clientId,
+    token_url: client.tokenUrl,
     access_token_encrypted: accessTokenEncrypted,
     access_token_hint: accessTokenEncrypted.hint,
+    access_token_expires_at: Date.now() + expiresIn * 1000,
     token_type: textOrEmpty(tokenData.token_type) || "Bearer",
     scope: textOrEmpty(tokenData.scope),
     resource: client.resource || serverUrl,
     connected_at: new Date().toISOString(),
   };
+  if (client.clientSecret) {
+    authConfig.client_secret_encrypted = await encryptSecret(client.clientSecret, workspaceId);
+  }
   if (refreshToken) {
     const refreshTokenEncrypted = await encryptSecret(refreshToken, workspaceId);
     authConfig.refresh_token_encrypted = refreshTokenEncrypted;
@@ -1386,7 +1515,10 @@ function redactServer<T extends Record<string, unknown>>(row: T): T {
   return copy;
 }
 
-async function authHeaders(server: { auth_type: string; auth_config: Record<string, unknown> }, workspaceId?: string): Promise<Record<string, string>> {
+async function authHeaders(
+  server: { id?: string; url?: string; auth_type: string; auth_config: Record<string, unknown> },
+  workspaceId?: string,
+): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     Accept: "application/json, text/event-stream",
     "Content-Type": "application/json",
@@ -1398,8 +1530,16 @@ async function authHeaders(server: { auth_type: string; auth_config: Record<stri
     const token = workspaceId ? await decryptSecret(config.bearer_token_encrypted, workspaceId) : null;
     if (token) headers.Authorization = `Bearer ${token}`;
   } else if (server.auth_type === "oauth") {
-    const encrypted = config.access_token_encrypted ?? config.token_encrypted;
-    const token = workspaceId && encrypted ? await decryptSecret(encrypted, workspaceId) : textOrEmpty(config.access_token);
+    // Auto-refreshing path: short-lived access tokens (Clerk ~60s) are
+    // renewed transparently and the rotated tokens persisted.
+    const token = workspaceId && server.id && server.url
+      ? await mcpOAuthAccessToken(
+        { id: server.id, url: server.url, auth_type: server.auth_type, auth_config: config },
+        workspaceId,
+      )
+      : (config.access_token_encrypted ?? config.token_encrypted) && workspaceId
+        ? await decryptSecret(config.access_token_encrypted ?? config.token_encrypted, workspaceId)
+        : textOrEmpty(config.access_token);
     if (token) headers.Authorization = `Bearer ${token}`;
   } else if (server.auth_type === "api_key" && config.api_key) {
     headers["X-API-Key"] = String(config.api_key);
@@ -1563,7 +1703,7 @@ function mcpErrorMessage(data: Record<string, unknown>, fallback: string): strin
 }
 
 async function initializeMcpSession(url: string, headers: Record<string, string>): Promise<Record<string, string>> {
-  const initRes = await fetch(url, {
+  const initRes = await fetchWithTimeout(url, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -1576,15 +1716,14 @@ async function initializeMcpSession(url: string, headers: Record<string, string>
         clientInfo: { name: "memorify-copilot", version: "0.1.0" },
       },
     }),
-  }).catch(() => null);
-  if (!initRes) return headers;
+  });
 
   const sessionId = initRes.headers.get("MCP-Session-Id") || initRes.headers.get("Mcp-Session-Id") || initRes.headers.get("mcp-session-id");
   await readMcpJsonResponse(initRes).catch(() => null);
   if (!sessionId) return headers;
 
   const sessionHeaders = { ...headers, "MCP-Session-Id": sessionId };
-  await fetch(url, {
+  await fetchWithTimeout(url, {
     method: "POST",
     headers: sessionHeaders,
     body: JSON.stringify({
@@ -1592,7 +1731,7 @@ async function initializeMcpSession(url: string, headers: Record<string, string>
       method: "notifications/initialized",
       params: {},
     }),
-  }).catch(() => null);
+  });
   return sessionHeaders;
 }
 
@@ -2004,70 +2143,86 @@ async function syncMcpServer(workspaceId: string, serverId: string) {
   );
   if (!server) throw new Error("server not found or disabled");
 
-  let headers = await authHeaders(server, workspaceId);
-  try {
-    const requestUrl = await mcpRequestUrl(server.url, server.auth_config, workspaceId);
-    headers = await initializeMcpSession(requestUrl, headers);
+  const requestUrl = await mcpRequestUrl(server.url, server.auth_config, workspaceId);
+  let lastError: unknown = null;
 
-    // Follow tools/list nextCursor pagination (cap pages defensively).
-    const tools: unknown[] = [];
-    let cursor = "";
-    let pages = 0;
-    do {
-      const res = await fetch(requestUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: crypto.randomUUID(),
-          method: "tools/list",
-          params: cursor ? { cursor } : {},
-        }),
-      });
-      const data = await readMcpJsonResponse(res);
-      if (!res.ok || data.error) {
-        throw new Error(mcpErrorMessage(data, `tools/list failed: HTTP ${res.status}`));
-      }
+  // One retry: remote MCP servers (e.g. AgentMail) can be slow or flaky, and
+  // a single transient failure previously left the server with 0 tools.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      let headers = await authHeaders(server, workspaceId);
+      headers = await initializeMcpSession(requestUrl, headers);
 
-      const result = objectOrEmpty((data as Record<string, unknown>).result);
-      const pageTools = Array.isArray(result.tools) ? result.tools : [];
-      tools.push(...pageTools);
-      cursor = typeof result.nextCursor === "string" && result.nextCursor ? result.nextCursor : "";
-      pages++;
-    } while (cursor && pages < 10);
-    await execute(`DELETE FROM mcp_tools WHERE mcp_server_id = $1`, [serverId]);
-    for (const tool of tools) {
-      const t = tool as Record<string, unknown>;
-      const name = textOrEmpty(t.name);
-      if (!name) continue;
-      await execute(
-        `INSERT INTO mcp_tools (mcp_server_id, name, description, input_schema, enabled)
-         VALUES ($1, $2, $3, $4::jsonb, true)`,
-        [
+      // Follow tools/list nextCursor pagination (cap pages defensively).
+      const tools: unknown[] = [];
+      let cursor = "";
+      let pages = 0;
+      do {
+        const res = await fetchWithTimeout(requestUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: crypto.randomUUID(),
+            method: "tools/list",
+            params: cursor ? { cursor } : {},
+          }),
+        });
+        const data = await readMcpJsonResponse(res);
+        if (!res.ok || data.error) {
+          throw new Error(mcpErrorMessage(data, `tools/list failed: HTTP ${res.status}`));
+        }
+
+        const result = objectOrEmpty((data as Record<string, unknown>).result);
+        const pageTools = Array.isArray(result.tools) ? result.tools : [];
+        tools.push(...pageTools);
+        cursor = typeof result.nextCursor === "string" && result.nextCursor ? result.nextCursor : "";
+        pages++;
+      } while (cursor && pages < 10);
+
+      await execute(`DELETE FROM mcp_tools WHERE mcp_server_id = $1`, [serverId]);
+      // Single batched INSERT instead of one round-trip per tool.
+      const rows: string[] = [];
+      const values: unknown[] = [];
+      for (const tool of tools) {
+        const t = tool as Record<string, unknown>;
+        const name = textOrEmpty(t.name);
+        if (!name) continue;
+        const base = values.length;
+        rows.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}::jsonb, true)`);
+        values.push(
           serverId,
           name,
           typeof t.description === "string" ? t.description : null,
           JSON.stringify(t.inputSchema ?? t.parameters ?? {}),
-        ],
+        );
+      }
+      if (rows.length) {
+        await execute(
+          `INSERT INTO mcp_tools (mcp_server_id, name, description, input_schema, enabled) VALUES ${rows.join(", ")}`,
+          values,
+        );
+      }
+
+      await execute(
+        `UPDATE mcp_servers SET last_handshake_at = now(), last_error = null, updated_at = now()
+         WHERE id = $1 AND workspace_id = $2`,
+        [serverId, workspaceId],
       );
+
+      return { server_id: serverId, tools: tools.length };
+    } catch (e) {
+      lastError = e;
     }
-
-    await execute(
-      `UPDATE mcp_servers SET last_handshake_at = now(), last_error = null, updated_at = now()
-       WHERE id = $1 AND workspace_id = $2`,
-      [serverId, workspaceId],
-    );
-
-    return { server_id: serverId, tools: tools.length };
-  } catch (e) {
-    const message = (e as Error).message;
-    await execute(
-      `UPDATE mcp_servers SET last_error = $1, updated_at = now()
-       WHERE id = $2 AND workspace_id = $3`,
-      [message, serverId, workspaceId],
-    ).catch(() => {});
-    throw e;
   }
+
+  const message = (lastError as Error)?.message || "tools/list failed";
+  await execute(
+    `UPDATE mcp_servers SET last_error = $1, updated_at = now()
+     WHERE id = $2 AND workspace_id = $3`,
+    [message, serverId, workspaceId],
+  ).catch(() => {});
+  throw lastError;
 }
 
 async function handleAgentsWorkspaceCommand(name: string, args: Record<string, unknown>, auth: CopilotAuth) {
@@ -3972,8 +4127,8 @@ async function runCopilotCommand(name: string, args: Record<string, unknown>, au
       const serverId = textOrEmpty(args.server_id);
       const tool = textOrEmpty(args.tool);
       if (!serverId || !tool) throw new Error("server_id and tool required");
-      const server = await queryOne<{ url: string; auth_type: string; auth_config: Record<string, unknown> }>(
-        `SELECT s.url, s.auth_type, s.auth_config
+      const server = await queryOne<{ id: string; url: string; auth_type: string; auth_config: Record<string, unknown> }>(
+        `SELECT s.id, s.url, s.auth_type, s.auth_config
          FROM mcp_servers s
          JOIN mcp_tools t ON t.mcp_server_id = s.id
          WHERE s.id = $1 AND s.workspace_id = $2 AND s.enabled = true AND t.name = $3 AND t.enabled = true`,
@@ -3983,7 +4138,7 @@ async function runCopilotCommand(name: string, args: Record<string, unknown>, au
       let headers = await authHeaders(server, ws);
       const requestUrl = await mcpRequestUrl(server.url, server.auth_config, ws);
       headers = await initializeMcpSession(requestUrl, headers);
-      const res = await fetch(requestUrl, {
+      const res = await fetchWithTimeout(requestUrl, {
         method: "POST",
         headers,
         body: JSON.stringify({
