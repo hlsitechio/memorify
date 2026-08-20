@@ -29,7 +29,7 @@ const lanes = [
     number: "04",
     eyebrow: "Control",
     title: "Identity, access, and an event trail",
-    description: "Ultra-low latency global Edge proxy routing (<50ms overhead), agent-bound scoped tokens, and enforced Row Level Security (RLS).",
+    description: "Global Edge proxy routing, agent-bound scoped tokens, and enforced Row Level Security (RLS).",
     tokens: ["whoami", "agent_token_create", "events_log"],
     tone: "amber",
   },

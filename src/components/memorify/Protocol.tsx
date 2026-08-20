@@ -23,7 +23,7 @@ const stages = [
   "id": 2,
   "method": "tools/list"
 }`,
-    resultLabel: "23 built-in tools",
+    resultLabel: "Built-in tools",
     resultItems: ["memory_remember", "documents_search", "skills_run", "mcp_call"],
     tone: "blue",
   },
@@ -68,8 +68,8 @@ export const Protocol = () => {
   const status = useMemorifyStatus();
   const stage = stages[active];
   const stageLabel =
-    stage.method === "tools/list"
-      ? `${status.tools.length > 0 ? status.tools.length : 23} built-in tools`
+    stage.method === "tools/list" && status.tools.length > 0
+      ? `${status.tools.length} built-in tools`
       : stage.resultLabel;
 
   useEffect(() => {
