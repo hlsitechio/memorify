@@ -1718,8 +1718,8 @@ async function processSingleRpc(
       const codeVerifier = params.code_verifier || "";
 
       // Validate client credentials
-      const client = await queryOne<{ id: string; client_secret: string; workspace_id: string; scopes: string[] }>(
-        `SELECT id, client_secret, workspace_id, scopes FROM mcp_oauth_clients WHERE client_id = $1`,
+      const client = await queryOne<{ id: string; client_secret: string; workspace_id: string; scopes: string[]; name: string }>(
+        `SELECT id, client_secret, workspace_id, scopes, name FROM mcp_oauth_clients WHERE client_id = $1`,
         [clientId],
       );
       if (!client) {
@@ -1792,10 +1792,16 @@ async function processSingleRpc(
         // Mark code as consumed
         await query(`UPDATE mcp_oauth_auth_codes SET consumed_at = now() WHERE id = $1`, [authCode.id]);
 
-        // Find or create an agent for this OAuth client
+        // Find or create an agent for this OAuth client. Named after the
+        // registered client (e.g. "Gemini Custom App (OAuth)") so it's
+        // recognizable in the dashboard. Legacy agents created before this
+        // naming used `oauth_<client prefix>` — keep matching them so
+        // refreshes reuse the same agent row instead of duplicating.
+        const agentName = `${client.name} (OAuth)`;
+        const legacyAgentName = `oauth_${clientId.slice(0, 16)}`;
         let agent = await queryOne<{ id: string }>(
-          `SELECT id FROM agents WHERE workspace_id = $1 AND name = $2`,
-          [authCode.workspace_id_claim, `oauth_${clientId.slice(0, 16)}`],
+          `SELECT id FROM agents WHERE workspace_id = $1 AND name IN ($2, $3)`,
+          [authCode.workspace_id_claim, agentName, legacyAgentName],
         );
 
         if (!agent) {
@@ -1804,7 +1810,7 @@ async function processSingleRpc(
             `INSERT INTO agents (workspace_id, name, kind, status, access_level)
              VALUES ($1, $2, 'custom', 'active', 'both')
              RETURNING id`,
-            [authCode.workspace_id_claim, `oauth_${clientId.slice(0, 16)}`],
+            [authCode.workspace_id_claim, agentName],
           );
           agent = newAgent;
         }
@@ -1862,10 +1868,11 @@ async function processSingleRpc(
         // Revoke old refresh token
         await query(`UPDATE mcp_oauth_refresh_tokens SET revoked_at = now() WHERE id = $1`, [stored.id]);
 
-        // Find or create agent
+        // Find or create agent — prefer the client-name-based agent, fall back
+        // to the legacy `oauth_<client prefix>` name (see note above).
         let agent = await queryOne<{ id: string }>(
-          `SELECT id FROM agents WHERE workspace_id = $1 AND name = $2`,
-          [stored.workspace_id_claim, `oauth_${clientId.slice(0, 16)}`],
+          `SELECT id FROM agents WHERE workspace_id = $1 AND name IN ($2, $3)`,
+          [stored.workspace_id_claim, `${client.name} (OAuth)`, `oauth_${clientId.slice(0, 16)}`],
         );
 
         if (!agent) {
@@ -1873,7 +1880,7 @@ async function processSingleRpc(
             `INSERT INTO agents (workspace_id, name, kind, status, access_level)
              VALUES ($1, $2, 'custom', 'active', 'both')
              RETURNING id`,
-            [stored.workspace_id_claim, `oauth_${clientId.slice(0, 16)}`],
+            [stored.workspace_id_claim, `${client.name} (OAuth)`],
           );
           agent = newAgent;
         }

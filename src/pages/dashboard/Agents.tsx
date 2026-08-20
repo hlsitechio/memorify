@@ -27,6 +27,7 @@ import {
   Sliders,
 
   Activity,
+  Fingerprint,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ export type AgentKind =
   | "pi"
   | "cursor"
   | "grok"
+  | "gemini"
   | "windsurf"
   | "custom"
   // Legacy kinds kept so agents already registered in the database still typecheck.
@@ -285,6 +287,21 @@ export const CATALOG: CatalogItem[] = [
     ready: true,
   },
   {
+    kind: "gemini",
+    name: "Gemini / Google AI",
+    tagline: "Google Gemini apps via OAuth 2.0",
+    description:
+      "Connect Gemini (custom apps, Gemini CLI, AI Studio) through standard OAuth 2.0. Register an OAuth client, approve access once, and your agent gets scoped 24h tokens with automatic refresh.",
+    category: "platform",
+    icon: Sparkles,
+    accent: "text-blue-400",
+    bgAccent: "bg-blue-500/10 border-blue-500/30",
+    logo: "/logos/gemini.svg",
+    installUrl: "https://developers.google.com/gemini-code-copilot/docs/mcp-server",
+    installLabel: "Docs",
+    ready: true,
+  },
+  {
     kind: "custom",
     name: "Custom MCP Agent",
     tagline: "cURL, Python, Node.js, REST",
@@ -300,7 +317,6 @@ export const CATALOG: CatalogItem[] = [
 const COMING_SOON = [
   "Zed Editor",
   "Claude Desktop",
-  "Gemini CLI",
   "Antigravity Agent",
   "LangChain / LangGraph",
 ];
@@ -547,6 +563,14 @@ export function AgentsManager() {
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+
+  // OAuth client setup (Gemini & other OAuth-only clients)
+  const [showOAuthDialog, setShowOAuthDialog] = useState(false);
+  const [oauthClientName, setOauthClientName] = useState("Gemini Custom App");
+  const [oauthRedirectUri, setOauthRedirectUri] = useState("");
+  const [oauthRegistering, setOauthRegistering] = useState(false);
+  const [oauthClient, setOauthClient] = useState<{ client_id: string; client_secret: string } | null>(null);
+  const [oauthClients, setOauthClients] = useState<{ client_id: string; name: string }[]>([]);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testState, setTestState] = useState<Record<string, TestState>>({});
 
@@ -591,6 +615,7 @@ export function AgentsManager() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(apiError(body, "Could not load agents"));
       setAgents(body.agents ?? []);
+      setOauthClients(body.oauth_clients ?? []);
     } catch (error: any) {
       toast.error(error?.message ?? "Could not load agents");
     } finally {
@@ -800,8 +825,45 @@ export function AgentsManager() {
   };
 
   const selectKind = (kind: AgentKind) => {
+    if (kind === "gemini") {
+      // Gemini connects via standard OAuth — no bearer token to mint.
+      setOauthClient(null);
+      setOauthRedirectUri("");
+      setShowOAuthDialog(true);
+      return;
+    }
     setSelectedKind(kind);
     setName(kindMeta(kind).name);
+  };
+
+  const registerOAuthClient = async () => {
+    const redirectUri = oauthRedirectUri.trim();
+    if (!/^https:\/\//.test(redirectUri)) {
+      toast.error("Paste the full https:// redirect URI your client shows");
+      return;
+    }
+    setOauthRegistering(true);
+    try {
+      const res = await fetch(`${MCP_URL}/oauth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_name: oauthClientName.trim() || "Custom OAuth Client",
+          redirect_uris: [redirectUri],
+          scope: "mcp:read mcp:write",
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.client_id || !body.client_secret) {
+        throw new Error(apiError(body, "Could not register OAuth client"));
+      }
+      setOauthClient({ client_id: body.client_id, client_secret: body.client_secret });
+      toast.success("OAuth client registered — copy the credentials now, the secret is shown only once");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not register OAuth client");
+    } finally {
+      setOauthRegistering(false);
+    }
   };
 
   const openSetupModal = (agent: Agent) => {
@@ -812,6 +874,14 @@ export function AgentsManager() {
 
   const wizardToken = wizardAgent ? freshTokens[wizardAgent.id]?.token ?? "" : "";
   const activeTest = wizardAgent ? testState[wizardAgent.id] : null;
+  // Client ID to surface in the wizard: prefer the client that created this
+  // agent (name match), else the workspace's most recent client, else the one
+  // registered in this session via the Gemini OAuth dialog.
+  const wizardClientId =
+    (wizardAgent && oauthClients.find((c) => `${c.name} (OAuth)` === wizardAgent.name)?.client_id) ||
+    oauthClients[0]?.client_id ||
+    oauthClient?.client_id ||
+    "";
 
   return (
     <>
@@ -1147,6 +1217,149 @@ export function AgentsManager() {
         </div>
       </div>
 
+      {/* OAuth Setup Dialog (Gemini & other OAuth-only clients) */}
+      <Dialog open={showOAuthDialog} onOpenChange={setShowOAuthDialog}>
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0 gap-0 rounded-2xl border-border bg-card">
+          <div className="p-6 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                <BrandMark kind="gemini" className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold">Connect with OAuth</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Standard OAuth 2.0 flow for Gemini & spec-compliant clients — no token pasting.
+                </DialogDescription>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30 shrink-0">
+              OAuth 2.0
+            </Badge>
+          </div>
+
+          <div className="p-6 space-y-5">
+            {/* Step 1 — server URL */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">1</span>
+                Add the MCP server in your client
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                In Gemini: <b>Settings → Apps → Connect a custom app link</b>. Use this server URL:
+              </p>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 p-2">
+                <code className="font-mono text-xs break-all">{MCP_URL}</code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => copyText(MCP_URL, "Server URL copied", "oauth-url")}
+                >
+                  {copiedKey === "oauth-url" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Most clients (Claude Desktop, VS Code, Cursor) discover our OAuth server automatically from
+                this URL — sign in when prompted and you're done. Gemini additionally requires a Client ID
+                and Client Secret in its Advanced settings, which you can register below.
+              </p>
+            </div>
+
+            {/* Step 2 — register OAuth client */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">2</span>
+                Register an OAuth client (for Gemini's Advanced settings)
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Paste the <b>redirect URI</b> exactly as your client displays it (Gemini shows it in the
+                connection dialog or its OAuth error message, e.g.{" "}
+                <code className="font-mono text-[11px]">https://oauth-redirect.googleusercontent.com/r/…</code>).
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Client name</Label>
+                  <Input
+                    value={oauthClientName}
+                    onChange={(event) => setOauthClientName(event.target.value)}
+                    placeholder="Gemini Custom App"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Redirect URI</Label>
+                  <Input
+                    value={oauthRedirectUri}
+                    onChange={(event) => setOauthRedirectUri(event.target.value)}
+                    placeholder="https://oauth-redirect.googleusercontent.com/r/…"
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+              <Button onClick={() => void registerOAuthClient()} disabled={oauthRegistering} className="w-full sm:w-auto">
+                {oauthRegistering ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                Register client & generate credentials
+              </Button>
+            </div>
+
+            {/* Credentials result */}
+            {oauthClient && (
+              <div className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Registered — copy these into Gemini's Advanced settings
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background p-2">
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Client ID</span>
+                    <code className="font-mono text-xs break-all">{oauthClient.client_id}</code>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => copyText(oauthClient.client_id, "Client ID copied", "oauth-cid")}
+                  >
+                    {copiedKey === "oauth-cid" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background p-2">
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Client Secret</span>
+                    <code className="font-mono text-xs break-all">{oauthClient.client_secret}</code>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => copyText(oauthClient.client_secret, "Client secret copied", "oauth-sec")}
+                  >
+                    {copiedKey === "oauth-sec" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+                <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  The secret is shown only once. If you lose it, register a new client with the same redirect URI.
+                </p>
+              </div>
+            )}
+
+            {/* Step 3 — consent */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">3</span>
+                Approve the connection
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                After saving, your client will open a Memorify consent page — sign in with your account and
+                approve. The agent appears in the Connected Agents list once the first token is issued.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modernized Full Connection Setup Wizard Modal */}
       <Dialog open={!!wizardAgent} onOpenChange={(open) => !open && setWizardAgent(null)}>
         <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0 rounded-2xl border-border bg-card">
@@ -1197,6 +1410,11 @@ export function AgentsManager() {
                       </Button>
                     </div>
                   </div>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Bearer-token secret for clients that accept API keys (Claude Code, Cursor, Windsurf…).
+                    OAuth clients (Gemini and similar) never use this secret — they connect through the
+                    OAuth consent flow instead.
+                  </p>
 
                   {wizardToken ? (
                     <div className="space-y-3">
@@ -1253,6 +1471,49 @@ export function AgentsManager() {
                         Generate Live Token
                       </Button>
                     </div>
+                  )}
+                </div>
+
+                {/* OAuth Client ID — copy-paste ready for clients like Gemini */}
+                <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Fingerprint className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                        OAuth Client ID
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                      Not secret
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Paste this into clients that ask for manual OAuth credentials (Gemini → Apps → Advanced settings).
+                    The Client ID is not a secret — only the secret is.
+                  </p>
+                  {wizardClientId ? (
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded-lg bg-muted/60 px-3 py-2 text-xs font-mono break-all border border-border/60 select-all">
+                        {wizardClientId}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyText(wizardClientId, "Client ID copied to clipboard", "wizard-client-id")}
+                      >
+                        {copiedKey === "wizard-client-id" ? (
+                          <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Copy
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No OAuth client registered in this workspace yet — click the Gemini card on this page to
+                      register one and get a Client ID.
+                    </p>
                   )}
                 </div>
 

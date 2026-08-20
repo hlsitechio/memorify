@@ -15,7 +15,7 @@ import {
   isAccessLevel,
   type AccessLevel,
 } from "../lib/agent-access.ts";
-import { execute, queryOne } from "../lib/db.ts";
+import { execute, query, queryOne } from "../lib/db.ts";
 
 export async function handleAgentsAdmin(req: Request): Promise<Response> {
   const token = extractBearer(req);
@@ -42,12 +42,24 @@ export async function handleAgentsAdmin(req: Request): Promise<Response> {
     }
 
     const agents = await listWorkspaceAgents(workspaceId);
+
+    // OAuth clients bound to this workspace (client_id is not a secret —
+    // safe to surface in the dashboard so users can copy it into clients
+    // like Gemini that need manual Client ID + Secret entry).
+    const oauthClients = await query<{ client_id: string; name: string }>(
+      `SELECT client_id, name FROM mcp_oauth_clients
+       WHERE workspace_id = $1
+       ORDER BY created_at DESC`,
+      [workspaceId],
+    );
+
     return json({
       workspace_id: workspaceId,
       user_id: claims.sub,
       access_levels: ACCESS_LEVELS,
       help: ACCESS_LEVEL_HELP,
       agents,
+      oauth_clients: oauthClients,
     });
   }
 
