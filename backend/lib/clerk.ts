@@ -83,6 +83,27 @@ function isAllowedIssuer(issuer: string): boolean {
   }
 }
 
+async function fetchJwksWithRetry(issuer: string, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(`${issuer}/.well-known/jwks.json`);
+      if (res.ok) return res;
+      // 4xx from Clerk is a real answer (not transient) — surface it immediately
+      if (res.status >= 400 && res.status < 500) {
+        throw new Error(`jwks_fetch_failed:${res.status}`);
+      }
+      lastError = new Error(`jwks_fetch_failed:${res.status}`);
+    } catch (err) {
+      if ((err as Error).message?.startsWith("jwks_fetch_failed:")) throw err;
+      lastError = err; // transient network error (e.g. unreachable / IPv6 route) — retry
+    }
+    // Small backoff: 150ms, 400ms (edge-safe, no timers held long)
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, 150 * (i + 1) * (i + 2)));
+  }
+  throw new Error(`jwks_unreachable:${String((lastError as Error)?.message ?? lastError).slice(0, 120)}`);
+}
+
 async function loadJwks(issuer: string): Promise<JWK[]> {
   const now = Date.now();
   const normalized = normalizeOrigin(issuer);
@@ -90,12 +111,21 @@ async function loadJwks(issuer: string): Promise<JWK[]> {
   if (cached && now - cached.fetchedAt < JWKS_TTL_MS) {
     return cached.keys;
   }
-  const res = await fetch(`${normalized}/.well-known/jwks.json`);
-  if (!res.ok) throw new Error(`jwks_fetch_failed:${res.status}`);
-  const body = (await res.json()) as JWKS;
-  if (!body.keys?.length) throw new Error("jwks_empty");
-  cachedJwks.set(normalized, { keys: body.keys, fetchedAt: now });
-  return body.keys;
+  try {
+    const res = await fetchJwksWithRetry(normalized);
+    const body = (await res.json()) as JWKS;
+    if (!body.keys?.length) throw new Error("jwks_empty");
+    cachedJwks.set(normalized, { keys: body.keys, fetchedAt: now });
+    return body.keys;
+  } catch (err) {
+    // Network egress failed (e.g. transient "Network is unreachable"). Clerk keys
+    // rotate on a slow cadence, so serving a stale cache is safe: the RS256
+    // signature + kid match below still fully validates the token.
+    if (cached && (err as Error).message?.startsWith("jwks_unreachable:")) {
+      return cached.keys;
+    }
+    throw err;
+  }
 }
 
 export async function verifyClerkJwt(token: string): Promise<ClerkClaims> {
