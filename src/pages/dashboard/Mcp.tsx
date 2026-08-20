@@ -171,9 +171,13 @@ const PRESETS: Preset[] = [
     transport: "http",
     needsToken: true,
     tokenLabel: "Hugging Face access token",
-    tokenHint: "Create a token at huggingface.co → Settings → Access Tokens (read scope is enough).",
+    tokenHint:
+      "Create a token at huggingface.co → Settings → Access Tokens (read scope is enough). The base server exposes 4 tools (whoami, repo search, repo details, hf_fs) — enable extra tools (repos, sandboxes, jobs, Spaces) at huggingface.co/settings/mcp and paste the customized URL below to use them.",
     docsUrl: "https://huggingface.co/settings/mcp",
     tokenPlaceholder: "hf_…",
+    allowUrlOverride: true,
+    urlHint:
+      "Keep https://huggingface.co/mcp for the default 4 tools, or paste the URL from your HF MCP settings page (with bouquet/mix params) to expose the extra tools you enabled there.",
   },
   {
     id: "stripe",
