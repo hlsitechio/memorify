@@ -100,14 +100,13 @@ export default async (req: Request): Promise<Response> => {
     }
   }
 
-  const tables = await query<{ name: string }>(
-    `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'machine%' ORDER BY name`,
-    [],
-  );
+  const existingMachines = await query(`SELECT id, workspace_id, name, last_seen_at::text, revoked_at::text FROM machines`, []);
+  const existingPairings = await query(`SELECT id, user_code, machine_name, status, expires_at::text, created_at::text FROM machine_pairings ORDER BY created_at DESC LIMIT 10`, []);
 
   return new Response(JSON.stringify({
     ok: true,
-    results,
+    existing_machines: existingMachines,
+    existing_pairings: existingPairings,
     machine_tables: tables.map((t) => t.name),
   }, null, 2), {
     headers: { "Content-Type": "application/json" },
