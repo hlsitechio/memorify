@@ -23,6 +23,7 @@ const PAIR_TTL_SECONDS = 600;
 const SESSION_IDLE_SECONDS = 600; // session expires after 10 min without activity
 const ONLINE_WINDOW_SECONDS = 150; // machine considered offline if not polled
 const MAX_COMMAND_WAIT_SECONDS = 300;
+const MAX_SIGNAL_PAYLOAD_BYTES = 32_000; // SDP/ICE/input signaling cap
 
 // ── helpers ────────────────────────────────────────────────────
 
@@ -620,6 +621,12 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       if (!sessionId || !kind) return json({ error: "session_id and kind required" }, 400);
       if (!["offer", "ice", "input", "bye"].includes(kind)) return json({ error: "invalid_kind" }, 400);
 
+      // Bound signaling payload size — SDP/ICE/input blobs must be small.
+      const payloadStr = JSON.stringify(payload);
+      if (payloadStr.length > MAX_SIGNAL_PAYLOAD_BYTES) {
+        return json({ error: "payload_too_large" }, 413);
+      }
+
       const owns = await queryOne<{ id: string }>(
         `SELECT s.id FROM machine_sessions s JOIN machines m ON m.id = s.machine_id
          WHERE s.id = $1 AND m.workspace_id = $2 AND s.status = 'active'`,
@@ -631,7 +638,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
         `INSERT INTO machine_signaling (session_id, machine_id, direction, kind, payload)
          SELECT s.id, s.machine_id, 'viewer_to_machine', $2, $3::jsonb
          FROM machine_sessions s WHERE s.id = $1`,
-        [sessionId, kind, JSON.stringify(payload)],
+        [sessionId, kind, payloadStr],
       );
       return json({ ok: true });
     }
@@ -704,10 +711,15 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       if (!sessionId || !kind) return json({ error: "session_id and kind required" }, 400);
       if (!["answer", "ice", "bye"].includes(kind)) return json({ error: "invalid_kind" }, 400);
 
+      const payloadStr = JSON.stringify(payload);
+      if (payloadStr.length > MAX_SIGNAL_PAYLOAD_BYTES) {
+        return json({ error: "payload_too_large" }, 413);
+      }
+
       await execute(
         `INSERT INTO machine_signaling (session_id, machine_id, direction, kind, payload)
          VALUES ($1, $2, 'machine_to_viewer', $3, $4::jsonb)`,
-        [sessionId, machine.id, kind, JSON.stringify(payload)],
+        [sessionId, machine.id, kind, payloadStr],
       );
       return json({ ok: true });
     }

@@ -41,19 +41,18 @@ export async function createInjector(): Promise<InputInjector | null> {
     middle: Button.MIDDLE,
   };
 
-  // Map common key names to nut.js Key enum (best-effort).
+  // Map KeyboardEvent.key names (what the viewer sends) to nut.js Key enum.
   const keyMap: Record<string, any> = {
     enter: Key.Enter,
-    return: Key.Enter,
     backspace: Key.Backspace,
     escape: Key.Escape,
-    esc: Key.Escape,
     tab: Key.Tab,
+    " ": Key.Space,
     space: Key.Space,
-    up: Key.Up,
-    down: Key.Down,
-    left: Key.Left,
-    right: Key.Right,
+    arrowup: Key.Up,
+    arrowdown: Key.Down,
+    arrowleft: Key.Left,
+    arrowright: Key.Right,
     delete: Key.Delete,
     home: Key.Home,
     end: Key.End,

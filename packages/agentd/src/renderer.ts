@@ -32,26 +32,52 @@ async function sendSignal(kind: string, payload: unknown) {
   post({ type: "send", kind, payload });
 }
 
+// Input event validation — the data channel is authenticated (DTLS) but a
+// compromised viewer could still send malformed/oversized events. Bound every
+// field and whitelist discrete values before touching the injector.
+const MAX_TYPE_LENGTH = 2000;
+const ALLOWED_BUTTONS = new Set(["left", "right", "middle"]);
+const ALLOWED_KEYS = new Set([
+  "Enter", "Backspace", "Escape", "Tab", "Space",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "Delete", "Home", "End", "PageUp", "PageDown",
+]);
+
+function clamp01(n: unknown): number {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  return Math.min(1, Math.max(0, v));
+}
+
 async function handleInput(data: unknown) {
   if (!injector) return;
   try {
     const ev = typeof data === "string" ? JSON.parse(data) : data;
+    if (!ev || typeof ev !== "object") return;
     switch (ev.type) {
       case "move":
-        await injector.move(ev.x, ev.y);
+        await injector.move(clamp01(ev.x), clamp01(ev.y));
         break;
-      case "click":
-        await injector.click(ev.button);
+      case "click": {
+        const button = typeof ev.button === "string" && ALLOWED_BUTTONS.has(ev.button) ? ev.button : "left";
+        await injector.click(button);
         break;
-      case "type":
-        await injector.type(ev.text);
+      }
+      case "type": {
+        const text = typeof ev.text === "string" ? ev.text : "";
+        await injector.type(text.slice(0, MAX_TYPE_LENGTH));
         break;
-      case "key":
-        await injector.key(ev.key);
+      }
+      case "key": {
+        const key = typeof ev.key === "string" && ALLOWED_KEYS.has(ev.key) ? ev.key : null;
+        if (key) await injector.key(key);
         break;
-      case "scroll":
-        await injector.scroll(ev.dx, ev.dy);
+      }
+      case "scroll": {
+        const dx = typeof ev.dx === "number" && Number.isFinite(ev.dx) ? ev.dx : 0;
+        const dy = typeof ev.dy === "number" && Number.isFinite(ev.dy) ? ev.dy : 0;
+        await injector.scroll(Math.max(-100, Math.min(100, dx)), Math.max(-100, Math.min(100, dy)));
         break;
+      }
     }
   } catch (e) {
     console.error("input injection error:", e);
