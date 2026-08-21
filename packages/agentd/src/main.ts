@@ -78,17 +78,19 @@ function setStatus(next: DaemonStatus, err?: string) {
 
 function rebuildTray() {
   if (!tray) return;
-  const label = {
-    unpaired: "Memorify Remote — not paired",
-    pairing: "Memorify Remote — pairing…",
-    waiting_approval: `Memorify Remote — code ${userCode ?? ""}`,
-    connected: "Memorify Remote — connected",
-    revoked: "Memorify Remote — revoked",
-    error: "Memorify Remote — error",
+  const version = app.getVersion();
+  const statusLabel = {
+    unpaired: "Not paired",
+    pairing: "Pairing…",
+    waiting_approval: `Code: ${userCode ?? ""}`,
+    connected: "Connected (Online)",
+    revoked: "Revoked",
+    error: `Error: ${lastError ?? ""}`,
   }[status];
 
   const menu = Menu.buildFromTemplate([
-    { label, enabled: false },
+    { label: `Memorify Remote v${version}`, enabled: false },
+    { label: `Status: ${statusLabel}`, enabled: false },
     { type: "separator" },
     ...(status === "unpaired" || status === "error" || status === "revoked"
       ? [{ label: "Pair this machine…", click: () => void startPair() }]
@@ -101,10 +103,22 @@ function rebuildTray() {
       : []),
     { label: "Open Memorify dashboard", click: () => shell.openExternal(`${HOST}/dashboard/machines`) },
     { type: "separator" },
+    {
+      label: "About Memorify Remote",
+      click: () => {
+        dialog.showMessageBox({
+          type: "info",
+          title: "About Memorify Remote",
+          message: `Memorify Remote v${version}`,
+          detail: `Node: ${process.versions.node}\nElectron: ${process.versions.electron}\nPlatform: ${PLATFORM}\nHost: ${HOST}`,
+        });
+      },
+    },
+    { type: "separator" },
     { label: "Quit Memorify Remote", click: () => app.quit() },
   ]);
 
-  tray.setToolTip(label);
+  tray.setToolTip(`Memorify Remote v${version} — ${statusLabel}`);
   tray.setContextMenu(menu);
 }
 
@@ -177,13 +191,15 @@ async function startPair() {
 
 function showPairingCode(code: string) {
   const buttons = ["Copy code", "Open dashboard", "Close"];
+  const version = app.getVersion();
   dialog
     .showMessageBox({
       type: "info",
-      title: "Memorify Remote",
+      title: `Memorify Remote v${version}`,
       message: `Your pairing code: ${code}`,
       detail:
         `Open the Memorify dashboard (Machines page) and enter this code to approve the machine.\n\n` +
+        `Version: v${version}\n` +
         `Verification URL: ${HOST}/dashboard/machines`,
       buttons,
       defaultId: 0,

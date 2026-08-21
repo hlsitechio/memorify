@@ -405,14 +405,16 @@ export async function handleMachineApi(req: Request): Promise<Response> {
   try {
     // ── POST /api/machine/pair/start (daemon, unauthenticated, rate-limited) ──
     if (method === "POST" && path === "/api/machine/pair/start") {
+      await execute(`DELETE FROM machine_pairings WHERE expires_at < now() OR created_at < now() - interval '24 hours'`).catch(() => {});
+
       const ipHash = await clientIpHash(req);
       const recent = await queryOne<{ n: number }>(
         `SELECT count(*) AS n FROM machine_pairings
          WHERE ip_hash = $1 AND created_at > now() - interval '1 hour'`,
         [ipHash],
       ).catch(() => null);
-      if ((recent?.n ?? 0) >= 50) {
-        return json({ error: "rate_limited", retry_after: 3600 }, 429, { "Retry-After": "3600" });
+      if (ipHash !== "unknown" && (recent?.n ?? 0) >= 200) {
+        return json({ error: "rate_limited", retry_after: 60 }, 429, { "Retry-After": "60" });
       }
 
       const body = await req.json().catch(() => ({}));
