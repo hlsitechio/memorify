@@ -148,6 +148,7 @@ type Machine = {
   platform: string | null;
   token_hash: string | null;
   notify_email: string | null;
+  allow_agent_access: boolean;
   last_seen_at: string | null;
   revoked_at: string | null;
 };
@@ -156,6 +157,7 @@ async function findMachineByToken(token: string): Promise<Machine | null> {
   const hash = await sha256Hex(token);
   return await queryOne<Machine>(
     `SELECT id, workspace_id, name, platform, token_hash, notify_email,
+            COALESCE(allow_agent_access, false) AS allow_agent_access,
             last_seen_at::text, revoked_at::text
      FROM machines WHERE token_hash = $1 LIMIT 1`,
     [hash],
@@ -243,6 +245,7 @@ export async function execOnMachine(opts: {
   // Resolve machine by id or name (case-insensitive) within the workspace.
   const machine = await queryOne<Machine>(
     `SELECT id, workspace_id, name, platform, token_hash, notify_email,
+            COALESCE(allow_agent_access, false) AS allow_agent_access,
             last_seen_at::text, revoked_at::text
      FROM machines
      WHERE workspace_id = $1 AND revoked_at IS NULL
@@ -254,6 +257,13 @@ export async function execOnMachine(opts: {
   if (!machine) {
     throw new Error(
       `machine "${machineRef}" not found in this workspace (or revoked). Use computer_list_machines to see paired machines.`,
+    );
+  }
+
+  // Safety Gate: Block agents if machine is in Human-Only (TeamViewer) mode
+  if (agent_id && !machine.allow_agent_access) {
+    throw new Error(
+      `Agent execution is disabled on machine "${machine.name}". The machine owner has set this machine to Human-Only (TeamViewer) mode. To allow agent commands, switch the mode to "Allow Agents" in the Memorify dashboard under Machines.`,
     );
   }
 
@@ -338,6 +348,7 @@ export async function listMachinesForWorkspace(workspaceId: string): Promise<unk
   await expireIdleSessions();
   return await query(
     `SELECT m.id, m.name, m.platform,
+            COALESCE(m.allow_agent_access, false) AS allow_agent_access,
             (m.last_seen_at > now() - interval '${ONLINE_WINDOW_SECONDS} seconds') AS online,
             m.last_seen_at::text, m.created_at::text,
             s.id AS active_session_id, s.agent_name AS active_agent, s.started_at::text AS session_started_at,
@@ -722,6 +733,30 @@ export async function handleMachineApi(req: Request): Promise<Response> {
         [sessionId, machine.id, kind, payloadStr],
       );
       return json({ ok: true });
+    }
+
+    // ── POST /api/machine/mode (dashboard, Clerk auth) — toggle agent access ──
+    if (method === "POST" && path === "/api/machine/mode") {
+      const claims = await requireClerk(req);
+      if (!claims) return json({ error: "unauthorized" }, 401);
+      if (!claims.org_id) return json({ error: "no_active_workspace" }, 400);
+
+      const body = await req.json().catch(() => ({}));
+      const machineId = typeof body.machine_id === "string" ? body.machine_id : "";
+      const allowAgentAccess = Boolean(body.allow_agent_access);
+
+      const machine = await queryOne<{ id: string; name: string }>(
+        `SELECT id, name FROM machines WHERE id = $1 AND workspace_id = $2 AND revoked_at IS NULL`,
+        [machineId, claims.org_id],
+      );
+      if (!machine) return json({ error: "machine_not_found" }, 404);
+
+      await execute(
+        `UPDATE machines SET allow_agent_access = $1, updated_at = now() WHERE id = $2`,
+        [allowAgentAccess, machine.id],
+      );
+
+      return json({ success: true, allow_agent_access: allowAgentAccess });
     }
 
     // ── GET /api/machine/list (dashboard, Clerk auth) ──

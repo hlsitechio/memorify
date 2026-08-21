@@ -22,11 +22,13 @@ export default async (req: Request): Promise<Response> => {
       platform     text,
       token_hash   text UNIQUE,
       notify_email text,
+      allow_agent_access boolean NOT NULL DEFAULT false,
       last_seen_at timestamptz,
       created_at   timestamptz NOT NULL DEFAULT now(),
       updated_at   timestamptz NOT NULL DEFAULT now(),
       revoked_at   timestamptz
     )`,
+    `ALTER TABLE machines ADD COLUMN IF NOT EXISTS allow_agent_access boolean NOT NULL DEFAULT false`,
     `CREATE INDEX IF NOT EXISTS machines_workspace_idx ON machines(workspace_id)`,
     `CREATE TABLE IF NOT EXISTS machine_pairings (
       id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),

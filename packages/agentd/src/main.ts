@@ -8,7 +8,19 @@
 // Security: commands are allowlisted in allowlist.ts. The machine token is
 // held only in memory (never written to disk).
 
-import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain, clipboard, session, desktopCapturer } from "electron";
+import {
+  app,
+  Tray,
+  Menu,
+  nativeImage,
+  shell,
+  dialog,
+  BrowserWindow,
+  ipcMain,
+  clipboard,
+  session,
+  desktopCapturer,
+} from "electron";
 // electron-updater is CommonJS — import the default and destructure (ESM named
 // import fails at runtime: "Named export 'autoUpdater' not found").
 import electronUpdater from "electron-updater";
@@ -25,6 +37,8 @@ import {
   DEFAULT_HOST,
   type DaemonStatus,
 } from "./daemon.js";
+import { loadState, saveState, clearState } from "./store.js";
+import { createInjector } from "./injector.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,11 +57,12 @@ let lastError: string | null = null;
 
 // Remote desktop streaming state (Layer 2/3).
 // WebRTC runs in a hidden renderer window (renderer-only APIs); the main
-// process relays signaling between the renderer and the backend.
+// process relays signaling between the renderer and the backend and executes native OS input.
 let streamWindow: BrowserWindow | null = null;
 let streamReady = false;
 let activeSessionId: string | null = null;
 let signalTimer: ReturnType<typeof setTimeout> | null = null;
+let injector: Awaited<ReturnType<typeof createInjector>> = null;
 
 // ── tray ─────────────────────────────────────────────────────────
 
@@ -77,6 +92,9 @@ function rebuildTray() {
     ...(userCode
       ? [{ label: `Copy code: ${userCode}`, click: () => copyUserCode() }]
       : []),
+    ...(status === "connected"
+      ? [{ label: "Forget this machine", click: () => void forgetMachine() }]
+      : []),
     { label: "Open Memorify dashboard", click: () => shell.openExternal(`${HOST}/dashboard/machines`) },
     { type: "separator" },
     { label: "Quit Memorify Remote", click: () => app.quit() },
@@ -84,6 +102,19 @@ function rebuildTray() {
 
   tray.setToolTip(label);
   tray.setContextMenu(menu);
+}
+
+async function forgetMachine() {
+  machineToken = null;
+  stopStreaming();
+  await clearState();
+  setStatus("unpaired");
+  dialog.showMessageBox({
+    type: "info",
+    title: "Memorify Remote",
+    message: "Machine forgotten",
+    detail: "This machine is no longer paired. Pair it again from the tray menu when ready.",
+  });
 }
 
 function copyUserCode() {
@@ -109,6 +140,7 @@ async function startPair() {
     machineToken = token;
     userCode = null;
     setStatus("connected");
+    void saveState({ machineToken: token, machineName: MACHINE_NAME, pairedAt: new Date().toISOString() });
     startPollLoop();
     dialog.showMessageBox({
       type: "info",
@@ -159,6 +191,57 @@ function showPairingCode(code: string) {
     });
 }
 
+// ── input execution (Node main process) ─────────────────────────
+
+const MAX_TYPE_LENGTH = 2000;
+const ALLOWED_BUTTONS = new Set(["left", "right", "middle"]);
+const ALLOWED_KEYS = new Set([
+  "Enter", "Backspace", "Escape", "Tab", "Space",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "Delete", "Home", "End", "PageUp", "PageDown",
+]);
+
+function clamp01(n: unknown): number {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  return Math.min(1, Math.max(0, v));
+}
+
+async function handleRemoteInput(data: unknown) {
+  if (!injector) return;
+  try {
+    const ev = typeof data === "string" ? JSON.parse(data) : data;
+    if (!ev || typeof ev !== "object") return;
+    switch (ev.type) {
+      case "move":
+        await injector.move(clamp01(ev.x), clamp01(ev.y));
+        break;
+      case "click": {
+        const button = typeof ev.button === "string" && ALLOWED_BUTTONS.has(ev.button) ? ev.button : "left";
+        await injector.click(button);
+        break;
+      }
+      case "type": {
+        const text = typeof ev.text === "string" ? ev.text : "";
+        await injector.type(text.slice(0, MAX_TYPE_LENGTH));
+        break;
+      }
+      case "key": {
+        const key = typeof ev.key === "string" && ALLOWED_KEYS.has(ev.key) ? ev.key : null;
+        if (key) await injector.key(key);
+        break;
+      }
+      case "scroll": {
+        const dx = typeof ev.dx === "number" && Number.isFinite(ev.dx) ? ev.dx : 0;
+        const dy = typeof ev.dy === "number" && Number.isFinite(ev.dy) ? ev.dy : 0;
+        await injector.scroll(Math.max(-100, Math.min(100, dx)), Math.max(-100, Math.min(100, dy)));
+        break;
+      }
+    }
+  } catch (e) {
+    console.error("[agentd:input] error:", e);
+  }
+}
+
 // ── poll / execute loop ─────────────────────────────────────────
 
 function startPollLoop() {
@@ -180,14 +263,17 @@ async function pollOnce() {
     // Start/stop remote desktop streaming based on the active session.
     const sessionId = (res as any).session_id ?? null;
     if (sessionId && sessionId !== activeSessionId) {
+      console.log("[agentd:main] Active session discovered:", sessionId);
       await startStreaming(sessionId);
     } else if (!sessionId && activeSessionId) {
+      console.log("[agentd:main] Active session ended:", activeSessionId);
       stopStreaming();
     }
   } catch (e) {
     if (e instanceof MachineRevokedError) {
       machineToken = null;
       stopStreaming();
+      void clearState();
       setStatus("revoked", e.reason);
       return; // stop polling — must re-pair
     }
@@ -208,6 +294,15 @@ function ensureStreamWindow(): BrowserWindow {
       nodeIntegration: false,
     },
   });
+
+  streamWindow.webContents.on("console-message", (_ev, level, message, line, sourceId) => {
+    console.log(`[agentd:renderer:${level}] ${message} (${sourceId}:${line})`);
+  });
+
+  streamWindow.webContents.on("did-fail-load", (_ev, code, desc) => {
+    console.error(`[agentd:renderer:fail-load] ${code}: ${desc}`);
+  });
+
   streamWindow.loadFile(path.join(__dirname, "renderer.html"));
   streamWindow.on("closed", () => {
     streamWindow = null;
@@ -267,7 +362,7 @@ async function signalLoop() {
       }
     }
   } catch (e) {
-    console.error("signal loop error:", e);
+    console.error("[agentd:signal:poll] error:", e);
   }
   signalTimer = setTimeout(() => void signalLoop(), 500);
 }
@@ -277,10 +372,18 @@ function startSignalLoop() {
   void signalLoop();
 }
 
-// Renderer → main: forward signaling to the backend.
+// Renderer → main: forward signaling to the backend or handle input/status.
 ipcMain.on("memorify:renderer", async (_ev, msg: any) => {
   if (msg?.type === "ready") {
     streamReady = true;
+    return;
+  }
+  if (msg?.type === "error") {
+    console.error("[agentd:renderer:error]", msg.detail);
+    return;
+  }
+  if (msg?.type === "input") {
+    void handleRemoteInput(msg.data);
     return;
   }
   if (!machineToken || !activeSessionId) return;
@@ -296,7 +399,7 @@ ipcMain.on("memorify:renderer", async (_ev, msg: any) => {
         kind: msg.kind,
         payload: msg.payload,
       }),
-    }).catch(() => {});
+    }).catch((e) => console.error("[agentd:signal:send] error:", e));
   }
 });
 
@@ -339,24 +442,43 @@ function setupScreenCapture() {
       .then((sources) => {
         const primary = sources[0];
         if (!primary) {
-          callback({ video: undefined, audio: "loopback" });
+          console.warn("[agentd:screen] No display screen source found!");
+          callback({});
           return;
         }
-        callback({ video: primary, audio: "loopback" });
+        console.log(`[agentd:screen] Granted capture for source: ${primary.name} (${primary.id})`);
+        callback({
+          video: primary,
+          ...(request.audioRequested ? { audio: "loopback" } : {}),
+        });
       })
-      .catch(() => callback({ video: undefined, audio: "loopback" }));
+      .catch((e) => {
+        console.error("[agentd:screen] desktopCapturer.getSources failed:", e);
+        callback({});
+      });
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   tray = new Tray(loadTrayIcon());
   rebuildTray();
   enableAutoLaunch();
   checkForUpdates();
   setupScreenCapture();
 
-  // Auto-pair on first launch if not already paired.
-  void startPair();
+  // Lazy load native input injector in the Node main process
+  injector = await createInjector();
+
+  // Restore a previously-saved machine token (daemon survives restarts
+  // without re-pairing). Only pair if we have no saved token.
+  const saved = await loadState();
+  if (saved.machineToken) {
+    machineToken = saved.machineToken;
+    setStatus("connected");
+    startPollLoop();
+  } else {
+    setStatus("unpaired");
+  }
 });
 
 app.on("window-all-closed", () => {

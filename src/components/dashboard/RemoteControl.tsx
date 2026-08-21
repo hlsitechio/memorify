@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, MonitorOff, X } from "lucide-react";
+import { Loader2, MonitorOff, X, RefreshCw } from "lucide-react";
 
 type SignalMessage = {
   kind: "offer" | "answer" | "ice" | "input" | "bye";
@@ -29,8 +29,10 @@ export function RemoteControl({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const sessionRef = useRef<string | null>(null);
+  const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const [state, setState] = useState<"connecting" | "connected" | "error">("connecting");
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const api = useCallback(
     async (path: string, body?: Record<string, unknown>) => {
@@ -71,60 +73,113 @@ export function RemoteControl({
   useEffect(() => {
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    pendingCandidates.current = [];
 
     const handleSignal = async (msg: SignalMessage, pc: RTCPeerConnection) => {
       try {
         if (msg.kind === "offer") {
-          await pc.setRemoteDescription(msg.payload.sdp);
+          console.log("[RemoteControl] Received WebRTC offer from machine");
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+
+          // Drain queued ICE candidates received prior to offer
+          while (pendingCandidates.current.length > 0) {
+            const cand = pendingCandidates.current.shift()!;
+            await pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) =>
+              console.warn("[RemoteControl] Buffered ICE candidate add error:", e),
+            );
+          }
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           await sendSignal("answer", { sdp: pc.localDescription });
+          console.log("[RemoteControl] Sent WebRTC answer to machine");
         } else if (msg.kind === "ice") {
-          if (msg.payload.candidate) await pc.addIceCandidate(msg.payload.candidate);
+          if (msg.payload?.candidate) {
+            if (!pc.remoteDescription) {
+              pendingCandidates.current.push(msg.payload.candidate);
+            } else {
+              await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate)).catch((e) =>
+                console.warn("[RemoteControl] addIceCandidate error:", e),
+              );
+            }
+          }
         } else if (msg.kind === "bye") {
+          console.log("[RemoteControl] Received bye signal from machine");
           onClose();
         }
       } catch (e) {
-        console.error("signal handling error:", e);
+        console.error("[RemoteControl] Signal handling error:", e);
       }
     };
 
     const connect = async () => {
       try {
+        setState("connecting");
+        setError(null);
+
         const { ok, data } = await api("/api/machine/control/start", { machine_id: machineId });
         if (!ok) throw new Error(data.error ?? "failed to start session");
         sessionRef.current = data.session_id;
 
         const pc = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+          ],
         });
         pcRef.current = pc;
 
         pc.onicecandidate = (ev) => {
-          if (ev.candidate) void sendSignal("ice", { candidate: ev.candidate.toJSON() });
+          if (ev.candidate) {
+            void sendSignal("ice", { candidate: ev.candidate.toJSON() });
+          }
         };
+
         pc.ontrack = (ev) => {
-          if (videoRef.current) {
+          console.log("[RemoteControl] Received video track from machine:", ev.streams);
+          if (videoRef.current && ev.streams[0]) {
             videoRef.current.srcObject = ev.streams[0];
+            videoRef.current.play().catch((e) => console.warn("[RemoteControl] Video auto-play error:", e));
             setState("connected");
           }
         };
+
         pc.ondatachannel = (ev) => {
+          console.log("[RemoteControl] Data channel received:", ev.channel.label);
           dcRef.current = ev.channel;
+        };
+
+        pc.onconnectionstatechange = () => {
+          console.log("[RemoteControl] Connection state:", pc.connectionState);
+          if (pc.connectionState === "connected") {
+            setState("connected");
+          } else if (pc.connectionState === "failed") {
+            setState("error");
+            setError("WebRTC peer connection failed (ICE negotiation / NAT traversal error)");
+          } else if (pc.connectionState === "disconnected") {
+            // Transient disconnect — give it a moment or prompt
+          }
         };
 
         const pollForOffer = async () => {
           if (cancelled) return;
-          const { ok: ok2, data: d2 } = await api(
-            `/api/machine/control/poll?session_id=${sessionRef.current}`,
-          );
-          if (ok2) {
-            for (const msg of d2.messages as SignalMessage[]) {
-              await handleSignal(msg, pc);
+          try {
+            const { ok: ok2, data: d2 } = await api(
+              `/api/machine/control/poll?session_id=${sessionRef.current}`,
+            );
+            if (ok2 && Array.isArray(d2.messages)) {
+              for (const msg of d2.messages as SignalMessage[]) {
+                await handleSignal(msg, pc);
+              }
             }
+          } catch (err) {
+            console.warn("[RemoteControl] Poll signaling error:", err);
           }
-          pollTimer = setTimeout(pollForOffer, 500);
+          if (!cancelled) {
+            pollTimer = setTimeout(pollForOffer, 500);
+          }
         };
+
         void pollForOffer();
       } catch (e) {
         if (!cancelled) {
@@ -142,8 +197,9 @@ export function RemoteControl({
       void sendSignal("bye", {});
       if (pcRef.current) pcRef.current.close();
       pcRef.current = null;
+      dcRef.current = null;
     };
-  }, [machineId, api, sendSignal, onClose]);
+  }, [machineId, api, sendSignal, onClose, retryCount]);
 
   // ── input capture (mouse + keyboard) ────────────────────────────
   const onMouseMove = (e: React.MouseEvent<HTMLVideoElement>) => {
@@ -169,31 +225,42 @@ export function RemoteControl({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
-      <div className="relative w-full max-w-6xl aspect-video bg-black rounded-lg overflow-hidden">
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-          <span className="text-sm font-medium text-white/90">{machineName}</span>
+    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+      <div className="relative w-full max-w-6xl aspect-video bg-black rounded-xl overflow-hidden border border-border shadow-2xl flex flex-col justify-center items-center">
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-background/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-border/40">
+          <span className="text-sm font-medium text-foreground">{machineName}</span>
           {state === "connecting" && (
-            <span className="flex items-center gap-1 text-xs text-white/60">
+            <span className="flex items-center gap-1 text-xs text-amber-500 font-medium">
               <Loader2 className="h-3 w-3 animate-spin" /> connecting…
+            </span>
+          )}
+          {state === "connected" && (
+            <span className="flex items-center gap-1 text-xs text-emerald-500 font-medium">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> live
             </span>
           )}
         </div>
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 rounded-full bg-white/10 hover:bg-white/20 p-1.5 text-white"
+          className="absolute top-3 right-3 z-10 rounded-full bg-background/70 hover:bg-background/90 backdrop-blur-md p-2 text-foreground transition-colors border border-border/40"
+          title="Close viewer"
         >
           <X className="h-4 w-4" />
         </button>
 
         {state === "error" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            <MonitorOff className="h-10 w-10 mb-3 text-white/60" />
-            <p className="text-sm font-medium">Connection failed</p>
-            <p className="text-xs text-white/60 mt-1 max-w-md text-center">{error}</p>
-            <Button variant="outline" className="mt-4" onClick={onClose}>
-              Close
-            </Button>
+          <div className="flex flex-col items-center justify-center text-foreground p-6 text-center">
+            <MonitorOff className="h-12 w-12 mb-3 text-destructive" />
+            <p className="text-base font-semibold">Connection failed</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md">{error}</p>
+            <div className="flex items-center gap-2 mt-4">
+              <Button size="sm" variant="outline" onClick={() => setRetryCount((c) => c + 1)}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
+              </Button>
+              <Button size="sm" variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+            </div>
           </div>
         ) : (
           <video
@@ -201,9 +268,10 @@ export function RemoteControl({
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain cursor-crosshair bg-black"
             onMouseMove={onMouseMove}
             onMouseDown={onMouseDown}
+            onContextMenu={(e) => e.preventDefault()}
             onWheel={onWheel}
             onKeyDown={onKeyDown}
             tabIndex={0}

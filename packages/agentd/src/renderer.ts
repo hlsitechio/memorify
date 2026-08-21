@@ -2,31 +2,28 @@
 //
 // Electron's RTCPeerConnection + getDisplayMedia are RENDERER APIs, so the
 // actual streaming runs here (in a hidden BrowserWindow), while the main
-// process coordinates pairing + signaling via IPC.
+// process coordinates pairing + signaling + native OS input injection via IPC.
 //
 // SCREEN CAPTURE: the main process grants screen access via
 // session.defaultSession.setDisplayMediaRequestHandler(); the renderer then
-// calls navigator.mediaDevices.getDisplayMedia() (the modern API — NOT the
-// legacy getUserMedia + chromeMediaSource). desktopCapturer is main-process
-// only, so it is NOT imported here.
+// calls navigator.mediaDevices.getDisplayMedia().
 //
 // IPC contract (main ⇄ renderer):
 //   main → renderer:  { type: "start", host, machineToken, sessionId }
 //   main → renderer:  { type: "signal", messages: SignalMessage[] }
 //   main → renderer:  { type: "stop" }
 //   renderer → main:  { type: "send", kind, payload }   (forward a signal)
+//   renderer → main:  { type: "input", data }            (forward mouse/keyboard to main process)
 //   renderer → main:  { type: "ready" | "error", detail? }
-
-import { createInjector } from "./injector.js";
 
 type SignalMessage = { kind: string; payload: any };
 
 let pc: RTCPeerConnection | null = null;
 let dc: RTCDataChannel | null = null;
-let injector: Awaited<ReturnType<typeof createInjector>> = null;
 let host = "";
 let machineToken = "";
 let sessionId = "";
+let pendingIceCandidates: RTCIceCandidateInit[] = [];
 
 function post(msg: unknown) {
   // @ts-expect-error — ipcRenderer injected via preload/contextBridge
@@ -37,94 +34,68 @@ async function sendSignal(kind: string, payload: unknown) {
   post({ type: "send", kind, payload });
 }
 
-// Input event validation — the data channel is authenticated (DTLS) but a
-// compromised viewer could still send malformed/oversized events. Bound every
-// field and whitelist discrete values before touching the injector.
-const MAX_TYPE_LENGTH = 2000;
-const ALLOWED_BUTTONS = new Set(["left", "right", "middle"]);
-const ALLOWED_KEYS = new Set([
-  "Enter", "Backspace", "Escape", "Tab", "Space",
-  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-  "Delete", "Home", "End", "PageUp", "PageDown",
-]);
-
-function clamp01(n: unknown): number {
-  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
-  return Math.min(1, Math.max(0, v));
-}
-
-async function handleInput(data: unknown) {
-  if (!injector) return;
-  try {
-    const ev = typeof data === "string" ? JSON.parse(data) : data;
-    if (!ev || typeof ev !== "object") return;
-    switch (ev.type) {
-      case "move":
-        await injector.move(clamp01(ev.x), clamp01(ev.y));
-        break;
-      case "click": {
-        const button = typeof ev.button === "string" && ALLOWED_BUTTONS.has(ev.button) ? ev.button : "left";
-        await injector.click(button);
-        break;
-      }
-      case "type": {
-        const text = typeof ev.text === "string" ? ev.text : "";
-        await injector.type(text.slice(0, MAX_TYPE_LENGTH));
-        break;
-      }
-      case "key": {
-        const key = typeof ev.key === "string" && ALLOWED_KEYS.has(ev.key) ? ev.key : null;
-        if (key) await injector.key(key);
-        break;
-      }
-      case "scroll": {
-        const dx = typeof ev.dx === "number" && Number.isFinite(ev.dx) ? ev.dx : 0;
-        const dy = typeof ev.dy === "number" && Number.isFinite(ev.dy) ? ev.dy : 0;
-        await injector.scroll(Math.max(-100, Math.min(100, dx)), Math.max(-100, Math.min(100, dy)));
-        break;
-      }
-    }
-  } catch (e) {
-    console.error("input injection error:", e);
-  }
+function handleInput(data: unknown) {
+  // Forward input directly to main process where Node.js native input injector runs
+  post({ type: "input", data });
 }
 
 async function start(opts: { host: string; machineToken: string; sessionId: string }) {
   host = opts.host;
   machineToken = opts.machineToken;
   sessionId = opts.sessionId;
-  injector = await createInjector();
+  pendingIceCandidates = [];
+
+  console.log("[agentd:renderer] Starting stream session:", sessionId);
 
   // Modern screen capture: getDisplayMedia (main process grants access via
-  // setDisplayMediaRequestHandler). No desktopCapturer in the renderer.
+  // setDisplayMediaRequestHandler).
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+      video: { frameRate: { ideal: 30, max: 60 } },
       audio: false,
     });
+    console.log("[agentd:renderer] Captured screen stream successfully:", stream.id);
   } catch (e) {
-    post({ type: "error", detail: `getDisplayMedia failed: ${(e as Error).message}` });
+    const err = (e as Error).message || String(e);
+    console.error("[agentd:renderer] getDisplayMedia error:", err);
+    post({ type: "error", detail: `getDisplayMedia failed: ${err}` });
     return;
   }
 
   pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+    ],
   });
 
   stream.getTracks().forEach((track: MediaStreamTrack) => pc!.addTrack(track, stream));
 
   dc = pc.createDataChannel("input", { ordered: true });
   dc.onmessage = (ev) => handleInput(ev.data);
+  dc.onopen = () => console.log("[agentd:renderer] Input data channel opened");
+  dc.onclose = () => console.log("[agentd:renderer] Input data channel closed");
 
   pc.onicecandidate = (ev) => {
-    if (ev.candidate) void sendSignal("ice", { candidate: ev.candidate.toJSON() });
+    if (ev.candidate) {
+      void sendSignal("ice", { candidate: ev.candidate.toJSON() });
+    }
   };
 
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await sendSignal("offer", { sdp: pc.localDescription });
-  post({ type: "ready" });
+  pc.onconnectionstatechange = () => {
+    console.log("[agentd:renderer] PeerConnection state:", pc?.connectionState);
+  };
+
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await sendSignal("offer", { sdp: pc.localDescription });
+    console.log("[agentd:renderer] Sent WebRTC offer to viewer");
+  } catch (e) {
+    console.error("[agentd:renderer] Create offer error:", e);
+    post({ type: "error", detail: `Failed to create offer: ${(e as Error).message}` });
+  }
 }
 
 async function onSignal(msgs: SignalMessage[]) {
@@ -132,19 +103,37 @@ async function onSignal(msgs: SignalMessage[]) {
   for (const msg of msgs) {
     try {
       if (msg.kind === "answer") {
-        await pc.setRemoteDescription(msg.payload.sdp);
+        console.log("[agentd:renderer] Received answer from viewer");
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+        // Drain any ICE candidates received prior to answer
+        while (pendingIceCandidates.length > 0) {
+          const cand = pendingIceCandidates.shift()!;
+          await pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) =>
+            console.warn("[agentd:renderer] buffered ice add error:", e),
+          );
+        }
       } else if (msg.kind === "ice") {
-        if (msg.payload.candidate) await pc.addIceCandidate(msg.payload.candidate);
+        if (msg.payload.candidate) {
+          if (!pc.remoteDescription) {
+            pendingIceCandidates.push(msg.payload.candidate);
+          } else {
+            await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate)).catch((e) =>
+              console.warn("[agentd:renderer] addIceCandidate error:", e),
+            );
+          }
+        }
       } else if (msg.kind === "bye") {
+        console.log("[agentd:renderer] Received bye signal");
         stop();
       }
     } catch (e) {
-      console.error("signal error:", e);
+      console.error("[agentd:renderer] signal error:", e);
     }
   }
 }
 
 function stop() {
+  pendingIceCandidates = [];
   if (pc) {
     pc.close();
     pc = null;
@@ -159,6 +148,5 @@ window.__memorifyIpc?.on((msg: any) => {
   else if (msg.type === "stop") stop();
 });
 
-// Signal readiness so the main process knows it can send "start" (avoids the
-// race where "start" is sent before this listener is registered).
+// Signal readiness so the main process knows it can send "start"
 post({ type: "ready" });

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -24,6 +25,9 @@ import {
   Loader2,
   Check,
   Download,
+  Bot,
+  UserCheck,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -34,6 +38,7 @@ type Machine = {
   name: string;
   platform: string | null;
   online: boolean;
+  allow_agent_access: boolean;
   last_seen_at: string | null;
   created_at: string;
   active_session_id: string | null;
@@ -54,6 +59,7 @@ export default function Machines() {
   const [code, setCode] = useState("");
   const [pairing, setPairing] = useState(false);
   const [killing, setKilling] = useState<string | null>(null);
+  const [togglingMode, setTogglingMode] = useState<string | null>(null);
   const [controlling, setControlling] = useState<Machine | null>(null);
 
   const api = useCallback(
@@ -120,6 +126,41 @@ export default function Machines() {
     }
   };
 
+  const toggleAgentMode = async (machineId: string, current: boolean) => {
+    const next = !current;
+    setTogglingMode(machineId);
+    // Optimistic update
+    setMachines((prev) =>
+      prev.map((m) => (m.id === machineId ? { ...m, allow_agent_access: next } : m)),
+    );
+    try {
+      const { ok, data } = await api("/api/machine/mode", {
+        machine_id: machineId,
+        allow_agent_access: next,
+      });
+      if (!ok) {
+        // Revert on error
+        setMachines((prev) =>
+          prev.map((m) => (m.id === machineId ? { ...m, allow_agent_access: current } : m)),
+        );
+        toast.error(data.error ?? "Failed to update access mode");
+        return;
+      }
+      toast.success(
+        next
+          ? "🤖 Agent Access Enabled — agents can run safe allowlisted commands"
+          : "🔒 Human-Only Mode — AI agents are completely blocked from this machine",
+      );
+    } catch (e) {
+      setMachines((prev) =>
+        prev.map((m) => (m.id === machineId ? { ...m, allow_agent_access: current } : m)),
+      );
+      toast.error((e as Error).message);
+    } finally {
+      setTogglingMode(null);
+    }
+  };
+
   const kill = async (id: string) => {
     setKilling(id);
     try {
@@ -128,7 +169,7 @@ export default function Machines() {
         toast.error(data.error ?? "Kill failed");
         return;
       }
-      toast.success("Machine killed — token revoked, daemon will exit");
+      toast.success("Machine revoked — token invalidated and daemon disconnected");
       load();
     } catch (e) {
       toast.error((e as Error).message);
@@ -140,8 +181,8 @@ export default function Machines() {
   return (
     <>
       <PageHeader
-        title="Machines"
-        description="Take control of your machines remotely — TeamViewer-style"
+        title="Machines & Remote Desktop"
+        description="TeamViewer-style remote desktop & agent execution with one-click kill switches"
         actions={
           <Button size="sm" variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
@@ -158,7 +199,7 @@ export default function Machines() {
               <Plus className="h-4 w-4" /> Pair a machine
             </CardTitle>
             <CardDescription>
-              Run the daemon on your machine, then enter the 6-character code it shows.
+              Run the daemon on your machine, then enter the 6-character code it displays.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -180,14 +221,14 @@ export default function Machines() {
                   ) : (
                     <Check className="h-4 w-4 mr-1.5" />
                   )}
-                  Pair
+                  Pair Machine
                 </Button>
               </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Download className="h-3.5 w-3.5" />
               <span>
-                Install the daemon:{" "}
+                Install the desktop daemon:{" "}
                 <a
                   href={DOWNLOAD_URL}
                   target="_blank"
@@ -203,11 +244,13 @@ export default function Machines() {
 
         {/* Machine list */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Monitor className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Your machines ({machines.length})
-            </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Monitor className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Your machines ({machines.length})
+              </h3>
+            </div>
           </div>
 
           {machines.length === 0 ? (
@@ -215,16 +258,16 @@ export default function Machines() {
               <Monitor className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
               <h3 className="text-base font-semibold">No machines paired yet</h3>
               <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
-                Pair your first machine to control it remotely from anywhere — with or without an agent.
+                Pair your desktop or server to control it like TeamViewer and optionally allow AI agents to run commands.
               </p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border bg-card divide-y divide-border">
               {machines.map((m) => (
-                <div key={m.id} className="flex items-center gap-4 px-4 py-3 hover:bg-secondary/30">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium truncate">{m.name}</span>
+                <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-secondary/20 transition-colors">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-foreground truncate">{m.name}</span>
                       {m.online ? (
                         <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30">
                           <Wifi className="h-3 w-3 mr-1" /> online
@@ -235,50 +278,81 @@ export default function Machines() {
                         </Badge>
                       )}
                       {m.active_session_id && (
-                        <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30">
-                          <ShieldAlert className="h-3 w-3 mr-1" /> agent in control
+                        <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30 animate-pulse">
+                          <ShieldAlert className="h-3 w-3 mr-1" /> active session
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {m.platform ?? "unknown platform"}
-                      {" · "}
-                      {m.commands_total} commands
-                      {" · "}
-                      {m.last_seen_at
-                        ? `last seen ${formatDistanceToNow(new Date(m.last_seen_at))} ago`
-                        : "never seen"}
+                    <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                      <span>{m.platform ?? "unknown platform"}</span>
+                      <span>·</span>
+                      <span>{m.commands_total} commands run</span>
+                      <span>·</span>
+                      <span>
+                        {m.last_seen_at
+                          ? `last seen ${formatDistanceToNow(new Date(m.last_seen_at))} ago`
+                          : "never seen"}
+                      </span>
                     </div>
                     {m.active_agent && (
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        controlled by <span className="font-medium">{m.active_agent}</span>
+                      <div className="text-xs text-amber-500/90 font-medium">
+                        controlled by agent <span className="underline">{m.active_agent}</span>
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setControlling(m)}
-                    disabled={!m.online}
-                    title={m.online ? "Take control" : "Machine offline"}
-                  >
-                    <Monitor className="h-3.5 w-3.5 mr-1.5" />
-                    Control
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => kill(m.id)}
-                    disabled={killing === m.id}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    {killing === m.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    Kill
-                  </Button>
+
+                  {/* Mode Selector & Action Buttons */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {/* Human-only vs Agent Toggle */}
+                    <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-lg border border-border/50">
+                      <Switch
+                        checked={m.allow_agent_access}
+                        disabled={togglingMode === m.id}
+                        onCheckedChange={() => toggleAgentMode(m.id, m.allow_agent_access)}
+                        id={`mode-toggle-${m.id}`}
+                      />
+                      <Label
+                        htmlFor={`mode-toggle-${m.id}`}
+                        className="text-xs cursor-pointer select-none font-medium flex items-center gap-1.5"
+                      >
+                        {m.allow_agent_access ? (
+                          <span className="text-amber-500 flex items-center gap-1">
+                            <Bot className="h-3.5 w-3.5" /> Agent Allowed
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Lock className="h-3.5 w-3.5" /> Human Only
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setControlling(m)}
+                      disabled={!m.online}
+                      title={m.online ? "Open remote screen" : "Machine offline"}
+                    >
+                      <Monitor className="h-3.5 w-3.5 mr-1.5" />
+                      TeamViewer
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => kill(m.id)}
+                      disabled={killing === m.id}
+                      className="text-destructive hover:bg-destructive/10"
+                      title="Revoke machine token"
+                    >
+                      {killing === m.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -286,10 +360,20 @@ export default function Machines() {
         </div>
 
         <Separator />
-        <p className="text-xs text-muted-foreground">
-          Every agent control session emails you a one-click kill switch. Commands are allowlisted on the
-          machine and audit-logged in the dashboard.
-        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
+          <div className="p-3 bg-secondary/20 rounded-lg border border-border/40">
+            <p className="font-medium text-foreground flex items-center gap-1.5 mb-1">
+              <Lock className="h-3.5 w-3.5 text-blue-400" /> 🔒 Human-Only (TeamViewer Mode)
+            </p>
+            You have exclusive remote desktop access from any browser. External AI agents are strictly blocked from touching the machine.
+          </div>
+          <div className="p-3 bg-secondary/20 rounded-lg border border-border/40">
+            <p className="font-medium text-foreground flex items-center gap-1.5 mb-1">
+              <Bot className="h-3.5 w-3.5 text-amber-400" /> 🤖 Agent-Allowed Mode
+            </p>
+            Permitted AI agents can run allowlisted commands on this machine. Every session immediately sends you a one-click kill email.
+          </div>
+        </div>
       </div>
 
       {controlling && (
