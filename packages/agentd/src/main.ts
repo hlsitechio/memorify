@@ -39,6 +39,7 @@ import { createInjector } from "./injector.js";
 // Ensure WebRTC sends real local IP candidates (bypasses slow mDNS resolution),
 // auto-grants media permissions without UI popups, and prevents background throttling.
 app.commandLine.appendSwitch("disable-features", "WebRtcHideLocalIpsWithMdns");
+app.commandLine.appendSwitch("enable-features", "AllowWgcScreenCapturer,DXGIUseD3D11");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.commandLine.appendSwitch("disable-renderer-backgrounding");
 app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
@@ -307,11 +308,13 @@ function ensureStreamWindow(): BrowserWindow {
   if (streamWindow) return streamWindow;
   streamReady = false;
   streamWindow = new BrowserWindow({
-    width: 1,
-    height: 1,
-    x: -10000,
-    y: -10000,
+    width: 2,
+    height: 2,
+    x: 0,
+    y: 0,
     show: true,
+    frame: false,
+    transparent: true,
     focusable: false,
     skipTaskbar: true,
     webPreferences: {
