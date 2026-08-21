@@ -411,7 +411,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
          WHERE ip_hash = $1 AND created_at > now() - interval '1 hour'`,
         [ipHash],
       ).catch(() => null);
-      if ((recent?.n ?? 0) >= 5) {
+      if ((recent?.n ?? 0) >= 50) {
         return json({ error: "rate_limited", retry_after: 3600 }, 429, { "Retry-After": "3600" });
       }
 

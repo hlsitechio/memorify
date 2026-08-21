@@ -90,6 +90,7 @@ export default async (req: Request): Promise<Response> => {
       )`,
       `CREATE INDEX IF NOT EXISTS machine_signaling_poll_idx
          ON machine_signaling(session_id, direction, consumed, created_at)`,
+      `DELETE FROM machine_pairings WHERE created_at < now() - interval '1 hour'`,
     ];
 
     for (const sql of statements) {
