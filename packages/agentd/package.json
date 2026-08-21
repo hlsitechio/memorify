@@ -1,15 +1,15 @@
 {
   "name": "memorify-agentd",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Memorify Remote daemon — pair your machine and let Memorify agents (or you) control it remotely",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/main.js",
   "author": "Memorify",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"const f=require('fs');f.copyFileSync('src/renderer.html','dist/renderer.html');f.copyFileSync('build/icon.png','dist/icon.png')\"",
+    "build": "tsc -p tsconfig.json && node -e \"const f=require('fs');f.copyFileSync('src/renderer.html','dist/renderer.html');f.copyFileSync('src/preload.cjs','dist/preload.cjs');f.copyFileSync('build/icon.png','dist/icon.png')\"",
     "start": "electron .",
-    "dev": "tsc -p tsconfig.json && node -e \"const f=require('fs');f.copyFileSync('src/renderer.html','dist/renderer.html');f.copyFileSync('build/icon.png','dist/icon.png')\" && electron .",
+    "dev": "tsc -p tsconfig.json && node -e \"const f=require('fs');f.copyFileSync('src/renderer.html','dist/renderer.html');f.copyFileSync('src/preload.cjs','dist/preload.cjs');f.copyFileSync('build/icon.png','dist/icon.png')\" && electron .",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
