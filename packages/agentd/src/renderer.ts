@@ -39,27 +39,45 @@ function handleInput(data: unknown) {
   post({ type: "input", data });
 }
 
-async function start(opts: { host: string; machineToken: string; sessionId: string }) {
+async function start(opts: { host: string; machineToken: string; sessionId: string; sourceId?: string }) {
   host = opts.host;
   machineToken = opts.machineToken;
   sessionId = opts.sessionId;
   pendingIceCandidates = [];
 
-  console.log("[agentd:renderer] Starting stream session:", sessionId);
+  console.log("[agentd:renderer] Starting stream session:", sessionId, "sourceId:", opts.sourceId);
 
-  // Modern screen capture: getDisplayMedia (main process grants access via
-  // setDisplayMediaRequestHandler).
   let stream: MediaStream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 60 } },
-      audio: false,
-    });
-    console.log("[agentd:renderer] Captured screen stream successfully:", stream.id);
+    if (opts.sourceId) {
+      stream = await (navigator.mediaDevices as any).getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: "desktop",
+            chromeMediaSourceId: opts.sourceId,
+            minWidth: 1280,
+            maxWidth: 1920,
+            minHeight: 720,
+            maxHeight: 1080,
+            maxFrameRate: 30,
+          },
+        },
+      });
+    } else {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: "never",
+          frameRate: { ideal: 30, max: 60 },
+        } as any,
+        audio: false,
+      });
+    }
+    console.log("[agentd:renderer] Captured screen stream successfully:", stream.id, "tracks:", stream.getTracks().length);
   } catch (e) {
     const err = (e as Error).message || String(e);
-    console.error("[agentd:renderer] getDisplayMedia error:", err);
-    post({ type: "error", detail: `getDisplayMedia failed: ${err}` });
+    console.error("[agentd:renderer] desktop capture error:", err);
+    post({ type: "error", detail: `desktop capture failed: ${err}` });
     return;
   }
 

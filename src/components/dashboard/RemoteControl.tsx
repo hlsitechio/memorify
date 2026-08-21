@@ -128,6 +128,9 @@ export function RemoteControl({
           ],
         });
         pcRef.current = pc;
+        try {
+          pc.addTransceiver("video", { direction: "recvonly" });
+        } catch {}
 
         pc.onicecandidate = (ev) => {
           if (ev.candidate) {
@@ -136,12 +139,13 @@ export function RemoteControl({
         };
 
         pc.ontrack = (ev) => {
-          console.log("[RemoteControl] Received video track from machine:", ev.streams);
-          if (videoRef.current && ev.streams[0]) {
-            videoRef.current.srcObject = ev.streams[0];
+          console.log("[RemoteControl] Received video track from machine:", ev.streams, ev.track);
+          const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : new MediaStream([ev.track]);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
             videoRef.current.play().catch((e) => console.warn("[RemoteControl] Video auto-play error:", e));
-            setState("connected");
           }
+          setState("connected");
         };
 
         pc.ondatachannel = (ev) => {

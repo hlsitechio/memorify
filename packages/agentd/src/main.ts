@@ -288,6 +288,7 @@ function ensureStreamWindow(): BrowserWindow {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
   });
 
@@ -307,10 +308,25 @@ function ensureStreamWindow(): BrowserWindow {
   return streamWindow;
 }
 
-function startStreaming(sessionId: string) {
+async function startStreaming(sessionId: string) {
   if (!machineToken) return;
   const win = ensureStreamWindow();
   activeSessionId = sessionId;
+
+  let sourceId = "";
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: 0, height: 0 },
+    });
+    if (sources.length > 0) {
+      sourceId = sources[0].id;
+      console.log(`[agentd:main] Selected screen source: ${sources[0].name} (${sourceId})`);
+    }
+  } catch (e) {
+    console.error("[agentd:main] getSources failed:", e);
+  }
+
   const sendStart = () => {
     if (!streamReady) {
       // Renderer not loaded yet — retry shortly.
@@ -322,6 +338,7 @@ function startStreaming(sessionId: string) {
       host: HOST,
       machineToken,
       sessionId,
+      sourceId,
     });
   };
   sendStart();
