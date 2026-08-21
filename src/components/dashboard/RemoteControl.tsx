@@ -32,6 +32,7 @@ export function RemoteControl({
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const [state, setState] = useState<"connecting" | "connected" | "error">("connecting");
   const [error, setError] = useState<string | null>(null);
+  const [resolution, setResolution] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -259,6 +260,11 @@ export function RemoteControl({
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> live
             </span>
           )}
+          {resolution && (
+            <span className="text-[11px] text-muted-foreground font-mono bg-background/60 px-1.5 py-0.5 rounded border border-border/30">
+              {resolution}
+            </span>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -290,11 +296,21 @@ export function RemoteControl({
             muted
             className="w-full h-full object-contain cursor-crosshair bg-black"
             onLoadedMetadata={() => {
-              console.log("[RemoteControl] Video metadata loaded:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight);
-              videoRef.current?.play().catch(console.warn);
+              if (videoRef.current) {
+                const w = videoRef.current.videoWidth;
+                const h = videoRef.current.videoHeight;
+                if (w && h) setResolution(`${w}×${h}`);
+                console.log("[RemoteControl] Video metadata loaded:", w, "x", h);
+                videoRef.current.play().catch(console.warn);
+              }
             }}
             onCanPlay={() => {
-              videoRef.current?.play().catch(console.warn);
+              if (videoRef.current) {
+                const w = videoRef.current.videoWidth;
+                const h = videoRef.current.videoHeight;
+                if (w && h) setResolution(`${w}×${h}`);
+                videoRef.current.play().catch(console.warn);
+              }
             }}
             onPlay={() => console.log("[RemoteControl] Video is actively playing")}
             onMouseMove={onMouseMove}
