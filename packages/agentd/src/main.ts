@@ -289,7 +289,13 @@ function ensureStreamWindow(): BrowserWindow {
   if (streamWindow) return streamWindow;
   streamReady = false;
   streamWindow = new BrowserWindow({
-    show: false,
+    width: 1,
+    height: 1,
+    x: -10000,
+    y: -10000,
+    show: true,
+    focusable: false,
+    skipTaskbar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,

@@ -33,36 +33,32 @@ export function RemoteControl({
   const [state, setState] = useState<"connecting" | "connected" | "error">("connecting");
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
 
-  const api = useCallback(
-    async (path: string, body?: Record<string, unknown>) => {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-      const res = await fetch(path, {
-        method: body ? "POST" : "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const data = await res.json().catch(() => ({}));
-      return { ok: res.ok, data };
-    },
-    [getToken],
-  );
+  const api = useCallback(async (path: string, body?: Record<string, unknown>) => {
+    const token = await getTokenRef.current();
+    if (!token) throw new Error("Not authenticated");
+    const res = await fetch(path, {
+      method: body ? "POST" : "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  }, []);
 
-  const sendSignal = useCallback(
-    async (kind: string, payload: unknown) => {
-      if (!sessionRef.current) return;
-      await api("/api/machine/control/send", {
-        session_id: sessionRef.current,
-        kind,
-        payload,
-      });
-    },
-    [api],
-  );
+  const sendSignal = useCallback(async (kind: string, payload: unknown) => {
+    if (!sessionRef.current) return;
+    await api("/api/machine/control/send", {
+      session_id: sessionRef.current,
+      kind,
+      payload,
+    });
+  }, [api]);
 
   const sendInput = useCallback((ev: Record<string, unknown>) => {
     if (dcRef.current && dcRef.current.readyState === "open") {
@@ -94,32 +90,35 @@ export function RemoteControl({
           await sendSignal("answer", { sdp: pc.localDescription });
           console.log("[RemoteControl] Sent WebRTC answer to machine");
         } else if (msg.kind === "ice") {
-          if (msg.payload?.candidate) {
-            if (!pc.remoteDescription) {
-              pendingCandidates.current.push(msg.payload.candidate);
-            } else {
-              await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate)).catch((e) =>
-                console.warn("[RemoteControl] addIceCandidate error:", e),
+          const cand = msg.payload?.candidate;
+          if (cand) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              await pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) =>
+                console.warn("[RemoteControl] ICE candidate add error:", e),
               );
+            } else {
+              pendingCandidates.current.push(cand);
             }
           }
         } else if (msg.kind === "bye") {
-          console.log("[RemoteControl] Received bye signal from machine");
-          onClose();
+          console.log("[RemoteControl] Received bye from machine");
+          setState("error");
+          setError("Machine disconnected the remote session.");
         }
       } catch (e) {
-        console.error("[RemoteControl] Signal handling error:", e);
+        console.error("[RemoteControl] Signal handle error:", e);
       }
     };
 
     const connect = async () => {
-      try {
-        setState("connecting");
-        setError(null);
+      setState("connecting");
+      setError(null);
 
+      try {
         const { ok, data } = await api("/api/machine/control/start", { machine_id: machineId });
         if (!ok) throw new Error(data.error ?? "failed to start session");
         sessionRef.current = data.session_id;
+        console.log("[RemoteControl] Session started:", sessionRef.current);
 
         const pc = new RTCPeerConnection({
           iceServers: [
@@ -163,8 +162,6 @@ export function RemoteControl({
           } else if (pc.connectionState === "failed") {
             setState("error");
             setError("WebRTC peer connection failed (ICE negotiation / NAT traversal error)");
-          } else if (pc.connectionState === "disconnected") {
-            // Transient disconnect — give it a moment or prompt
           }
         };
 
@@ -206,7 +203,7 @@ export function RemoteControl({
       pcRef.current = null;
       dcRef.current = null;
     };
-  }, [machineId, api, sendSignal, onClose, retryCount]);
+  }, [machineId, retryCount, api, sendSignal]);
 
   // ── input capture (mouse + keyboard) ────────────────────────────
   const onMouseMove = (e: React.MouseEvent<HTMLVideoElement>) => {
