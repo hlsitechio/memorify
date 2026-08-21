@@ -102,12 +102,20 @@ async function startPair() {
       if (code) {
         userCode = code;
         setStatus("waiting_approval");
+        // Show the code prominently so the user can enter it in the dashboard.
+        showPairingCode(code);
       }
     });
     machineToken = token;
     userCode = null;
     setStatus("connected");
     startPollLoop();
+    dialog.showMessageBox({
+      type: "info",
+      title: "Memorify Remote",
+      message: "Machine paired ✓",
+      detail: "Your machine is now connected. You (or an agent) can control it from the Memorify dashboard.",
+    });
   } catch (e) {
     if (e instanceof PairingDenied) {
       setStatus("error", e.message);
@@ -118,9 +126,37 @@ async function startPair() {
         detail: e.message,
       });
     } else {
-      setStatus("error", (e as Error).message);
+      const msg = (e as Error).message || String(e);
+      setStatus("error", msg);
+      // Show the actual error so the user knows what went wrong.
+      dialog.showMessageBox({
+        type: "error",
+        title: "Memorify Remote",
+        message: "Pairing failed",
+        detail: msg,
+      });
     }
   }
+}
+
+function showPairingCode(code: string) {
+  const buttons = ["Copy code", "Open dashboard", "Close"];
+  dialog
+    .showMessageBox({
+      type: "info",
+      title: "Memorify Remote",
+      message: `Your pairing code: ${code}`,
+      detail:
+        `Open the Memorify dashboard (Machines page) and enter this code to approve the machine.\n\n` +
+        `Verification URL: ${HOST}/dashboard/machines`,
+      buttons,
+      defaultId: 0,
+      cancelId: 2,
+    })
+    .then(({ response }) => {
+      if (response === 0) copyUserCode();
+      else if (response === 1) shell.openExternal(`${HOST}/dashboard/machines`);
+    });
 }
 
 // ── poll / execute loop ─────────────────────────────────────────
