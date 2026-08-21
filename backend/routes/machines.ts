@@ -469,7 +469,8 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "POST" && path === "/api/machine/pair/confirm") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
-      if (!claims.org_id) return json({ error: "no_active_workspace" }, 400);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
 
       const body = await req.json().catch(() => ({}));
       const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
@@ -485,7 +486,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       const machine = await queryOne<{ id: string }>(
         `INSERT INTO machines (workspace_id, name, platform, notify_email)
          VALUES ($1, $2, $3, $4) RETURNING id`,
-        [claims.org_id, pairing.machine_name, pairing.platform, claims.email ?? null],
+        [workspaceId, pairing.machine_name, pairing.platform, claims.email ?? null],
       );
       await execute(`UPDATE machine_pairings SET status = 'approved', machine_id = $1 WHERE id = $2`, [
         machine!.id,
@@ -587,12 +588,14 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "POST" && path === "/api/machine/kill") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
 
       const body = await req.json().catch(() => ({}));
       const machineId = typeof body.machine_id === "string" ? body.machine_id : "";
       const machine = await queryOne<{ id: string }>(
         `SELECT id FROM machines WHERE id = $1 AND workspace_id = $2`,
-        [machineId, claims.org_id ?? ""],
+        [machineId, workspaceId],
       );
       if (!machine) return json({ error: "machine_not_found" }, 404);
 
@@ -604,7 +607,8 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "POST" && path === "/api/machine/control/start") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
-      if (!claims.org_id) return json({ error: "no_active_workspace" }, 400);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
 
       const body = await req.json().catch(() => ({}));
       const machineId = typeof body.machine_id === "string" ? body.machine_id : "";
@@ -612,7 +616,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
         `SELECT id, workspace_id, name, platform, token_hash, notify_email,
                 last_seen_at::text, revoked_at::text
          FROM machines WHERE id = $1 AND workspace_id = $2 AND revoked_at IS NULL`,
-        [machineId, claims.org_id],
+        [machineId, workspaceId],
       );
       if (!machine) return json({ error: "machine_not_found" }, 404);
 
@@ -624,6 +628,8 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "POST" && path === "/api/machine/control/send") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
 
       const body = await req.json().catch(() => ({}));
       const sessionId = typeof body.session_id === "string" ? body.session_id : "";
@@ -641,7 +647,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       const owns = await queryOne<{ id: string }>(
         `SELECT s.id FROM machine_sessions s JOIN machines m ON m.id = s.machine_id
          WHERE s.id = $1 AND m.workspace_id = $2 AND s.status = 'active'`,
-        [sessionId, claims.org_id ?? ""],
+        [sessionId, workspaceId],
       );
       if (!owns) return json({ error: "session_not_found" }, 404);
 
@@ -658,6 +664,8 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "GET" && path === "/api/machine/control/poll") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
 
       const sessionId = url.searchParams.get("session_id") ?? "";
       if (!sessionId) return json({ error: "session_id required" }, 400);
@@ -665,7 +673,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       const owns = await queryOne<{ id: string }>(
         `SELECT s.id FROM machine_sessions s JOIN machines m ON m.id = s.machine_id
          WHERE s.id = $1 AND m.workspace_id = $2`,
-        [sessionId, claims.org_id ?? ""],
+        [sessionId, workspaceId],
       );
       if (!owns) return json({ error: "session_not_found" }, 404);
 
@@ -739,7 +747,8 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "POST" && path === "/api/machine/mode") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
-      if (!claims.org_id) return json({ error: "no_active_workspace" }, 400);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
 
       const body = await req.json().catch(() => ({}));
       const machineId = typeof body.machine_id === "string" ? body.machine_id : "";
@@ -747,7 +756,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
 
       const machine = await queryOne<{ id: string; name: string }>(
         `SELECT id, name FROM machines WHERE id = $1 AND workspace_id = $2 AND revoked_at IS NULL`,
-        [machineId, claims.org_id],
+        [machineId, workspaceId],
       );
       if (!machine) return json({ error: "machine_not_found" }, 404);
 
@@ -763,8 +772,9 @@ export async function handleMachineApi(req: Request): Promise<Response> {
     if (method === "GET" && path === "/api/machine/list") {
       const claims = await requireClerk(req);
       if (!claims) return json({ error: "unauthorized" }, 401);
-      if (!claims.org_id) return json({ error: "no_active_workspace" }, 400);
-      const machines = await listMachinesForWorkspace(claims.org_id);
+      const workspaceId = claims.org_id || claims.workspace_id || claims.sub;
+      if (!workspaceId) return json({ error: "no_active_workspace" }, 400);
+      const machines = await listMachinesForWorkspace(workspaceId);
       return json({ machines });
     }
 

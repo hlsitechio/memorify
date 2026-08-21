@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth as useClerkAuth, useOrganization } from "@clerk/react";
+import { useAuth as useClerkAuth, useOrganization, useUser } from "@clerk/react";
+import { useCurrentWorkspace } from "@/hooks/useCurrentWorkspace";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,8 +52,10 @@ const DOWNLOAD_URL = "https://github.com/hlsitechio/memorify/releases/latest";
 
 export default function Machines() {
   const { getToken } = useClerkAuth();
+  const [currentWorkspace] = useCurrentWorkspace();
   const { organization } = useOrganization();
-  const workspaceId = organization?.id ?? "";
+  const { user } = useUser();
+  const workspaceId = currentWorkspace?.id || organization?.id || user?.id || "";
 
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,7 +84,6 @@ export default function Machines() {
   );
 
   const load = useCallback(async () => {
-    if (!workspaceId) return;
     setLoading(true);
     try {
       const { ok, data } = await api("/api/machine/list");
@@ -91,7 +93,7 @@ export default function Machines() {
     } finally {
       setLoading(false);
     }
-  }, [api, workspaceId]);
+  }, [api]);
 
   useEffect(() => {
     load();
