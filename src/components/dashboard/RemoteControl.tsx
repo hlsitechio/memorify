@@ -125,8 +125,22 @@ export function RemoteControl({
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
             { urls: "stun:stun2.l.google.com:19302" },
-            { urls: "stun:stun.cloudflare.com:3478" },
-            { urls: "stun:global.stun.twilio.com:3478" },
+            { urls: "stun:stun.relay.metered.ca:80" },
+            {
+              urls: "turn:standard.relay.metered.ca:80",
+              username: "openrelayproject",
+              credential: "openrelayproject",
+            },
+            {
+              urls: "turn:standard.relay.metered.ca:443",
+              username: "openrelayproject",
+              credential: "openrelayproject",
+            },
+            {
+              urls: "turn:standard.relay.metered.ca:443?transport=tcp",
+              username: "openrelayproject",
+              credential: "openrelayproject",
+            },
           ],
         });
         pcRef.current = pc;
@@ -145,7 +159,9 @@ export function RemoteControl({
           const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : new MediaStream([ev.track]);
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            videoRef.current.play().catch((e) => console.warn("[RemoteControl] Video auto-play error:", e));
+            videoRef.current.play().catch((e) => {
+              console.warn("[RemoteControl] Initial video play call:", e);
+            });
           }
           setState("connected");
         };
@@ -273,6 +289,14 @@ export function RemoteControl({
             playsInline
             muted
             className="w-full h-full object-contain cursor-crosshair bg-black"
+            onLoadedMetadata={() => {
+              console.log("[RemoteControl] Video metadata loaded:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight);
+              videoRef.current?.play().catch(console.warn);
+            }}
+            onCanPlay={() => {
+              videoRef.current?.play().catch(console.warn);
+            }}
+            onPlay={() => console.log("[RemoteControl] Video is actively playing")}
             onMouseMove={onMouseMove}
             onMouseDown={onMouseDown}
             onContextMenu={(e) => e.preventDefault()}

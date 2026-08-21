@@ -36,11 +36,13 @@ import {
 import { loadState, saveState, clearState } from "./store.js";
 import { createInjector } from "./injector.js";
 
-// Ensure WebRTC sends real local IP candidates (bypasses slow mDNS resolution)
-// and prevent Chromium from throttling background video streams.
+// Ensure WebRTC sends real local IP candidates (bypasses slow mDNS resolution),
+// auto-grants media permissions without UI popups, and prevents background throttling.
 app.commandLine.appendSwitch("disable-features", "WebRtcHideLocalIpsWithMdns");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.commandLine.appendSwitch("disable-renderer-backgrounding");
+app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
