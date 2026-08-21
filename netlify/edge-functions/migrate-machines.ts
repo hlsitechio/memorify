@@ -107,7 +107,6 @@ export default async (req: Request): Promise<Response> => {
     ok: true,
     existing_machines: existingMachines,
     existing_pairings: existingPairings,
-    machine_tables: tables.map((t) => t.name),
   }, null, 2), {
     headers: { "Content-Type": "application/json" },
   });
