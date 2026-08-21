@@ -8,7 +8,7 @@
 // Security: commands are allowlisted in allowlist.ts. The machine token is
 // held only in memory (never written to disk).
 
-import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain } from "electron";
+import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain, clipboard } from "electron";
 // electron-updater is CommonJS — import the default and destructure (ESM named
 // import fails at runtime: "Named export 'autoUpdater' not found").
 import electronUpdater from "electron-updater";
@@ -87,7 +87,6 @@ function rebuildTray() {
 
 function copyUserCode() {
   if (!userCode) return;
-  const { clipboard } = require("electron");
   clipboard.writeText(userCode);
 }
 
