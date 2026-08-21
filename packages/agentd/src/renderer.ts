@@ -1,8 +1,14 @@
 // src/renderer.ts — hidden renderer that owns the WebRTC screen stream.
 //
-// Electron's RTCPeerConnection + getUserMedia(desktopCapturer) are RENDERER
-// APIs, so the actual streaming runs here (in a hidden BrowserWindow), while
-// the main process coordinates pairing + signaling via IPC.
+// Electron's RTCPeerConnection + getDisplayMedia are RENDERER APIs, so the
+// actual streaming runs here (in a hidden BrowserWindow), while the main
+// process coordinates pairing + signaling via IPC.
+//
+// SCREEN CAPTURE: the main process grants screen access via
+// session.defaultSession.setDisplayMediaRequestHandler(); the renderer then
+// calls navigator.mediaDevices.getDisplayMedia() (the modern API — NOT the
+// legacy getUserMedia + chromeMediaSource). desktopCapturer is main-process
+// only, so it is NOT imported here.
 //
 // IPC contract (main ⇄ renderer):
 //   main → renderer:  { type: "start", host, machineToken, sessionId }
@@ -11,7 +17,6 @@
 //   renderer → main:  { type: "send", kind, payload }   (forward a signal)
 //   renderer → main:  { type: "ready" | "error", detail? }
 
-import { desktopCapturer } from "electron";
 import { createInjector } from "./injector.js";
 
 type SignalMessage = { kind: string; payload: any };
@@ -90,28 +95,18 @@ async function start(opts: { host: string; machineToken: string; sessionId: stri
   sessionId = opts.sessionId;
   injector = await createInjector();
 
-  const sources = await desktopCapturer.getSources({
-    types: ["screen"],
-    thumbnailSize: { width: 0, height: 0 },
-  });
-  const primary = sources[0];
-  if (!primary) {
-    post({ type: "error", detail: "no screen source available" });
+  // Modern screen capture: getDisplayMedia (main process grants access via
+  // setDisplayMediaRequestHandler). No desktopCapturer in the renderer.
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+      audio: false,
+    });
+  } catch (e) {
+    post({ type: "error", detail: `getDisplayMedia failed: ${(e as Error).message}` });
     return;
   }
-
-  const stream = await (navigator.mediaDevices as any).getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSource: "desktop",
-        chromeMediaSourceId: primary.id,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        maxFrameRate: 30,
-      },
-    } as any,
-  });
 
   pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -163,3 +158,7 @@ window.__memorifyIpc?.on((msg: any) => {
   else if (msg.type === "signal") void onSignal(msg.messages ?? []);
   else if (msg.type === "stop") stop();
 });
+
+// Signal readiness so the main process knows it can send "start" (avoids the
+// race where "start" is sent before this listener is registered).
+post({ type: "ready" });

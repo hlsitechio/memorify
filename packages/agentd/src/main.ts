@@ -8,7 +8,7 @@
 // Security: commands are allowlisted in allowlist.ts. The machine token is
 // held only in memory (never written to disk).
 
-import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain, clipboard } from "electron";
+import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain, clipboard, session, desktopCapturer } from "electron";
 // electron-updater is CommonJS — import the default and destructure (ESM named
 // import fails at runtime: "Named export 'autoUpdater' not found").
 import electronUpdater from "electron-updater";
@@ -45,6 +45,7 @@ let lastError: string | null = null;
 // WebRTC runs in a hidden renderer window (renderer-only APIs); the main
 // process relays signaling between the renderer and the backend.
 let streamWindow: BrowserWindow | null = null;
+let streamReady = false;
 let activeSessionId: string | null = null;
 let signalTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -198,6 +199,7 @@ async function pollOnce() {
 
 function ensureStreamWindow(): BrowserWindow {
   if (streamWindow) return streamWindow;
+  streamReady = false;
   streamWindow = new BrowserWindow({
     show: false,
     webPreferences: {
@@ -209,6 +211,7 @@ function ensureStreamWindow(): BrowserWindow {
   streamWindow.loadFile(path.join(__dirname, "renderer.html"));
   streamWindow.on("closed", () => {
     streamWindow = null;
+    streamReady = false;
   });
   return streamWindow;
 }
@@ -217,12 +220,20 @@ function startStreaming(sessionId: string) {
   if (!machineToken) return;
   const win = ensureStreamWindow();
   activeSessionId = sessionId;
-  win.webContents.send("memorify:main", {
-    type: "start",
-    host: HOST,
-    machineToken,
-    sessionId,
-  });
+  const sendStart = () => {
+    if (!streamReady) {
+      // Renderer not loaded yet — retry shortly.
+      setTimeout(sendStart, 200);
+      return;
+    }
+    win.webContents.send("memorify:main", {
+      type: "start",
+      host: HOST,
+      machineToken,
+      sessionId,
+    });
+  };
+  sendStart();
   startSignalLoop();
   setStatus("connected");
 }
@@ -268,6 +279,10 @@ function startSignalLoop() {
 
 // Renderer → main: forward signaling to the backend.
 ipcMain.on("memorify:renderer", async (_ev, msg: any) => {
+  if (msg?.type === "ready") {
+    streamReady = true;
+    return;
+  }
   if (!machineToken || !activeSessionId) return;
   if (msg?.type === "send") {
     await fetch(`${HOST}/api/machine/signal/send`, {
@@ -315,11 +330,30 @@ function checkForUpdates() {
   });
 }
 
+function setupScreenCapture() {
+  // Grant screen access to the hidden renderer via getDisplayMedia.
+  // desktopCapturer is main-process only, so we resolve the screen source here.
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    desktopCapturer
+      .getSources({ types: ["screen"], thumbnailSize: { width: 0, height: 0 } })
+      .then((sources) => {
+        const primary = sources[0];
+        if (!primary) {
+          callback({ video: undefined, audio: "loopback" });
+          return;
+        }
+        callback({ video: primary, audio: "loopback" });
+      })
+      .catch(() => callback({ video: undefined, audio: "loopback" }));
+  });
+}
+
 app.whenReady().then(() => {
   tray = new Tray(loadTrayIcon());
   rebuildTray();
   enableAutoLaunch();
   checkForUpdates();
+  setupScreenCapture();
 
   // Auto-pair on first launch if not already paired.
   void startPair();
