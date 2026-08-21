@@ -19,7 +19,7 @@
     "node": ">=18"
   },
   "optionalDependencies": {
-    "@nut-tree/nut-js": "^4.2.0"
+    "@nut-tree/nut-js": "npm:null@^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -43,7 +43,12 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png"
     },
@@ -55,12 +60,16 @@
       "runAfterFinish": true
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "build/icon.png",
       "category": "public.app-category.utilities"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "build/icon.png",
       "category": "Utility"
     },
@@ -72,4 +81,3 @@
     }
   }
 }
-

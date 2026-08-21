@@ -477,7 +477,8 @@ app.whenReady().then(async () => {
     setStatus("connected");
     startPollLoop();
   } else {
-    setStatus("unpaired");
+    // Auto-start pairing on first launch to display the 6-character code popup on screen!
+    void startPair();
   }
 });
 
