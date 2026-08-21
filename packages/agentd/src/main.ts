@@ -9,7 +9,10 @@
 // held only in memory (never written to disk).
 
 import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain } from "electron";
-import { autoUpdater } from "electron-updater";
+// electron-updater is CommonJS — import the default and destructure (ESM named
+// import fails at runtime: "Named export 'autoUpdater' not found").
+import electronUpdater from "electron-updater";
+const { autoUpdater } = electronUpdater;
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
