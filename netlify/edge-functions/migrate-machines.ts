@@ -102,13 +102,16 @@ export default async (req: Request): Promise<Response> => {
     }
 
     const existingMachines = await query(`SELECT id, workspace_id, name, last_seen_at::text, revoked_at::text FROM machines`, []).catch((e) => [{ error: (e as Error).message }]);
-    const existingPairings = await query(`SELECT id, user_code, machine_name, status, expires_at::text, created_at::text FROM machine_pairings ORDER BY created_at DESC LIMIT 10`, []).catch((e) => [{ error: (e as Error).message }]);
+    const existingPairings = await query(`SELECT id, user_code, machine_name, status, expires_at::text, created_at::text FROM machine_pairings ORDER BY created_at DESC LIMIT 5`, []).catch((e) => [{ error: (e as Error).message }]);
+    const existingSessions = await query(`SELECT id, machine_id, status, started_at::text, last_activity_at::text FROM machine_sessions ORDER BY started_at DESC LIMIT 5`, []).catch((e) => [{ error: (e as Error).message }]);
+    const existingSignaling = await query(`SELECT id, session_id, direction, kind, consumed, created_at::text FROM machine_signaling ORDER BY created_at DESC LIMIT 10`, []).catch((e) => [{ error: (e as Error).message }]);
 
     return new Response(JSON.stringify({
       ok: true,
-      results,
       existing_machines: existingMachines,
       existing_pairings: existingPairings,
+      existing_sessions: existingSessions,
+      existing_signaling: existingSignaling,
     }, null, 2), {
       headers: { "Content-Type": "application/json" },
     });
