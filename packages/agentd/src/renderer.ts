@@ -68,6 +68,11 @@ async function start(opts: { host: string; machineToken: string; sessionId: stri
         audio: false,
       });
     }
+    const preview = document.getElementById("preview") as HTMLVideoElement | null;
+    if (preview) {
+      preview.srcObject = stream;
+      preview.play().catch(() => {});
+    }
     console.log("[agentd:renderer] Captured screen stream successfully:", stream.id, "tracks:", stream.getTracks().length);
   } catch (e) {
     const err = (e as Error).message || String(e);
