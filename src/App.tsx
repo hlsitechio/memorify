@@ -34,6 +34,7 @@ import Voices from "./pages/dashboard/Voices";
 import DatabasePage from "./pages/dashboard/Database";
 import Vault from "./pages/dashboard/Vault";
 import Mcp from "./pages/dashboard/Mcp";
+import Machines from "./pages/dashboard/Machines";
 import Docs from "./pages/dashboard/Docs";
 import Agents from "./pages/dashboard/Agents";
 import Admin from "./pages/dashboard/Admin";
@@ -121,6 +122,7 @@ const DashboardRouteTree = () => (
         <Route path="vault" element={<Vault />} />
         <Route path="connectors" element={<Connectors />} />
         <Route path="mcp" element={<Mcp />} />
+        <Route path="machines" element={<Machines />} />
         <Route path="events" element={<Events />} />
         <Route path="logs" element={<Navigate to="/dashboard/events" replace />} />
         <Route path="api-keys" element={<ApiKeys />} />

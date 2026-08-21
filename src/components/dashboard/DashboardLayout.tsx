@@ -21,6 +21,7 @@ import {
   Search,
   Bot,
   Server,
+  Monitor,
   BookOpen,
   ArrowLeft,
   PanelLeftClose,
@@ -59,6 +60,7 @@ const sections: { label: string; items: { to: string; label: string; icon: typeo
       { to: "/dashboard/plugins", label: "Plugins", icon: Puzzle },
       { to: "/dashboard/connectors", label: "Connectors", icon: Plug },
       { to: "/dashboard/mcp", label: "MCP", icon: Server },
+      { to: "/dashboard/machines", label: "Machines", icon: Monitor },
     ],
   },
   {

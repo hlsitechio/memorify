@@ -10,6 +10,7 @@ import { handleV1 } from "./v1.ts";
 import { createAgentToken, revokeAgentToken, listAgentTokens, type Scope } from "../lib/agent-token.ts";
 import { query, queryOne, execute } from "../lib/db.ts";
 import { verifyClerkJwt } from "../lib/clerk.ts";
+import { execOnMachine, listMachinesForWorkspace } from "./machines.ts";
 import { fetchWithTimeout, mcpOAuthAccessToken } from "../lib/mcp-oauth.ts";
 
 const ZAPIER_MCP_URL = "https://mcp.zapier.com/api/v1/connect";
@@ -285,6 +286,30 @@ const TOOLS: ToolDef[] = [
     action: "token_list",
     agent: "agents",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "computer_list_machines",
+    description:
+      "List machines paired to this workspace (Memorify Remote). Returns each machine's id, name, platform, online status, and active agent session. Use this to discover which machines the agent can control.",
+    action: "list_machines",
+    agent: "computer",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "computer_exec",
+    description:
+      "Run a shell command on a paired machine via the Memorify Remote daemon (pull-based relay). The command runs inside a control session that emails the machine owner with a one-click kill switch. Commands are allowlisted by the daemon; blocked/denied commands return an error. Returns stdout, stderr, exit_code, and status.",
+    action: "exec",
+    agent: "computer",
+    inputSchema: {
+      type: "object",
+      properties: {
+        machine: { type: "string", description: "Machine id or name (see computer_list_machines)" },
+        command: { type: "string", description: "Shell command to run on the machine" },
+        timeout_seconds: { type: "number", description: "Max seconds to wait for a result (default 90, max 300)" },
+      },
+      required: ["machine", "command"],
+    },
   },
 ];
 
@@ -1178,6 +1203,65 @@ async function processSingleRpc(
             content: [{ type: "text", text: JSON.stringify(tokens, null, 2) }],
           });
         } catch (e) {
+          return rpc(id, {
+            isError: true,
+            content: [{ type: "text", text: (e as Error).message }],
+          });
+        }
+      }
+
+      if (toolName === "computer_list_machines") {
+        try {
+          const machines = await listMachinesForWorkspace(agentPayload.workspace_id);
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "tool.call", toolName, { ok: true });
+          return rpc(id, {
+            content: [{ type: "text", text: JSON.stringify({ machines }, null, 2) }],
+          });
+        } catch (e) {
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "tool.call", toolName, {
+            ok: false,
+            error: (e as Error).message.slice(0, 300),
+          });
+          return rpc(id, {
+            isError: true,
+            content: [{ type: "text", text: (e as Error).message }],
+          });
+        }
+      }
+
+      if (toolName === "computer_exec") {
+        const { machine, command, timeout_seconds } = args as {
+          machine?: string;
+          command?: string;
+          timeout_seconds?: number;
+        };
+        if (!machine || !command) {
+          return rpc(id, {
+            isError: true,
+            content: [{ type: "text", text: "machine and command are required" }],
+          });
+        }
+        try {
+          const result = await execOnMachine({
+            workspace_id: agentPayload.workspace_id,
+            agent_id: agentPayload.agent_id,
+            machine,
+            command,
+            timeout_seconds,
+          });
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "tool.call", toolName, {
+            ok: true,
+            machine: result.machine,
+            command: command.slice(0, 200),
+          });
+          return rpc(id, {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          });
+        } catch (e) {
+          logAgentEvent(agentPayload.workspace_id, agentPayload.agent_id, "tool.call", toolName, {
+            ok: false,
+            error: (e as Error).message.slice(0, 300),
+          });
           return rpc(id, {
             isError: true,
             content: [{ type: "text", text: (e as Error).message }],

@@ -1,4 +1,4 @@
-import { Home, Sparkles, Puzzle, Plug, Database, FileText, Image as ImageIcon, Mic, Table2, Lock, Activity, ScrollText, KeyRound, Settings, Server, Share2, type LucideIcon } from "lucide-react";
+import { Home, Sparkles, Puzzle, Plug, Database, FileText, Image as ImageIcon, Mic, Table2, Lock, Activity, ScrollText, KeyRound, Settings, Server, Share2, Monitor, type LucideIcon } from "lucide-react";
 
 export type DashRoute = {
   to: string;
@@ -15,6 +15,7 @@ export const dashboardRoutes: DashRoute[] = [
   { to: "/dashboard/plugins", label: "Plugins", group: "Build", icon: Puzzle, keywords: "extensions runtime" },
   { to: "/dashboard/connectors", label: "Connectors", group: "Build", icon: Plug, keywords: "integrations" },
   { to: "/dashboard/mcp", label: "MCP", group: "Build", icon: Server, keywords: "model context protocol" },
+  { to: "/dashboard/machines", label: "Machines", group: "Build", icon: Monitor, keywords: "remote control desktop computer" },
   { to: "/dashboard/memory", label: "Memory", group: "Knowledge", icon: Database, keywords: "vector store" },
   { to: "/dashboard/mind-map", label: "Mind Map", group: "Knowledge", icon: Share2, keywords: "graph relations edges memory map" },
   { to: "/dashboard/documents", label: "Documents", group: "Knowledge", icon: FileText, keywords: "files pdf" },

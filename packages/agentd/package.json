@@ -1,0 +1,24 @@
+{
+  "name": "memorify-agentd",
+  "version": "0.1.0",
+  "description": "Memorify Remote daemon — pair your machine and let Memorify agents (or you) control it remotely",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('src/renderer.html','dist/renderer.html')\"",
+    "start": "electron .",
+    "dev": "tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('src/renderer.html','dist/renderer.html')\" && electron ."
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@nut-tree/nut-js": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^31.0.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -103,6 +103,14 @@
   path = "/api/admin/*"
 
 [[edge_functions]]
+  function = "migrate-machines"
+  path = "/api/migrate-machines"
+
+[[edge_functions]]
+  function = "machine"
+  path = "/api/machine/*"
+
+[[edge_functions]]
   function = "api"
   path = "/api/*"
 
