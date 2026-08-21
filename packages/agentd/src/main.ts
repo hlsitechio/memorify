@@ -36,6 +36,12 @@ import {
 import { loadState, saveState, clearState } from "./store.js";
 import { createInjector } from "./injector.js";
 
+// Ensure WebRTC sends real local IP candidates (bypasses slow mDNS resolution)
+// and prevent Chromium from throttling background video streams.
+app.commandLine.appendSwitch("disable-features", "WebRtcHideLocalIpsWithMdns");
+app.commandLine.appendSwitch("disable-background-timer-throttling");
+app.commandLine.appendSwitch("disable-renderer-backgrounding");
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const HOST = process.env.MEMORIFY_HOST || DEFAULT_HOST;
