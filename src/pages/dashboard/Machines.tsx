@@ -23,7 +23,7 @@ import {
   WifiOff,
   Loader2,
   Check,
-  Terminal,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -42,7 +42,7 @@ type Machine = {
   commands_total: number;
 };
 
-const PAIR_COMMAND = "npx https://memorify.dev/cli/memorify-agentd.tgz";
+const DOWNLOAD_URL = "https://github.com/hlsitechio/memorify/releases/latest";
 
 export default function Machines() {
   const { getToken } = useClerkAuth();
@@ -185,10 +185,17 @@ export default function Machines() {
               </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Terminal className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5" />
               <span>
                 Install the daemon:{" "}
-                <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono">{PAIR_COMMAND}</code>
+                <a
+                  href={DOWNLOAD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Download Memorify Remote
+                </a>
               </span>
             </div>
           </CardContent>

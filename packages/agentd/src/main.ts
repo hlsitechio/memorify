@@ -9,6 +9,7 @@
 // held only in memory (never written to disk).
 
 import { app, Tray, Menu, nativeImage, shell, dialog, BrowserWindow, ipcMain } from "electron";
+import { autoUpdater } from "electron-updater";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -248,11 +249,39 @@ ipcMain.on("memorify:renderer", async (_ev, msg: any) => {
 
 // ── app lifecycle ────────────────────────────────────────────────
 
+function loadTrayIcon() {
+  // Use the bundled brand icon (copied to dist/ during build); fall back to empty.
+  const iconPath = path.join(__dirname, "icon.png");
+  const img = nativeImage.createFromPath(iconPath);
+  return img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 16, height: 16 });
+}
+
+function enableAutoLaunch() {
+  // A remote-control daemon must be running to accept control — start on login.
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      openAsHidden: true,
+    });
+  } catch (e) {
+    console.warn("setLoginItemSettings failed:", e);
+  }
+}
+
+function checkForUpdates() {
+  // Only in a packaged build (autoUpdater needs the published app metadata).
+  if (!app.isPackaged) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.checkForUpdatesAndNotify().catch((e) => {
+    console.warn("update check failed:", e?.message ?? e);
+  });
+}
+
 app.whenReady().then(() => {
-  // A 1x1 transparent tray icon (no bundled asset yet — Layer 2 adds branding).
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  tray = new Tray(loadTrayIcon());
   rebuildTray();
+  enableAutoLaunch();
+  checkForUpdates();
 
   // Auto-pair on first launch if not already paired.
   void startPair();

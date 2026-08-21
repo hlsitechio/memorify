@@ -85,3 +85,7 @@ packages/cli/dist/
 # local dev artifacts
 *.tsbuildinfo
 check_db.ts
+
+packages/agentd/node_modules/
+packages/agentd/dist/
+packages/agentd/release/

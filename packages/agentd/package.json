@@ -5,10 +5,15 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/main.js",
+  "author": "Memorify",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('src/renderer.html','dist/renderer.html')\"",
+    "build": "tsc -p tsconfig.json && node -e \"const f=require('fs');f.copyFileSync('src/renderer.html','dist/renderer.html');f.copyFileSync('build/icon.png','dist/icon.png')\"",
     "start": "electron .",
-    "dev": "tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('src/renderer.html','dist/renderer.html')\" && electron ."
+    "dev": "tsc -p tsconfig.json && node -e \"const f=require('fs');f.copyFileSync('src/renderer.html','dist/renderer.html');f.copyFileSync('build/icon.png','dist/icon.png')\" && electron .",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "release": "npm run build && electron-builder --win --publish always"
   },
   "engines": {
     "node": ">=18"
@@ -19,6 +24,52 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-updater": "^6.3.9",
     "typescript": "^5.4.0"
+  },
+  "build": {
+    "appId": "dev.memorify.agentd",
+    "productName": "Memorify Remote",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist/main.js"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "build/icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "build/icon.png",
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "hlsitechio",
+      "repo": "memorify",
+      "releaseType": "release"
+    }
   }
 }
+
