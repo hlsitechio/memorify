@@ -21,10 +21,6 @@ import {
   session,
   desktopCapturer,
 } from "electron";
-// electron-updater is CommonJS — import the default and destructure (ESM named
-// import fails at runtime: "Named export 'autoUpdater' not found").
-import electronUpdater from "electron-updater";
-const { autoUpdater } = electronUpdater;
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -424,13 +420,21 @@ function enableAutoLaunch() {
   }
 }
 
-function checkForUpdates() {
+async function checkForUpdates() {
   // Only in a packaged build (autoUpdater needs the published app metadata).
   if (!app.isPackaged) return;
-  autoUpdater.autoDownload = true;
-  autoUpdater.checkForUpdatesAndNotify().catch((e) => {
-    console.warn("update check failed:", e?.message ?? e);
-  });
+  try {
+    const mod = await import("electron-updater");
+    const autoUpdater = mod.default?.autoUpdater || (mod as any).autoUpdater;
+    if (autoUpdater) {
+      autoUpdater.autoDownload = true;
+      autoUpdater.checkForUpdatesAndNotify().catch((e: any) => {
+        console.warn("update check failed:", e?.message ?? e);
+      });
+    }
+  } catch (e) {
+    console.warn("electron-updater not available:", e);
+  }
 }
 
 function setupScreenCapture() {
