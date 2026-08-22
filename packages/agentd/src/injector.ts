@@ -1,6 +1,5 @@
 // src/injector.ts — native Windows input injection via user32 / koffi
 import koffi from "koffi";
-import { screen } from "electron";
 
 export interface InputInjector {
   /** Move the mouse to absolute screen coordinates (0..1 normalized). */
@@ -44,6 +43,7 @@ export async function createInjector(): Promise<InputInjector | null> {
   try {
     const user32 = koffi.load("user32.dll");
     const SetCursorPos = user32.func("bool __stdcall SetCursorPos(int X, int Y)");
+    const GetSystemMetrics = user32.func("int __stdcall GetSystemMetrics(int nIndex)");
     const mouse_event = user32.func(
       "void __stdcall mouse_event(uint32 dwFlags, uint32 dx, uint32 dy, uint32 dwData, uintptr_t dwExtraInfo)",
     );
@@ -62,24 +62,21 @@ export async function createInjector(): Promise<InputInjector | null> {
     const KEYEVENTF_KEYUP = 0x0002;
     const KEYEVENTF_UNICODE = 0x0004;
 
-    console.log("[agentd:injector] Native Win32 user32 input injector initialized successfully");
+    const screenW = GetSystemMetrics(0) || 1920;
+    const screenH = GetSystemMetrics(1) || 1080;
+    console.log(`[agentd:injector] Win32 injector ready — Primary screen: ${screenW}x${screenH}`);
 
     return {
       async move(x: number, y: number) {
-        const display = screen.getPrimaryDisplay();
-        const { width, height } = display.bounds;
-        const pxX = Math.round(Math.min(1, Math.max(0, x)) * width);
-        const pxY = Math.round(Math.min(1, Math.max(0, y)) * height);
+        const pxX = Math.round(Math.min(1, Math.max(0, x)) * screenW);
+        const pxY = Math.round(Math.min(1, Math.max(0, y)) * screenH);
         SetCursorPos(pxX, pxY);
       },
 
       async click(button: string, x?: number, y?: number) {
-        const display = screen.getPrimaryDisplay();
-        const { width, height } = display.bounds;
-
         if (typeof x === "number" && typeof y === "number") {
-          const pxX = Math.round(Math.min(1, Math.max(0, x)) * width);
-          const pxY = Math.round(Math.min(1, Math.max(0, y)) * height);
+          const pxX = Math.round(Math.min(1, Math.max(0, x)) * screenW);
+          const pxY = Math.round(Math.min(1, Math.max(0, y)) * screenH);
           SetCursorPos(pxX, pxY);
         }
 

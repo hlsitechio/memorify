@@ -31,6 +31,7 @@ import {
   MachineRevokedError,
   PairingDenied,
   DEFAULT_HOST,
+  DAEMON_HEADERS,
   type DaemonStatus,
 } from "./daemon.js";
 import { loadState, saveState, clearState } from "./store.js";
@@ -361,7 +362,7 @@ async function captureAndSendFrame() {
         await fetch(`${HOST}/api/machine/signal/send`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            ...DAEMON_HEADERS,
             Authorization: `Bearer ${machineToken}`,
           },
           body: JSON.stringify({
@@ -453,7 +454,7 @@ async function signalLoop() {
     const res = await fetch(`${HOST}/api/machine/signal/poll`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        ...DAEMON_HEADERS,
         Authorization: `Bearer ${machineToken}`,
       },
       body: JSON.stringify({ session_id: activeSessionId }),
@@ -505,7 +506,7 @@ ipcMain.on("memorify:renderer", async (_ev, msg: any) => {
     await fetch(`${HOST}/api/machine/signal/send`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        ...DAEMON_HEADERS,
         Authorization: `Bearer ${machineToken}`,
       },
       body: JSON.stringify({

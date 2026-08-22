@@ -76,6 +76,12 @@ export class MachineRevokedError extends Error {
   }
 }
 
+export const DAEMON_HEADERS: Record<string, string> = {
+  "Content-Type": "application/json",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 MemorifyDaemon/0.1.7",
+  "Accept": "application/json, text/plain, */*",
+};
+
 /** POST /api/machine/pair/start — request a pairing code. */
 export async function startPairing(
   host: string,
@@ -84,7 +90,7 @@ export async function startPairing(
 ): Promise<PairStartResponse> {
   const res = await fetch(`${host}/api/machine/pair/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: DAEMON_HEADERS,
     body: JSON.stringify({ machine_name: machineName, platform }),
   });
   if (!res.ok) {
@@ -100,7 +106,7 @@ export async function pollPairing(
 ): Promise<PairPollResponse> {
   const res = await fetch(`${host}/api/machine/pair/poll`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: DAEMON_HEADERS,
     body: JSON.stringify({ machine_code: machineCode }),
   });
   if (!res.ok) {
@@ -109,21 +115,20 @@ export async function pollPairing(
   return (await res.json()) as PairPollResponse;
 }
 
-/** POST /api/machine/poll — heartbeat + command pickup (Bearer machine token). */
+/** POST /api/machine/poll — heartbeat + fetch queued commands. */
 export async function pollCommands(
   host: string,
-  machineToken: string,
+  token: string,
 ): Promise<PollResponse> {
   const res = await fetch(`${host}/api/machine/poll`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${machineToken}`,
+      ...DAEMON_HEADERS,
+      Authorization: `Bearer ${token}`,
     },
   });
-  if (res.status === 401) {
-    const body = await res.json().catch(() => ({}));
-    throw new MachineRevokedError((body as any).error ?? "machine_revoked");
+  if (res.status === 401 || res.status === 403) {
+    throw new MachineRevokedError(`status ${res.status}`);
   }
   if (!res.ok) {
     throw new Error(`poll failed: ${res.status} ${await res.text()}`);
@@ -131,24 +136,24 @@ export async function pollCommands(
   return (await res.json()) as PollResponse;
 }
 
-/** POST /api/machine/result — report a command's outcome. */
+/** POST /api/machine/result — post command execution outcome. */
 export async function postResult(
   host: string,
-  machineToken: string,
+  token: string,
   commandId: string,
   result: ExecResult,
-): Promise<boolean> {
+): Promise<void> {
   const res = await fetch(`${host}/api/machine/result`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${machineToken}`,
+      ...DAEMON_HEADERS,
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ command_id: commandId, ...result }),
+    body: JSON.stringify({ command_id: commandId, result }),
   });
-  if (!res.ok) return false;
-  const body = await res.json().catch(() => ({}));
-  return (body as any).success === true;
+  if (!res.ok) {
+    throw new Error(`postResult failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 /**
