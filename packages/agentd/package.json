@@ -1,6 +1,6 @@
 {
   "name": "memorify-agentd",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Memorify Remote daemon — pair your machine and let Memorify agents (or you) control it remotely",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",

@@ -23,7 +23,7 @@ const PAIR_TTL_SECONDS = 600;
 const SESSION_IDLE_SECONDS = 600; // session expires after 10 min without activity
 const ONLINE_WINDOW_SECONDS = 150; // machine considered offline if not polled
 const MAX_COMMAND_WAIT_SECONDS = 300;
-const MAX_SIGNAL_PAYLOAD_BYTES = 32_000; // SDP/ICE/input signaling cap
+const MAX_SIGNAL_PAYLOAD_BYTES = 500_000; // SDP/ICE/input and frame signaling cap
 
 // ── helpers ────────────────────────────────────────────────────
 
@@ -648,7 +648,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       const kind = typeof body.kind === "string" ? body.kind : "";
       const payload = body.payload ?? {};
       if (!sessionId || !kind) return json({ error: "session_id and kind required" }, 400);
-      if (!["offer", "answer", "ice", "input", "bye"].includes(kind)) return json({ error: "invalid_kind" }, 400);
+      if (!["offer", "answer", "ice", "input", "bye", "frame"].includes(kind)) return json({ error: "invalid_kind" }, 400);
 
       // Bound signaling payload size — SDP/ICE/input blobs must be small.
       const payloadStr = JSON.stringify(payload);
@@ -740,7 +740,7 @@ export async function handleMachineApi(req: Request): Promise<Response> {
       const kind = typeof body.kind === "string" ? body.kind : "";
       const payload = body.payload ?? {};
       if (!sessionId || !kind) return json({ error: "session_id and kind required" }, 400);
-      if (!["offer", "answer", "ice", "bye"].includes(kind)) return json({ error: "invalid_kind" }, 400);
+      if (!["offer", "answer", "ice", "bye", "frame"].includes(kind)) return json({ error: "invalid_kind" }, 400);
 
       const payloadStr = JSON.stringify(payload);
       if (payloadStr.length > MAX_SIGNAL_PAYLOAD_BYTES) {

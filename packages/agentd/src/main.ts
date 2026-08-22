@@ -341,6 +341,60 @@ function ensureStreamWindow(): BrowserWindow {
   return streamWindow;
 }
 
+let frameTimer: ReturnType<typeof setTimeout> | null = null;
+let lastFrameData = "";
+
+async function captureAndSendFrame() {
+  if (!machineToken || !activeSessionId) return;
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: 1280, height: 720 },
+    });
+    if (sources.length > 0 && activeSessionId && machineToken) {
+      const jpegBuf = sources[0].thumbnail.toJPEG(75);
+      const base64 = `data:image/jpeg;base64,${jpegBuf.toString("base64")}`;
+      if (base64 !== lastFrameData) {
+        lastFrameData = base64;
+        await fetch(`${HOST}/api/machine/signal/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${machineToken}`,
+          },
+          body: JSON.stringify({
+            session_id: activeSessionId,
+            kind: "frame",
+            payload: {
+              data: base64,
+              width: 1280,
+              height: 720,
+              ts: Date.now(),
+            },
+          }),
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.warn("[agentd:frame:capture] error:", e);
+  }
+  if (activeSessionId) {
+    frameTimer = setTimeout(() => void captureAndSendFrame(), 250);
+  }
+}
+
+function startFrameLoop() {
+  if (frameTimer) clearTimeout(frameTimer);
+  lastFrameData = "";
+  void captureAndSendFrame();
+}
+
+function stopFrameLoop() {
+  if (frameTimer) clearTimeout(frameTimer);
+  frameTimer = null;
+  lastFrameData = "";
+}
+
 async function startStreaming(sessionId: string) {
   if (!machineToken) return;
   const win = ensureStreamWindow();
@@ -375,6 +429,7 @@ async function startStreaming(sessionId: string) {
     });
   };
   sendStart();
+  startFrameLoop();
   startSignalLoop();
   setStatus("connected");
 }
@@ -383,6 +438,7 @@ function stopStreaming() {
   if (streamWindow) {
     streamWindow.webContents.send("memorify:main", { type: "stop" });
   }
+  stopFrameLoop();
   activeSessionId = null;
   if (signalTimer) clearTimeout(signalTimer);
   signalTimer = null;
@@ -403,14 +459,23 @@ async function signalLoop() {
     if (res.ok) {
       const body = await res.json().catch(() => ({}));
       const msgs = body.messages ?? [];
-      if (msgs.length > 0 && streamWindow) {
-        streamWindow.webContents.send("memorify:main", { type: "signal", messages: msgs });
+      if (msgs.length > 0) {
+        for (const m of msgs) {
+          if (m?.kind === "input" && m.payload) {
+            void handleRemoteInput(m.payload);
+          }
+        }
+        if (streamWindow) {
+          streamWindow.webContents.send("memorify:main", { type: "signal", messages: msgs });
+        }
       }
     }
   } catch (e) {
     console.error("[agentd:signal:poll] error:", e);
   }
-  signalTimer = setTimeout(() => void signalLoop(), 500);
+  if (activeSessionId) {
+    signalTimer = setTimeout(() => void signalLoop(), 500);
+  }
 }
 
 function startSignalLoop() {

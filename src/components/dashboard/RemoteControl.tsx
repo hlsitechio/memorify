@@ -26,6 +26,7 @@ export function RemoteControl({
   onClose: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const sessionRef = useRef<string | null>(null);
@@ -33,6 +34,8 @@ export function RemoteControl({
   const [state, setState] = useState<"connecting" | "connected" | "error">("connecting");
   const [error, setError] = useState<string | null>(null);
   const [resolution, setResolution] = useState<string | null>(null);
+  const [streamType, setStreamType] = useState<"frame" | "webrtc">("frame");
+  const [isWebRtcPlaying, setIsWebRtcPlaying] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -64,17 +67,40 @@ export function RemoteControl({
   const sendInput = useCallback((ev: Record<string, unknown>) => {
     if (dcRef.current && dcRef.current.readyState === "open") {
       dcRef.current.send(JSON.stringify(ev));
+    } else {
+      void sendSignal("input", ev);
     }
-  }, []);
+  }, [sendSignal]);
 
   useEffect(() => {
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     pendingCandidates.current = [];
+    setIsWebRtcPlaying(false);
+    setStreamType("frame");
 
     const handleSignal = async (msg: SignalMessage, pc: RTCPeerConnection) => {
       try {
-        if (msg.kind === "offer") {
+        if (msg.kind === "frame") {
+          const frameData = (msg.payload as any)?.data;
+          if (frameData && canvasRef.current) {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = canvasRef.current;
+              if (!canvas) return;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) return;
+              if (canvas.width !== img.width || canvas.height !== img.height) {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                setResolution(`${img.width}×${img.height}`);
+              }
+              ctx.drawImage(img, 0, 0);
+              setState("connected");
+            };
+            img.src = frameData;
+          }
+        } else if (msg.kind === "offer") {
           console.log("[RemoteControl] Received WebRTC offer from machine");
           await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
 
@@ -164,7 +190,6 @@ export function RemoteControl({
               console.warn("[RemoteControl] Initial video play call:", e);
             });
           }
-          setState("connected");
         };
 
         pc.ondatachannel = (ev) => {
@@ -176,13 +201,10 @@ export function RemoteControl({
           console.log("[RemoteControl] Connection state:", pc.connectionState);
           if (pc.connectionState === "connected") {
             setState("connected");
-          } else if (pc.connectionState === "failed") {
-            setState("error");
-            setError("WebRTC peer connection failed (ICE negotiation / NAT traversal error)");
           }
         };
 
-        const pollForOffer = async () => {
+        const pollForSignals = async () => {
           if (cancelled) return;
           try {
             const { ok: ok2, data: d2 } = await api(
@@ -197,11 +219,11 @@ export function RemoteControl({
             console.warn("[RemoteControl] Poll signaling error:", err);
           }
           if (!cancelled) {
-            pollTimer = setTimeout(pollForOffer, 500);
+            pollTimer = setTimeout(pollForSignals, 250);
           }
         };
 
-        void pollForOffer();
+        void pollForSignals();
       } catch (e) {
         if (!cancelled) {
           setState("error");
@@ -223,7 +245,7 @@ export function RemoteControl({
   }, [machineId, retryCount, api, sendSignal]);
 
   // ── input capture (mouse + keyboard) ────────────────────────────
-  const onMouseMove = (e: React.MouseEvent<HTMLVideoElement>) => {
+  const onMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     sendInput({
       type: "move",
@@ -231,16 +253,19 @@ export function RemoteControl({
       y: (e.clientY - rect.top) / rect.height,
     });
   };
-  const onMouseDown = (e: React.MouseEvent<HTMLVideoElement>) => {
+  const onMouseDown = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
     sendInput({
       type: "click",
       button: e.button === 2 ? "right" : e.button === 1 ? "middle" : "left",
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height,
     });
   };
-  const onWheel = (e: React.WheelEvent<HTMLVideoElement>) => {
+  const onWheel = (e: React.WheelEvent<HTMLElement>) => {
     sendInput({ type: "scroll", dx: e.deltaX, dy: e.deltaY });
   };
-  const onKeyDown = (e: React.KeyboardEvent<HTMLVideoElement>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key.length === 1) sendInput({ type: "type", text: e.key });
     else sendInput({ type: "key", key: e.key });
   };
@@ -248,7 +273,7 @@ export function RemoteControl({
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
       <div className="relative w-full max-w-6xl aspect-video bg-black rounded-xl overflow-hidden border border-border shadow-2xl flex flex-col justify-center items-center">
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-background/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-border/40">
+        <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-border/40 pointer-events-none">
           <span className="text-sm font-medium text-foreground">{machineName}</span>
           {state === "connecting" && (
             <span className="flex items-center gap-1 text-xs text-amber-500 font-medium">
@@ -257,7 +282,8 @@ export function RemoteControl({
           )}
           {state === "connected" && (
             <span className="flex items-center gap-1 text-xs text-emerald-500 font-medium">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> live
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              {isWebRtcPlaying ? "live (60 FPS WebRTC)" : "live (Instant Frame Relay)"}
             </span>
           )}
           {resolution && (
@@ -268,7 +294,7 @@ export function RemoteControl({
         </div>
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 rounded-full bg-background/70 hover:bg-background/90 backdrop-blur-md p-2 text-foreground transition-colors border border-border/40"
+          className="absolute top-3 right-3 z-20 rounded-full bg-background/80 hover:bg-background/95 backdrop-blur-md p-2 text-foreground transition-colors border border-border/40"
           title="Close viewer"
         >
           <X className="h-4 w-4" />
@@ -289,37 +315,52 @@ export function RemoteControl({
             </div>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-contain cursor-crosshair bg-black"
-            onLoadedMetadata={() => {
-              if (videoRef.current) {
-                const w = videoRef.current.videoWidth;
-                const h = videoRef.current.videoHeight;
-                if (w && h) setResolution(`${w}×${h}`);
-                console.log("[RemoteControl] Video metadata loaded:", w, "x", h);
-                videoRef.current.play().catch(console.warn);
-              }
-            }}
-            onCanPlay={() => {
-              if (videoRef.current) {
-                const w = videoRef.current.videoWidth;
-                const h = videoRef.current.videoHeight;
-                if (w && h) setResolution(`${w}×${h}`);
-                videoRef.current.play().catch(console.warn);
-              }
-            }}
-            onPlay={() => console.log("[RemoteControl] Video is actively playing")}
+          <div
+            className="relative w-full h-full flex items-center justify-center cursor-crosshair focus:outline-none"
+            tabIndex={0}
             onMouseMove={onMouseMove}
             onMouseDown={onMouseDown}
             onContextMenu={(e) => e.preventDefault()}
             onWheel={onWheel}
             onKeyDown={onKeyDown}
-            tabIndex={0}
-          />
+          >
+            {/* Layer 1: Instant High-Reliability Canvas Frame Relay */}
+            <canvas
+              ref={canvasRef}
+              className={`w-full h-full object-contain bg-black ${isWebRtcPlaying ? "hidden" : "block"}`}
+            />
+
+            {/* Layer 2: 60 FPS WebRTC Hardware Video Upgrade */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-contain bg-black ${isWebRtcPlaying ? "block" : "hidden"}`}
+              onLoadedMetadata={() => {
+                if (videoRef.current) {
+                  const w = videoRef.current.videoWidth;
+                  const h = videoRef.current.videoHeight;
+                  if (w && h) setResolution(`${w}×${h}`);
+                  console.log("[RemoteControl] WebRTC metadata loaded:", w, "x", h);
+                  videoRef.current.play().catch(console.warn);
+                }
+              }}
+              onCanPlay={() => {
+                if (videoRef.current) {
+                  const w = videoRef.current.videoWidth;
+                  const h = videoRef.current.videoHeight;
+                  if (w && h) setResolution(`${w}×${h}`);
+                  videoRef.current.play().catch(console.warn);
+                }
+              }}
+              onPlay={() => {
+                console.log("[RemoteControl] WebRTC video playing -> upgrading to 60 FPS layer");
+                setIsWebRtcPlaying(true);
+                setStreamType("webrtc");
+              }}
+            />
+          </div>
         )}
       </div>
     </div>
