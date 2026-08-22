@@ -259,6 +259,7 @@ export function RemoteControl({
     }
   };
   const onMouseDown = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.focus();
     const rect = e.currentTarget.getBoundingClientRect();
     sendInput({
       type: "click",

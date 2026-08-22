@@ -1,5 +1,6 @@
-// src/injector.ts — native Windows/cross-platform input injection via user32 / koffi
+// src/injector.ts — native Windows input injection via user32 / koffi
 import koffi from "koffi";
+import { screen } from "electron";
 
 export interface InputInjector {
   /** Move the mouse to absolute screen coordinates (0..1 normalized). */
@@ -42,6 +43,7 @@ export async function createInjector(): Promise<InputInjector | null> {
 
   try {
     const user32 = koffi.load("user32.dll");
+    const SetCursorPos = user32.func("bool __stdcall SetCursorPos(int X, int Y)");
     const mouse_event = user32.func(
       "void __stdcall mouse_event(uint32 dwFlags, uint32 dx, uint32 dy, uint32 dwData, uintptr_t dwExtraInfo)",
     );
@@ -49,7 +51,6 @@ export async function createInjector(): Promise<InputInjector | null> {
       "void __stdcall keybd_event(uint8 bVk, uint8 bScan, uint32 dwFlags, uintptr_t dwExtraInfo)",
     );
 
-    const MOUSEEVENTF_MOVE = 0x0001;
     const MOUSEEVENTF_LEFTDOWN = 0x0002;
     const MOUSEEVENTF_LEFTUP = 0x0004;
     const MOUSEEVENTF_RIGHTDOWN = 0x0008;
@@ -57,27 +58,29 @@ export async function createInjector(): Promise<InputInjector | null> {
     const MOUSEEVENTF_MIDDLEDOWN = 0x0020;
     const MOUSEEVENTF_MIDDLEUP = 0x0040;
     const MOUSEEVENTF_WHEEL = 0x0800;
-    const MOUSEEVENTF_ABSOLUTE = 0x8000;
 
     const KEYEVENTF_KEYUP = 0x0002;
     const KEYEVENTF_UNICODE = 0x0004;
 
+    console.log("[agentd:injector] Native Win32 user32 input injector initialized successfully");
+
     return {
       async move(x: number, y: number) {
-        const clampedX = Math.min(1, Math.max(0, x));
-        const clampedY = Math.min(1, Math.max(0, y));
-        const absX = Math.round(clampedX * 65535);
-        const absY = Math.round(clampedY * 65535);
-        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE, absX, absY, 0, 0);
+        const display = screen.getPrimaryDisplay();
+        const { width, height } = display.bounds;
+        const pxX = Math.round(Math.min(1, Math.max(0, x)) * width);
+        const pxY = Math.round(Math.min(1, Math.max(0, y)) * height);
+        SetCursorPos(pxX, pxY);
       },
 
       async click(button: string, x?: number, y?: number) {
+        const display = screen.getPrimaryDisplay();
+        const { width, height } = display.bounds;
+
         if (typeof x === "number" && typeof y === "number") {
-          const clampedX = Math.min(1, Math.max(0, x));
-          const clampedY = Math.min(1, Math.max(0, y));
-          const absX = Math.round(clampedX * 65535);
-          const absY = Math.round(clampedY * 65535);
-          mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE, absX, absY, 0, 0);
+          const pxX = Math.round(Math.min(1, Math.max(0, x)) * width);
+          const pxY = Math.round(Math.min(1, Math.max(0, y)) * height);
+          SetCursorPos(pxX, pxY);
         }
 
         if (button === "right") {
@@ -109,7 +112,7 @@ export async function createInjector(): Promise<InputInjector | null> {
       },
 
       async scroll(_dx: number, dy: number) {
-        const delta = -Math.round(dy * 3);
+        const delta = -Math.round(dy * 4);
         mouse_event(MOUSEEVENTF_WHEEL, 0, 0, delta, 0);
       },
     };
