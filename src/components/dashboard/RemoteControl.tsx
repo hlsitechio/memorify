@@ -101,21 +101,36 @@ export function RemoteControl({
             img.src = frameData;
           }
         } else if (msg.kind === "offer") {
-          console.log("[RemoteControl] Received WebRTC offer from machine");
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+          console.log("[RemoteControl] Received WebRTC offer from machine:", msg.payload);
+          const rawSdp = msg.payload?.sdp ?? msg.payload;
+          const sdpObj: RTCSessionDescriptionInit =
+            typeof rawSdp === "object" && rawSdp && rawSdp.type && rawSdp.sdp
+              ? { type: rawSdp.type, sdp: rawSdp.sdp }
+              : typeof rawSdp === "string"
+              ? { type: "offer", sdp: rawSdp }
+              : rawSdp?.sdp
+              ? { type: "offer", sdp: rawSdp.sdp }
+              : { type: "offer", sdp: "" };
 
-          // Drain queued ICE candidates received prior to offer
-          while (pendingCandidates.current.length > 0) {
-            const cand = pendingCandidates.current.shift()!;
-            await pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) =>
-              console.warn("[RemoteControl] Buffered ICE candidate add error:", e),
-            );
+          if (sdpObj.sdp) {
+            await pc.setRemoteDescription(new RTCSessionDescription(sdpObj));
+
+            // Drain queued ICE candidates received prior to offer
+            while (pendingCandidates.current.length > 0) {
+              const cand = pendingCandidates.current.shift()!;
+              await pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) =>
+                console.warn("[RemoteControl] Buffered ICE candidate add error:", e),
+              );
+            }
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            const cleanAnswer = pc.localDescription
+              ? { type: pc.localDescription.type, sdp: pc.localDescription.sdp }
+              : answer;
+            await sendSignal("answer", { sdp: cleanAnswer });
+            console.log("[RemoteControl] Sent WebRTC answer to machine");
           }
-
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await sendSignal("answer", { sdp: pc.localDescription });
-          console.log("[RemoteControl] Sent WebRTC answer to machine");
         } else if (msg.kind === "ice") {
           const cand = msg.payload?.candidate;
           if (cand) {
