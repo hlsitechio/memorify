@@ -244,14 +244,19 @@ export function RemoteControl({
     };
   }, [machineId, retryCount, api, sendSignal]);
 
+  const lastMoveSent = useRef(0);
   // ── input capture (mouse + keyboard) ────────────────────────────
   const onMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    sendInput({
-      type: "move",
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height,
-    });
+    const now = Date.now();
+    if (dcRef.current?.readyState === "open" || now - lastMoveSent.current > 40) {
+      lastMoveSent.current = now;
+      const rect = e.currentTarget.getBoundingClientRect();
+      sendInput({
+        type: "move",
+        x: (e.clientX - rect.left) / rect.width,
+        y: (e.clientY - rect.top) / rect.height,
+      });
+    }
   };
   const onMouseDown = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

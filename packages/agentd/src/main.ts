@@ -238,7 +238,9 @@ async function handleRemoteInput(data: unknown) {
         break;
       case "click": {
         const button = typeof ev.button === "string" && ALLOWED_BUTTONS.has(ev.button) ? ev.button : "left";
-        await injector.click(button);
+        const x = typeof ev.x === "number" ? clamp01(ev.x) : undefined;
+        const y = typeof ev.y === "number" ? clamp01(ev.y) : undefined;
+        await injector.click(button, x, y);
         break;
       }
       case "type": {
@@ -349,10 +351,10 @@ async function captureAndSendFrame() {
   try {
     const sources = await desktopCapturer.getSources({
       types: ["screen"],
-      thumbnailSize: { width: 1280, height: 720 },
+      thumbnailSize: { width: 1920, height: 1080 },
     });
     if (sources.length > 0 && activeSessionId && machineToken) {
-      const jpegBuf = sources[0].thumbnail.toJPEG(75);
+      const jpegBuf = sources[0].thumbnail.toJPEG(80);
       const base64 = `data:image/jpeg;base64,${jpegBuf.toString("base64")}`;
       if (base64 !== lastFrameData) {
         lastFrameData = base64;
@@ -367,8 +369,8 @@ async function captureAndSendFrame() {
             kind: "frame",
             payload: {
               data: base64,
-              width: 1280,
-              height: 720,
+              width: 1920,
+              height: 1080,
               ts: Date.now(),
             },
           }),
