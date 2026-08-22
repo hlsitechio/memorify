@@ -1,120 +1,94 @@
-// src/injector.ts — native Windows input injection via user32 / koffi
-import koffi from "koffi";
+// src/injector.ts — input injection (mouse/keyboard) via @nut-tree-fork/nut-js
+import { mouse, keyboard, screen, Button, Key, Point } from "@nut-tree-fork/nut-js";
+
+// Disable auto delays for ultra-fast, real-time response
+mouse.config.autoDelayMs = 0;
+keyboard.config.autoDelayMs = 0;
 
 export interface InputInjector {
   /** Move the mouse to absolute screen coordinates (0..1 normalized). */
   move(x: number, y: number): Promise<void>;
   /** Click a button: "left" | "right" | "middle". */
   click(button: string, x?: number, y?: number): Promise<void>;
-  /** Type a string of text via Unicode keyboard events. */
+  /** Type a string of text. */
   type(text: string): Promise<void>;
-  /** Press a special key (e.g. "Enter", "Backspace", "Escape"). */
+  /** Press a key (e.g. "Enter", "Backspace", "Escape"). */
   key(key: string): Promise<void>;
   /** Scroll by a delta. */
   scroll(dx: number, dy: number): Promise<void>;
 }
 
-// Windows Virtual Key codes
-const VK_MAP: Record<string, number> = {
-  enter: 0x0d,
-  return: 0x0d,
-  backspace: 0x08,
-  escape: 0x1b,
-  tab: 0x09,
-  " ": 0x20,
-  space: 0x20,
-  arrowleft: 0x25,
-  arrowup: 0x26,
-  arrowright: 0x27,
-  arrowdown: 0x28,
-  delete: 0x2e,
-  home: 0x24,
-  end: 0x23,
-  pageup: 0x21,
-  pagedown: 0x22,
+const BUTTON_MAP: Record<string, Button> = {
+  left: Button.LEFT,
+  right: Button.RIGHT,
+  middle: Button.MIDDLE,
+};
+
+const KEY_MAP: Record<string, Key> = {
+  enter: Key.Enter,
+  return: Key.Enter,
+  backspace: Key.Backspace,
+  escape: Key.Escape,
+  tab: Key.Tab,
+  " ": Key.Space,
+  space: Key.Space,
+  arrowup: Key.Up,
+  arrowdown: Key.Down,
+  arrowleft: Key.Left,
+  arrowright: Key.Right,
+  delete: Key.Delete,
+  home: Key.Home,
+  end: Key.End,
+  pageup: Key.PageUp,
+  pagedown: Key.PageDown,
 };
 
 export async function createInjector(): Promise<InputInjector | null> {
-  if (process.platform !== "win32") {
-    console.warn("[agentd:injector] Native input currently optimized for Windows win32");
-    return null;
-  }
-
   try {
-    const user32 = koffi.load("user32.dll");
-    const SetCursorPos = user32.func("bool __stdcall SetCursorPos(int X, int Y)");
-    const GetSystemMetrics = user32.func("int __stdcall GetSystemMetrics(int nIndex)");
-    const mouse_event = user32.func(
-      "void __stdcall mouse_event(uint32 dwFlags, uint32 dx, uint32 dy, uint32 dwData, uintptr_t dwExtraInfo)",
-    );
-    const keybd_event = user32.func(
-      "void __stdcall keybd_event(uint8 bVk, uint8 bScan, uint32 dwFlags, uintptr_t dwExtraInfo)",
-    );
-
-    const MOUSEEVENTF_LEFTDOWN = 0x0002;
-    const MOUSEEVENTF_LEFTUP = 0x0004;
-    const MOUSEEVENTF_RIGHTDOWN = 0x0008;
-    const MOUSEEVENTF_RIGHTUP = 0x0010;
-    const MOUSEEVENTF_MIDDLEDOWN = 0x0020;
-    const MOUSEEVENTF_MIDDLEUP = 0x0040;
-    const MOUSEEVENTF_WHEEL = 0x0800;
-
-    const KEYEVENTF_KEYUP = 0x0002;
-    const KEYEVENTF_UNICODE = 0x0004;
-
-    const screenW = GetSystemMetrics(0) || 1920;
-    const screenH = GetSystemMetrics(1) || 1080;
-    console.log(`[agentd:injector] Win32 injector ready — Primary screen: ${screenW}x${screenH}`);
+    const screenWidth = (await screen.width().catch(() => 1920)) || 1920;
+    const screenHeight = (await screen.height().catch(() => 1080)) || 1080;
+    console.log(`[agentd:injector] @nut-tree-fork/nut-js ready — Screen size: ${screenWidth}x${screenHeight}`);
 
     return {
       async move(x: number, y: number) {
-        const pxX = Math.round(Math.min(1, Math.max(0, x)) * screenW);
-        const pxY = Math.round(Math.min(1, Math.max(0, y)) * screenH);
-        SetCursorPos(pxX, pxY);
+        const targetX = Math.round(Math.min(1, Math.max(0, x)) * screenWidth);
+        const targetY = Math.round(Math.min(1, Math.max(0, y)) * screenHeight);
+        await mouse.setPosition(new Point(targetX, targetY));
       },
 
       async click(button: string, x?: number, y?: number) {
         if (typeof x === "number" && typeof y === "number") {
-          const pxX = Math.round(Math.min(1, Math.max(0, x)) * screenW);
-          const pxY = Math.round(Math.min(1, Math.max(0, y)) * screenH);
-          SetCursorPos(pxX, pxY);
+          const targetX = Math.round(Math.min(1, Math.max(0, x)) * screenWidth);
+          const targetY = Math.round(Math.min(1, Math.max(0, y)) * screenHeight);
+          await mouse.setPosition(new Point(targetX, targetY));
         }
-
-        if (button === "right") {
-          mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
-          mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
-        } else if (button === "middle") {
-          mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0);
-          mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
-        } else {
-          mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-          mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-        }
+        const b = BUTTON_MAP[button.toLowerCase()] ?? Button.LEFT;
+        await mouse.click(b);
       },
 
       async type(text: string) {
-        for (let i = 0; i < text.length; i++) {
-          const code = text.charCodeAt(i);
-          keybd_event(0, code, KEYEVENTF_UNICODE, 0);
-          keybd_event(0, code, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, 0);
-        }
+        await keyboard.type(text);
       },
 
       async key(k: string) {
-        const vk = VK_MAP[k.toLowerCase()];
-        if (vk) {
-          keybd_event(vk, 0, 0, 0);
-          keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+        const keyEnum = KEY_MAP[k.toLowerCase()];
+        if (keyEnum !== undefined) {
+          await keyboard.pressKey(keyEnum);
+          await keyboard.releaseKey(keyEnum);
         }
       },
 
       async scroll(_dx: number, dy: number) {
-        const delta = -Math.round(dy * 4);
-        mouse_event(MOUSEEVENTF_WHEEL, 0, 0, delta, 0);
+        const delta = Math.round(dy);
+        if (delta > 0) {
+          await mouse.scrollDown(Math.min(10, delta));
+        } else if (delta < 0) {
+          await mouse.scrollUp(Math.min(10, Math.abs(delta)));
+        }
       },
     };
   } catch (e) {
-    console.error("[agentd:injector] Failed to initialize user32 input injector:", e);
+    console.error("[agentd:injector] Failed to initialize nut-js injector:", e);
     return null;
   }
 }
