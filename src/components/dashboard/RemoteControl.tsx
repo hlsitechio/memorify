@@ -234,46 +234,58 @@ export function RemoteControl({
 
     void connect();
 
+    const onWindowKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key.length === 1) {
+        sendInput({ type: "type", text: e.key });
+      } else {
+        sendInput({ type: "key", key: e.key });
+      }
+    };
+    window.addEventListener("keydown", onWindowKeyDown);
+
     return () => {
       cancelled = true;
       if (pollTimer) clearTimeout(pollTimer);
+      window.removeEventListener("keydown", onWindowKeyDown);
       void sendSignal("bye", {});
       if (pcRef.current) pcRef.current.close();
       pcRef.current = null;
       dcRef.current = null;
     };
-  }, [machineId, retryCount, api, sendSignal]);
+  }, [machineId, retryCount, api, sendSignal, sendInput, onClose]);
 
   const lastMoveSent = useRef(0);
   // ── input capture (mouse + keyboard) ────────────────────────────
+  const getCoordinates = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+    return { x, y };
+  };
+
   const onMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const now = Date.now();
     if (dcRef.current?.readyState === "open" || now - lastMoveSent.current > 40) {
       lastMoveSent.current = now;
-      const rect = e.currentTarget.getBoundingClientRect();
-      sendInput({
-        type: "move",
-        x: (e.clientX - rect.left) / rect.width,
-        y: (e.clientY - rect.top) / rect.height,
-      });
+      const { x, y } = getCoordinates(e);
+      sendInput({ type: "move", x, y });
     }
   };
   const onMouseDown = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.focus();
-    const rect = e.currentTarget.getBoundingClientRect();
+    const { x, y } = getCoordinates(e);
     sendInput({
       type: "click",
       button: e.button === 2 ? "right" : e.button === 1 ? "middle" : "left",
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height,
+      x,
+      y,
     });
   };
   const onWheel = (e: React.WheelEvent<HTMLElement>) => {
     sendInput({ type: "scroll", dx: e.deltaX, dy: e.deltaY });
-  };
-  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
-    if (e.key.length === 1) sendInput({ type: "type", text: e.key });
-    else sendInput({ type: "key", key: e.key });
   };
 
   return (
@@ -324,16 +336,16 @@ export function RemoteControl({
           <div
             className="relative w-full h-full flex items-center justify-center cursor-crosshair focus:outline-none"
             tabIndex={0}
-            onMouseMove={onMouseMove}
-            onMouseDown={onMouseDown}
             onContextMenu={(e) => e.preventDefault()}
-            onWheel={onWheel}
-            onKeyDown={onKeyDown}
           >
             {/* Layer 1: Instant High-Reliability Canvas Frame Relay */}
             <canvas
               ref={canvasRef}
-              className={`w-full h-full object-contain bg-black ${isWebRtcPlaying ? "hidden" : "block"}`}
+              className={`w-full h-full object-contain bg-black cursor-crosshair ${isWebRtcPlaying ? "hidden" : "block"}`}
+              onMouseMove={onMouseMove}
+              onMouseDown={onMouseDown}
+              onWheel={onWheel}
+              onContextMenu={(e) => e.preventDefault()}
             />
 
             {/* Layer 2: 60 FPS WebRTC Hardware Video Upgrade */}
@@ -342,7 +354,11 @@ export function RemoteControl({
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-contain bg-black ${isWebRtcPlaying ? "block" : "hidden"}`}
+              className={`w-full h-full object-contain bg-black cursor-crosshair ${isWebRtcPlaying ? "block" : "hidden"}`}
+              onMouseMove={onMouseMove}
+              onMouseDown={onMouseDown}
+              onWheel={onWheel}
+              onContextMenu={(e) => e.preventDefault()}
               onLoadedMetadata={() => {
                 if (videoRef.current) {
                   const w = videoRef.current.videoWidth;

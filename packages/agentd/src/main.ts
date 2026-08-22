@@ -464,6 +464,7 @@ async function signalLoop() {
       if (msgs.length > 0) {
         for (const m of msgs) {
           if (m?.kind === "input" && m.payload) {
+            console.log("[agentd:main] Executing remote input:", m.payload);
             void handleRemoteInput(m.payload);
           }
         }
@@ -476,7 +477,7 @@ async function signalLoop() {
     console.error("[agentd:signal:poll] error:", e);
   }
   if (activeSessionId) {
-    signalTimer = setTimeout(() => void signalLoop(), 500);
+    signalTimer = setTimeout(() => void signalLoop(), 150);
   }
 }
 
